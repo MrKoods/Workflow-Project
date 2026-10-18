@@ -1,7 +1,7 @@
 ---
 title: Launch my AI automation gig on Fiverr
 doneWhen: Gig published with packages, copy, images and 2 portfolio samples
-status: active
+status: queued
 bundle:
   folders: ["~/Documents/Fiverr"]
   urls: ["https://www.fiverr.com"]
