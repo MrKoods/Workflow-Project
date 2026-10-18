@@ -2,6 +2,7 @@ import {
   app,
   BrowserWindow,
   globalShortcut,
+  ipcMain,
   Menu,
   nativeImage,
   Tray,
@@ -10,7 +11,9 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as wait } from 'node:timers/promises';
 import started from 'electron-squirrel-startup';
+import { createOrchestrator } from '../orchestrator/index.ts';
 import trayIconUrl from './assets/tray.png';
+import { IPC } from './ipc';
 
 // Hotkeys decided 2026-10-17 (docs/FEATURES.md §0).
 const TOGGLE_KEY = 'Control+Alt+C';
@@ -20,10 +23,20 @@ const QUIT_KEY = 'Control+Alt+Q';
 if (started) app.quit();
 
 // One Cockpit at a time; a second launch just brings the first one forward.
-if (!app.requestSingleInstanceLock()) {
+const isPrimary = app.requestSingleInstanceLock();
+if (!isPrimary) {
   console.log('[cockpit] already running; handing off to that instance');
   app.quit();
 }
+
+// Quest files and the journal live in the repo during Phase 0; env vars override.
+const orchestrator = createOrchestrator({
+  questsDir:
+    process.env.COCKPIT_QUESTS_DIR ?? path.join(app.getAppPath(), 'quests'),
+  journalDir:
+    process.env.COCKPIT_JOURNAL_DIR ??
+    path.join(app.getAppPath(), 'journal', 'local'),
+});
 
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -118,7 +131,17 @@ const registerHotkeys = () => {
 
 app.on('second-instance', showWindow);
 
-app.whenReady().then(() => {
+const connectOrchestrator = async () => {
+  await orchestrator.start();
+  ipcMain.handle(IPC.snapshot, () => orchestrator.snapshot());
+  ipcMain.handle(IPC.completeObjective, () => orchestrator.completeObjective());
+  ipcMain.handle(IPC.startNextQuest, () => orchestrator.startNextQuest());
+  orchestrator.onChange((s) => win?.webContents.send(IPC.snapshot, s));
+};
+
+app.whenReady().then(async () => {
+  if (!isPrimary) return;
+  await connectOrchestrator();
   createWindow();
   createTray();
   registerHotkeys();
@@ -131,4 +154,5 @@ app.on('window-all-closed', () => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
+  orchestrator.stop();
 });

@@ -31,7 +31,7 @@
 - [x] All colors/fonts come from `tokens.json` → CSS variables. Grep check: no hex colors inside `ui/` components.
 
 ## Task 3 — Quests from files
-- [ ] Quest file format (markdown + frontmatter), e.g. `quests/fiverr-gig.md`:
+- [x] Quest file format (markdown + frontmatter), e.g. `quests/fiverr-gig.md`:
   ```
   ---
   title: Launch my AI automation gig on Fiverr
@@ -48,8 +48,8 @@
   - [ ] Build 2 portfolio demos
   - [ ] Publish + route notifications
   ```
-- [ ] Orchestrator loads quests, enforces **one active**, exposes current quest/objective to the UI.
-- [ ] "Complete objective" checks the box in the file, advances the trail, adds XP, writes a journal entry.
+- [x] Orchestrator loads quests, enforces **one active**, exposes current quest/objective to the UI.
+- [x] "Complete objective" checks the box in the file, advances the trail, adds XP, writes a journal entry. (`npm test` covers the orchestrator.)
 
 ## Task 4 — Context bundles
 - [ ] Starting a quest opens its folders (Explorer) and URLs (default browser).

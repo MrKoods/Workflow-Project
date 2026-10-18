@@ -1,5 +1,6 @@
 import { h, svg } from './dom';
-import type { HudQuest } from './types';
+import type { Objective } from '../../orchestrator/types';
+import type { BundleItem } from './types';
 
 // The trail is drawn in a 1440×340 box stretched to the window width.
 const W = 1440;
@@ -23,7 +24,7 @@ const spread = (n: number, from: number, to: number) =>
 
 type NodeState = 'done' | 'now' | 'next';
 
-export function createTrail(quest: HudQuest, onPick: (index: number) => void) {
+export function createTrail(titles: string[], bundle: BundleItem[]) {
   const flow = pathFor(trailY);
   const stroke = (cls: string, d: string) =>
     svg('path', { class: cls, d, 'vector-effect': 'non-scaling-stroke' });
@@ -60,8 +61,8 @@ export function createTrail(quest: HudQuest, onPick: (index: number) => void) {
   );
 
   // Bundle items float along the upper context line.
-  const fx = spread(quest.bundle.length, 0.08, 0.9);
-  quest.bundle.forEach((item, i) => {
+  const fx = spread(bundle.length, 0.08, 0.9);
+  bundle.forEach((item, i) => {
     el.append(
       h(
         'span',
@@ -87,44 +88,53 @@ export function createTrail(quest: HudQuest, onPick: (index: number) => void) {
     );
   });
 
-  const xs = spread(quest.objectives.length, 0.12, 0.84);
+  // Nodes are display-only: progress changes through the orchestrator, not by clicking the trail.
+  const xs = spread(titles.length, 0.12, 0.84);
   const marker = h('span', {
     class: 'trail-marker',
     attrs: { 'aria-hidden': 'true' },
   });
-  const nodes = quest.objectives.map((title, i) => {
+  const nodes = titles.map((title, i) => {
     const y = trailY(xs[i] * W);
     const x = `${(xs[i] * 100).toFixed(2)}%`;
     const shape = h('span', { class: 'trail-node-shape' });
-    const button = h(
-      'button',
+    const node = h(
+      'span',
       {
         class: 'trail-node',
         vars: { '--x': x, '--y': `${y.toFixed(1)}px` },
-        attrs: { 'aria-label': `Objective ${i + 1}: ${title}` },
-        on: { click: () => onPick(i) },
+        attrs: { role: 'img' },
       },
       [shape],
     );
     const label = h('span', {
       class: 'trail-label',
       text: title,
+      attrs: { 'aria-hidden': 'true' },
       vars: { '--x': x, '--y': `${(y + 24).toFixed(1)}px` },
     });
-    el.append(button, label);
-    return { shape, label, x, y };
+    el.append(node, label);
+    return { node, shape, label, title, x, y };
   });
   el.append(marker);
 
   return {
     el,
-    update(step: number) {
-      const allDone = step >= nodes.length;
+    update(objectives: Objective[]) {
+      const step = objectives.findIndex((o) => !o.done);
+      const allDone = step < 0;
       nodes.forEach((n, i) => {
-        const state: NodeState =
-          i < step ? 'done' : i === step ? 'now' : 'next';
+        const state: NodeState = objectives[i]?.done
+          ? 'done'
+          : i === step
+            ? 'now'
+            : 'next';
         n.shape.dataset.state = state;
         n.label.dataset.state = state;
+        n.node.setAttribute(
+          'aria-label',
+          `Objective ${i + 1}, ${state === 'now' ? 'current' : state}: ${n.title}`,
+        );
       });
       marker.hidden = allDone;
       if (!allDone) {

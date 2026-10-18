@@ -31,7 +31,8 @@ export function createXp(objectiveCount: number) {
     update(done: number) {
       const xp = Math.min(done, objectiveCount) * XP_PER_OBJECTIVE;
       count.textContent = `${xp} / ${max}`;
-      fill.style.setProperty('--pct', `${Math.round((xp / max) * 100)}%`);
+      const pct = max ? Math.round((xp / max) * 100) : 0;
+      fill.style.setProperty('--pct', `${pct}%`);
     },
     pop: () => replay(pop),
   };

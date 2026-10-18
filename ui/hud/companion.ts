@@ -1,5 +1,5 @@
 import { h } from './dom';
-import { AI_LABELS, COMPANION_LINES } from './sample';
+import { AI_LABELS, COMPANION_LINES } from './copy';
 import type { AiState } from './types';
 
 const WAVE_BARS = 24;

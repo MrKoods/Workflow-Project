@@ -13,6 +13,7 @@
 - 2026-10-17 — **Skin mechanics (Task 2):** `skins/<name>/tokens.json` is flattened to CSS variables on `:root` (`color.taskBright` → `--color-task-bright`); `skin.css` is loaded as one `<style id="skin">`, discovered by folder via `import.meta.glob` (so a new skin touches only its folder). `ui/hud.css` holds layout only. skin.css is hex-free too: alpha variants use CSS relative color `rgb(from var(--x) r g b / a)`. Fonts are self-hosted via `@fontsource/*` (imported from skin.css) — offline-safe, strict CSP, no Google Fonts at runtime.
 - 2026-10-17 — **Port deviations from prototype:** mouse parallax dropped (it lived in the script block; also cheaper while other apps run); "Party" agent list on the orb column left out until Phase 2; trail progress uses a clipped layer instead of `pathLength` dashes (the prototype's dash approach mis-renders when the 1440 viewBox is stretched to wider screens). Debug keys: F2 cycle orb state, F3 calm mode, F12 DevTools.
 - 2026-10-17 — **Quest title fit:** the title may wrap to two lines at the skin's size; if it would need three or more, the font shrinks (5% steps, floor 40%) until it fits in two. Refits on resize and after fonts load. Empty vertical band on large screens: leave as is for now.
+- 2026-10-17 — **Quests from files (Task 3):** file-first, as in §4's speculation. `quests/*.md` is the source of truth (no DB yet); the orchestrator (main process) re-reads files before every change and watches the folder, so edits from VS Code/Claude Code show up live. Rules: more than one `status: active` → the first by file name stays active, the rest are set to `queued` in their files and journaled; the current objective is the first unticked box; finishing the last one sets `status: done` + `completedAt`, and the HUD keeps the finished quest on screen with "Next quest", which activates the first queued quest (file-name order). Trail nodes are display-only. Journal = `journal/local/YYYY-MM-DD.jsonl` (gitignored). Paths override via `COCKPIT_QUESTS_DIR` / `COCKPIT_JOURNAL_DIR`. XP bar = objectives done in the current quest ×100.
 - 2026-10-17 — Frostbound reference prototype lives at `docs/reference/frostbound-prototype.html`. Port its CSS/markup; its script block is prototype-only and is ignored.
 
 ## 1. What Cockpit is, in one paragraph
@@ -162,7 +163,7 @@ Objective    id, questId, title, type(you|companion|prep-approve), status, order
 Bundle       id, folders[], files[], urls[], apps[], notes
 Template     id, title, objectives[], bundle, schedule(cron-like)
 AgentJob     id, questId, goal, tier(read|prep|act), status(running|needs-approval|done|declined), result, log[]
-JournalEntry id, questId?, kind(start|objective|decision|agent|summary), text, at
+JournalEntry id, questId?, kind(start|finish|objective|decision|agent|summary), text, at
 Settings     skin, voiceMode, calmMode, driftCheck, hotkeys, presence(buddy|coach|quiet), checkInMinutes
 Companion    name, voice, tone, humor, bluntness, deepWorkHoldUntil
 CheckIn      id, questId, at, kind(walkthrough|checkin|stuck|drift|break|praise|pushback|debrief), dismissed(bool)
