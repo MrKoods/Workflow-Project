@@ -96,7 +96,9 @@ const createWindow = () => {
   if (shot) {
     win.webContents.once('did-finish-load', async () => {
       await wait(2500);
-      for (const key of process.env.COCKPIT_SCREENSHOT_KEYS?.split(',') ?? []) {
+      for (const key of process.env.COCKPIT_SCREENSHOT_KEYS?.split(',').filter(
+        Boolean,
+      ) ?? []) {
         win?.webContents.sendInputEvent({ type: 'keyDown', keyCode: key });
         win?.webContents.sendInputEvent({ type: 'keyUp', keyCode: key });
         await wait(300);
@@ -165,6 +167,9 @@ const connectOrchestrator = async () => {
     orchestrator.pauseQuest(typeof note === 'string' ? note.slice(0, 500) : ''),
   );
   ipcMain.handle(IPC.openBundle, () => orchestrator.openBundle());
+  ipcMain.handle(IPC.createMissingFolders, () =>
+    orchestrator.createMissingFolders(),
+  );
   orchestrator.onChange((s) => win?.webContents.send(IPC.snapshot, s));
 };
 

@@ -11,6 +11,7 @@ const api: CockpitApi = {
   activateQuest: (id) => ipcRenderer.invoke(IPC.activateQuest, id),
   pauseQuest: (note) => ipcRenderer.invoke(IPC.pauseQuest, note),
   openBundle: () => ipcRenderer.invoke(IPC.openBundle),
+  createMissingFolders: () => ipcRenderer.invoke(IPC.createMissingFolders),
   onSnapshot(cb) {
     const listener = (_e: IpcRendererEvent, s: CockpitSnapshot) => cb(s);
     ipcRenderer.on(IPC.snapshot, listener);

@@ -40,7 +40,12 @@ export interface CockpitSnapshot {
   /** Paused quests first, then queued, each in file-name order. */
   queue: QueueItem[];
   /** Latest one-line message for the companion (e.g. what the bundle opened). New seq = new message. */
-  notice: { seq: number; text: string } | null;
+  notice: {
+    seq: number;
+    text: string;
+    /** An action the user can take on it, e.g. create the folders that were missing. */
+    action?: 'create-folders';
+  } | null;
 }
 
 export interface CompleteResult {
@@ -76,5 +81,7 @@ export interface CockpitApi {
   pauseQuest(note?: string): Promise<void>;
   /** Re-open the active quest's folders and sites. */
   openBundle(): Promise<void>;
+  /** Create (inside the home folder) and open the folders the last bundle open couldn't find. */
+  createMissingFolders(): Promise<void>;
   onSnapshot(cb: (snapshot: CockpitSnapshot) => void): () => void;
 }

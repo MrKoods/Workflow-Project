@@ -1,6 +1,7 @@
 // Opening a quest's bundle: folders and apps via the OS, sites in the default browser.
-// Prep tier (CLAUDE.md rule 2): opens things, never creates or changes them.
-import { stat } from 'node:fs/promises';
+// Prep tier (CLAUDE.md rule 2): opening never creates anything; creating a missing
+// folder is a separate, user-clicked action limited to the user's home folder.
+import { mkdir, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import type { Bundle } from './types.ts';
@@ -15,6 +16,8 @@ export interface Opener {
 export interface BundleOpenResult {
   opened: string[];
   missing: string[];
+  /** The subset of `missing` that are folders (which Cockpit can offer to create). */
+  missingFolders: string[];
   failed: string[];
 }
 
@@ -34,11 +37,19 @@ export async function openBundle(
   bundle: Bundle,
   opener: Opener,
 ): Promise<BundleOpenResult> {
-  const result: BundleOpenResult = { opened: [], missing: [], failed: [] };
+  const result: BundleOpenResult = {
+    opened: [],
+    missing: [],
+    missingFolders: [],
+    failed: [],
+  };
 
   const openLocal = async (item: string, kind: 'dir' | 'file') => {
     const full = path.resolve(expandHome(item));
-    if (!(await exists(full, kind))) return result.missing.push(item);
+    if (!(await exists(full, kind))) {
+      if (kind === 'dir') result.missingFolders.push(item);
+      return result.missing.push(item);
+    }
     const error = await opener.openPath(full);
     if (error) result.failed.push(`${item} (${error})`);
     else result.opened.push(item);
@@ -83,4 +94,27 @@ export function describeOpen({ opened, missing, failed }: BundleOpenResult) {
     failed.length ? `Couldn't open: ${failed.join(', ')}.` : '',
   ];
   return [head, ...tail].filter(Boolean).join(' ');
+}
+
+/** True when `full` is strictly inside the home folder (not the home folder itself). */
+export const insideHome = (full: string, home = os.homedir()) => {
+  const rel = path.relative(home, full);
+  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+};
+
+/** Create missing bundle folders (inside the home folder only), then open them. */
+export async function createFolders(folders: string[], opener: Opener) {
+  const created: string[] = [];
+  const refused: string[] = [];
+  for (const item of folders) {
+    const full = path.resolve(expandHome(item));
+    if (!insideHome(full)) {
+      refused.push(item);
+      continue;
+    }
+    await mkdir(full, { recursive: true });
+    created.push(item);
+    await opener.openPath(full);
+  }
+  return { created, refused };
 }

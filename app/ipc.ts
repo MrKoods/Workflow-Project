@@ -6,4 +6,5 @@ export const IPC = {
   activateQuest: 'cockpit:activate-quest',
   pauseQuest: 'cockpit:pause-quest',
   openBundle: 'cockpit:open-bundle',
+  createMissingFolders: 'cockpit:create-missing-folders',
 } as const;

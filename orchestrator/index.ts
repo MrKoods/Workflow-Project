@@ -3,7 +3,12 @@
 import { watch, type FSWatcher } from 'node:fs';
 import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { describeOpen, openBundle, type Opener } from './bundle.ts';
+import {
+  createFolders,
+  describeOpen,
+  openBundle,
+  type Opener,
+} from './bundle.ts';
 import { createJournal, localDay } from './journal.ts';
 import {
   parseQuestFile,
@@ -141,9 +146,12 @@ export function createOrchestrator({
     emit();
   }
 
-  const say = (text: string) => {
-    notice = { seq: (notice?.seq ?? 0) + 1, text };
+  const say = (text: string, action?: 'create-folders') => {
+    notice = { seq: (notice?.seq ?? 0) + 1, text, action };
   };
+
+  // Folders the last bundle open couldn't find; offered to the user to create.
+  let missingFolders: { questId: string; folders: string[] } | null = null;
 
   async function openAndTell(quest: Quest) {
     const result = await openBundle(quest.bundle, opener);
@@ -151,7 +159,10 @@ export function createOrchestrator({
       ...(await readState()),
       lastBundleOpen: { questId: quest.id, day: localDay(now()) },
     });
-    say(describeOpen(result));
+    missingFolders = result.missingFolders.length
+      ? { questId: quest.id, folders: result.missingFolders }
+      : null;
+    say(describeOpen(result), missingFolders ? 'create-folders' : undefined);
     emit();
   }
 
@@ -315,6 +326,37 @@ export function createOrchestrator({
         await load();
         const quest = active();
         if (quest) await openAndTell(quest);
+      }),
+
+    /** User clicked "Create folder": make the missing folders (home folder only) and open them. */
+    createMissingFolders: () =>
+      serial(async () => {
+        await load();
+        const quest = active();
+        if (!quest || missingFolders?.questId !== quest.id) return;
+        const { created, refused } = await createFolders(
+          missingFolders.folders,
+          opener,
+        );
+        missingFolders = null;
+        for (const folder of created) {
+          await journal.add({
+            kind: 'decision',
+            questId: quest.id,
+            text: `Created folder ${folder}`,
+          });
+        }
+        say(
+          [
+            created.length ? `Created and opened ${created.join(', ')}.` : '',
+            refused.length
+              ? `Didn't create ${refused.join(', ')}: only folders inside your user folder.`
+              : '',
+          ]
+            .filter(Boolean)
+            .join(' '),
+        );
+        emit();
       }),
   };
 }

@@ -256,6 +256,9 @@ button {
   margin: 6px 0 0;
   text-align: center;
 }
+.companion-action {
+  margin-top: 4px;
+}
 
 /* trail, bottom */
 .trail {

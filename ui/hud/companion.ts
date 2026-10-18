@@ -5,7 +5,7 @@ import type { AiState } from './types';
 const WAVE_BARS = 24;
 
 // Right column: the orb. Its look per state comes from the skin via .hud[data-ai].
-export function createCompanion() {
+export function createCompanion(onCreateFolders: () => void) {
   const orb = h('div', { class: 'orb', attrs: { role: 'img' } }, [
     h('div', { class: 'orb-gimbal' }, [
       h('div', { class: 'orb-ring orb-ring--1' }),
@@ -28,6 +28,13 @@ export function createCompanion() {
     class: 'companion-line',
     attrs: { 'aria-live': 'polite' },
   });
+  // Offered when a bundle folder was missing; nothing is created until clicked.
+  const createBtn = h('button', {
+    class: 'btn-link companion-action',
+    text: 'Create missing folder',
+    attrs: { hidden: '' },
+    on: { click: onCreateFolders },
+  });
 
   const el = h(
     'section',
@@ -38,16 +45,18 @@ export function createCompanion() {
       wave,
       status,
       line,
+      createBtn,
     ],
   );
 
   return {
     el,
     /** `say` overrides the stock line (e.g. what the bundle opened). */
-    update(ai: AiState, say?: string | null) {
+    update(ai: AiState, say?: string | null, offerCreate = false) {
       orb.setAttribute('aria-label', `Companion is ${AI_LABELS[ai]}`);
       status.textContent = `Companion · ${AI_LABELS[ai]}`;
       line.textContent = say || COMPANION_LINES[ai];
+      createBtn.hidden = !offerCreate;
     },
   };
 }

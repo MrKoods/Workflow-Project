@@ -130,11 +130,15 @@ export function mountHud(
   let say: string | null = null;
   let lastNotice = 0;
   let sayTimer = 0;
+  let offerCreate = false;
   const showNotice = (s: CockpitSnapshot) => {
     if (!s.notice || s.notice.seq === lastNotice) return;
     lastNotice = s.notice.seq;
     say = s.notice.text;
+    offerCreate = s.notice.action === 'create-folders';
     clearTimeout(sayTimer);
+    // A notice with an action stays until it's used or replaced.
+    if (offerCreate) return;
     sayTimer = window.setTimeout(() => {
       say = null;
       render();
@@ -156,7 +160,11 @@ export function mountHud(
   };
   let views = buildViews(snap);
 
-  const companion = createCompanion();
+  const companion = createCompanion(async () => {
+    offerCreate = false;
+    render();
+    await api.createMissingFolders();
+  });
   const pickSlot = (slot: number) => {
     set({ slot });
     sequence([
@@ -189,7 +197,7 @@ export function mountHud(
     views.xp.update(objectives.filter((o) => o.done).length);
     views.quest.update(snap.current);
     views.trail.update(objectives);
-    companion.update(state.ai, say);
+    companion.update(state.ai, say, offerCreate);
     hotbar.update(state.slot);
     log.update(snap.queue, state.logOpen, snap.current?.status !== 'active');
   }

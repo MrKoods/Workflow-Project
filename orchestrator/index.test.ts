@@ -1,8 +1,16 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, test } from 'node:test';
+import { insideHome } from './bundle.ts';
 import { createOrchestrator, type Orchestrator } from './index.ts';
 
 let root: string;
@@ -235,4 +243,41 @@ test('empty pause note becomes "Paused on objective N"; only one quest can be ac
 
   await orch.startNextQuest(); // queued before paused
   assert.equal(orch.snapshot().current?.id, 'b');
+});
+
+test('missing folders are offered; creating them works inside home only', async () => {
+  const outside = path.parse(root).root + 'cockpit-test-outside-' + Date.now();
+  const wanted = path.join(root, 'new', 'sub');
+  await setup({
+    'a.md': quest(
+      'A',
+      'active',
+      ['a1'],
+      `bundle:\n  folders: ["${fwd(wanted)}", "${fwd(outside)}"]\n`,
+    ),
+  });
+  assert.equal(orch.snapshot().notice?.action, 'create-folders');
+  opened.length = 0;
+
+  await orch.createMissingFolders();
+  assert.ok((await stat(wanted)).isDirectory(), 'created inside home');
+  await assert.rejects(stat(outside), 'nothing created outside home');
+  assert.deepEqual(opened, [wanted]);
+  assert.match(
+    orch.snapshot().notice!.text,
+    /^Created and opened .*new\/sub\. Didn't create .*cockpit-test-outside/,
+  );
+  assert.equal(orch.snapshot().notice?.action, undefined);
+  assert.match((await journal()).at(-1).text, /^Created folder .*new\/sub$/);
+
+  await orch.createMissingFolders(); // nothing pending any more
+  assert.deepEqual(opened, [wanted]);
+});
+
+test('insideHome boundaries', () => {
+  const home = path.resolve('/home/nick');
+  assert.equal(insideHome(path.join(home, 'Documents', 'Fiverr'), home), true);
+  assert.equal(insideHome(home, home), false);
+  assert.equal(insideHome(path.resolve('/home/nick2/x'), home), false);
+  assert.equal(insideHome(path.join(home, '..', 'other'), home), false);
 });
