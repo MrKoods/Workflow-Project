@@ -59,6 +59,8 @@ export interface CockpitSnapshot {
   queue: QueueItem[];
   /** Quest Forge draft awaiting Accept / Discard. */
   draft: QuestDraft | null;
+  /** Task 7: running while a session's setup is being timed (until "I'm working"). */
+  setupTimer: { questId: string; startedAt: string } | null;
   /** Set by End session: the quest the next day starts with. */
   firstQuest: { id: string; title: string; setOn: string } | null;
   /** Latest one-line message for the companion (e.g. what the bundle opened). New seq = new message. */
@@ -119,6 +121,8 @@ export interface CockpitApi {
   getJournal(): Promise<JournalEntry[]>;
   /** Ask the companion for a debrief; it logs it and sets tomorrow's first quest. */
   endSession(): Promise<void>;
+  /** Task 7: stop the setup timer ("I'm working"). */
+  markWorking(): Promise<void>;
 }
 
 /** Changes the companion can make to an existing quest (after the user confirms). */

@@ -7,4 +7,4 @@ A full-screen Windows workspace where an AI companion works alongside you on one
 - **Visual system:** `docs/SKINS.md`
 - **Current build:** `docs/PHASE-0.md`
 
-Status: Phase 0 (shell) — not started.
+Status: Phase 0 built (Tasks 0–7). Now measuring: run the Fiverr profile quest through Cockpit, tap "I'm working", and compare with `npm run measure`.

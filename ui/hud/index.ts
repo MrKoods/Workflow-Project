@@ -10,6 +10,7 @@ import { createChat } from './chat';
 import { createCompanion } from './companion';
 import { createForgeCard } from './forge';
 import { createJournalPanel } from './journal';
+import { createSetupTimer } from './setupTimer';
 import { h, replay } from './dom';
 import { createHotbar, SLOTS } from './hotbar';
 import { createQuest } from './quest';
@@ -233,6 +234,7 @@ export function mountHud(
     actions.activate,
   );
 
+  const setupTimer = createSetupTimer(() => void api.markWorking());
   const forge = createForgeCard({
     accept: (draft, start) => api.acceptDraft(draft, start),
     discard: () => void api.discardDraft(),
@@ -242,7 +244,7 @@ export function mountHud(
     ...createAtmosphere(skin.fx.particles.count),
     views.xp.el,
     // Left column: the active quest, with the Quest Forge card under it.
-    h('div', { class: 'quest-col' }, [views.quest.el, forge.el]),
+    h('div', { class: 'quest-col' }, [views.quest.el, setupTimer.el, forge.el]),
     companion.el,
     views.trail.el,
     journal.el,
@@ -259,6 +261,7 @@ export function mountHud(
     views.xp.update(objectives.filter((o) => o.done).length);
     views.quest.update(snap.current);
     forge.update(snap.draft, snap.current?.status === 'active');
+    setupTimer.update(snap.setupTimer);
     views.trail.update(objectives);
     companion.update(state.ai, say, offerCreate, chat.started);
     hotbar.update(state.slot);
@@ -282,7 +285,7 @@ export function mountHud(
   });
   render();
 
-  // Keys: 1–6 hotbar · F2 cycle orb state (debug) · F3 calm mode · Esc closes the journal.
+  // Keys: 1–6 hotbar · W I'm working (setup timer) · F2 orb state (debug) · F3 calm · Esc closes the journal.
   window.addEventListener('keydown', (e) => {
     const target = e.target as HTMLElement;
     if (target.closest('input, textarea, [contenteditable]')) return;
@@ -296,6 +299,11 @@ export function mountHud(
       });
     } else if (e.key === 'F3') set({ calm: !state.calm });
     else if (e.key === 'Escape' && journal.open) toggleJournal(false);
+    else if (
+      (e.key === 'w' || e.key === 'W' || e.code === 'KeyW') &&
+      setupTimer.running
+    )
+      void api.markWorking();
     else return;
     e.preventDefault();
   });

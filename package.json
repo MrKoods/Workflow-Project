@@ -20,7 +20,8 @@
     "lint": "oxlint && oxfmt --check",
     "lint:fix": "oxlint --fix && oxfmt --write",
     "typecheck": "tsc --noEmit",
-    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"orchestrator/**/*.test.ts\""
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"orchestrator/**/*.test.ts\"",
+    "measure": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/measure.ts"
   },
   "devDependencies": {
     "@electron-forge/cli": "^8.0.1",

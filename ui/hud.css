@@ -569,3 +569,20 @@ button {
   gap: 12px;
   align-items: baseline;
 }
+
+/* Task 7 setup timer, under the active quest */
+.setup-timer {
+  margin-top: 22px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.setup-elapsed {
+  min-width: 4ch;
+  font-variant-numeric: tabular-nums;
+}
+.setup-key {
+  padding: 1px 7px;
+  margin-left: 2px;
+}

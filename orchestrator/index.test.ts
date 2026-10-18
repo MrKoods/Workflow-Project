@@ -423,3 +423,71 @@ test('End session: planned quest becomes active next day when nothing is', async
   const kinds = (await orch.journalToday()).map((e) => e.kind);
   assert.deepEqual(kinds, ['start']);
 });
+
+const setupTimes = async () => {
+  try {
+    return (
+      await readFile(path.join(root, 'journal', 'setup-times.jsonl'), 'utf8')
+    )
+      .trim()
+      .split('\n')
+      .map((l) => JSON.parse(l));
+  } catch {
+    return [];
+  }
+};
+
+test('Setup timer: starts on start/resume/launch, tap confirms, pause drops, objective ends unconfirmed', async () => {
+  await setup({
+    'a.md': quest('A', 'active', ['a1', 'a2']),
+    'b.md': quest('B', 'queued', ['b1']),
+  });
+  // First launch of the day opened A's bundle: timer running.
+  assert.equal(orch.snapshot().setupTimer?.questId, 'a');
+  clock = new Date(clock.getTime() + 95_000);
+  await orch.markWorking();
+  assert.equal(orch.snapshot().setupTimer, null);
+  assert.equal(orch.snapshot().notice?.text, 'Setup took 1:35. Logged.');
+
+  await orch.pauseQuest(''); // no timer running: nothing logged
+  await orch.activateQuest('a'); // resume: timer runs
+  assert.equal(orch.snapshot().setupTimer?.questId, 'a');
+  await orch.pauseQuest(''); // paused before working: dropped
+  assert.equal(orch.snapshot().setupTimer, null);
+
+  await orch.activateQuest('b');
+  clock = new Date(clock.getTime() + 30_000);
+  await orch.completeObjective();
+
+  const rows = await setupTimes();
+  assert.deepEqual(
+    rows.map((r) => [r.questId, r.trigger, r.seconds, r.confirmed, r.endedBy]),
+    [
+      ['a', 'launch', 95, true, 'tap'],
+      ['b', 'start', 30, false, 'objective'],
+    ],
+  );
+});
+
+test('Setup timer: times out unconfirmed', async () => {
+  for (const f of ['a.md'])
+    await writeFile(path.join(root, 'quests', f), quest('A', 'active', ['a1']));
+  orch?.stop();
+  orch = createOrchestrator({
+    questsDir: path.join(root, 'quests'),
+    journalDir: path.join(root, 'journal'),
+    stateFile: path.join(root, 'state.json'),
+    documentsDir: path.join(root, 'Documents'),
+    opener: fakeOpener,
+    now: () => clock,
+    setupTimeoutMs: 30,
+  });
+  await orch.start();
+  await new Promise((r) => setTimeout(r, 80));
+  const rows = await setupTimes();
+  assert.deepEqual(
+    rows.map((r) => [r.seconds, r.confirmed, r.endedBy]),
+    [[0, false, 'timeout']],
+  );
+  assert.equal(orch.snapshot().setupTimer, null);
+});

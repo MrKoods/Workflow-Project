@@ -258,6 +258,7 @@ const connectOrchestrator = async () => {
   );
   ipcMain.handle(IPC.discardDraft, () => orchestrator.discardDraft());
   ipcMain.handle(IPC.journalToday, () => orchestrator.journalToday());
+  ipcMain.handle(IPC.markWorking, () => orchestrator.markWorking());
   ipcMain.handle(IPC.endSession, () => companion?.send(END_SESSION_MESSAGE));
   orchestrator.onChange((s) => win?.webContents.send(IPC.snapshot, s));
 

@@ -14,4 +14,5 @@ export const IPC = {
   discardDraft: 'cockpit:discard-draft',
   journalToday: 'cockpit:journal-today',
   endSession: 'cockpit:end-session',
+  markWorking: 'cockpit:mark-working',
 } as const;

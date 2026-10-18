@@ -13,5 +13,5 @@
     "allowImportingTsExtensions": true,
     "types": ["node"]
   },
-  "include": ["app/**/*", "ui/**/*", "orchestrator/**/*", "*.mts"]
+  "include": ["app/**/*", "ui/**/*", "orchestrator/**/*", "scripts/**/*", "*.mts"]
 }

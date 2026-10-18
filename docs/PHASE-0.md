@@ -96,8 +96,8 @@
 - [x] "End session" asks Claude for a short debrief and sets tomorrow's first quest.
 
 ## Task 7 — Measure
-- [ ] Log time from "start quest" to "first real work action" each session (simple local log).
-- [ ] Compare against the baseline Nick times manually for 3 mornings before using Cockpit.
+- [x] Log time from "start quest" to "first real work action" each session (simple local log). → `journal/local/setup-times.jsonl`; tap **I'm working** (or W).
+- [ ] Compare against the baseline Nick times manually for 3 mornings before using Cockpit. (Tooling ready: `npm run measure -- baseline <minutes> [note]` to record each manual run, `npm run measure` for the comparison. Needs Nick's timed runs.)
 
 ---
 

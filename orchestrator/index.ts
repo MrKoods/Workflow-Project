@@ -12,6 +12,11 @@ import {
   type Opener,
 } from './bundle.ts';
 import { validateDraft, writeNewQuest } from './forge.ts';
+import {
+  createMeasureLog,
+  type SetupEnd,
+  type SetupTrigger,
+} from './measure.ts';
 import { createJournal, localDay } from './journal.ts';
 import {
   parseQuestFile,
@@ -40,6 +45,8 @@ export interface OrchestratorOptions {
   opener: Opener;
   warn?: (msg: string) => void;
   now?: () => Date;
+  /** Task 7: stop an unconfirmed setup timer after this long (default 10 min). */
+  setupTimeoutMs?: number;
 }
 
 interface LocalState {
@@ -56,8 +63,10 @@ export function createOrchestrator({
   opener,
   warn = console.warn,
   now = () => new Date(),
+  setupTimeoutMs = 10 * 60 * 1000,
 }: OrchestratorOptions) {
   const journal = createJournal(journalDir, now);
+  const measure = createMeasureLog(journalDir);
   const listeners = new Set<(s: CockpitSnapshot) => void>();
   let quests: Quest[] = [];
   let justFinished: string | null = null; // keeps a finished quest on screen until the next starts
@@ -148,6 +157,12 @@ export function createOrchestrator({
       current,
       queue: [...waiting('paused'), ...waiting('queued')],
       draft,
+      setupTimer: setupTimer
+        ? {
+            questId: setupTimer.quest.id,
+            startedAt: setupTimer.startedAt.toISOString(),
+          }
+        : null,
       firstQuest: firstQuest
         ? {
             id: firstQuest.questId,
@@ -178,7 +193,62 @@ export function createOrchestrator({
   // Folders the last bundle open couldn't find; offered to the user to create.
   let missingFolders: { questId: string; folders: string[] } | null = null;
 
-  async function openAndTell(quest: Quest) {
+  // ---- Task 7: setup timer ("start quest" -> "I'm working") -------------
+  let setupTimer: {
+    quest: Quest;
+    trigger: SetupTrigger;
+    startedAt: Date;
+    timeout: NodeJS.Timeout;
+  } | null = null;
+
+  function startTimer(quest: Quest, trigger: SetupTrigger) {
+    if (setupTimer) clearTimeout(setupTimer.timeout);
+    const timeout = setTimeout(
+      () => void serial(() => endTimer('timeout')),
+      setupTimeoutMs,
+    );
+    timeout.unref?.();
+    setupTimer = { quest, trigger, startedAt: now(), timeout };
+  }
+
+  function dropTimer() {
+    if (setupTimer) clearTimeout(setupTimer.timeout);
+    setupTimer = null;
+  }
+
+  async function endTimer(endedBy: SetupEnd) {
+    if (!setupTimer) return;
+    const { quest, trigger, startedAt } = setupTimer;
+    dropTimer();
+    const endedAt =
+      endedBy === 'timeout'
+        ? new Date(startedAt.getTime() + setupTimeoutMs)
+        : now();
+    await measure.addTime({
+      questId: quest.id,
+      questTitle: quest.title,
+      trigger,
+      startedAt: startedAt.toISOString(),
+      endedAt: endedAt.toISOString(),
+      seconds: Math.max(
+        0,
+        Math.round((endedAt.getTime() - startedAt.getTime()) / 1000),
+      ),
+      confirmed: endedBy === 'tap',
+      endedBy,
+    });
+    if (endedBy === 'tap') {
+      const secs = Math.round((endedAt.getTime() - startedAt.getTime()) / 1000);
+      say(
+        `Setup took ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}. Logged.`,
+      );
+    }
+    emit();
+  }
+
+  /** Open a quest's bundle; with a trigger, this is a session start and the setup timer runs. */
+  async function openAndTell(quest: Quest, trigger?: SetupTrigger) {
+    if (trigger) startTimer(quest, trigger);
     const result = await openBundle(quest.bundle, opener);
     await writeState({
       ...(await readState()),
@@ -203,7 +273,7 @@ export function createOrchestrator({
     });
     justFinished = null;
     await reload();
-    await openAndTell(active()!);
+    await openAndTell(active()!, resuming ? 'resume' : 'start');
   }
 
   async function pause(quest: Quest, note?: string) {
@@ -221,6 +291,7 @@ export function createOrchestrator({
       }),
     );
     await journal.add({ kind: 'pause', questId: quest.id, text: resumeNote });
+    if (setupTimer?.quest.id === quest.id) dropTimer(); // no work started: nothing to measure
     return resumeNote;
   }
 
@@ -251,7 +322,7 @@ export function createOrchestrator({
         quest &&
         (last?.questId !== quest.id || last.day !== localDay(now()))
       ) {
-        await serial(() => openAndTell(quest));
+        await serial(() => openAndTell(quest, 'launch'));
       }
 
       // Quest files are plain markdown: edits from VS Code or Claude Code show up live.
@@ -274,6 +345,7 @@ export function createOrchestrator({
     },
 
     stop() {
+      dropTimer();
       watcher?.close();
       listeners.clear();
     },
@@ -295,6 +367,8 @@ export function createOrchestrator({
 
         const objective = quest.objectives[index].title;
         await edit(quest.id, (t) => setObjectiveDone(t, index, true));
+        // Finishing an objective means work started; time unknown, so unconfirmed.
+        if (setupTimer?.quest.id === quest.id) await endTimer('objective');
         await journal.add({
           kind: 'objective',
           questId: quest.id,
@@ -404,7 +478,7 @@ export function createOrchestrator({
         draft = null;
         justFinished = null;
         await reload();
-        if (status === 'active') await openAndTell(active()!);
+        if (status === 'active') await openAndTell(active()!, 'start');
         else {
           say(`Queued "${checked.draft.title}". It's in the quest log.`);
           emit();
@@ -508,6 +582,9 @@ export function createOrchestrator({
         });
         return `Created ${full}.`;
       }),
+
+    /** Task 7: the user tapped "I'm working": log the setup time. */
+    markWorking: () => serial(() => endTimer('tap')),
 
     /** Companion tool: a journal note in its own words. */
     addJournalNote: (text: string) =>

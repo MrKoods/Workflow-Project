@@ -88,6 +88,7 @@ function fakeHost() {
       queue: [],
       draft: null,
       firstQuest: null,
+      setupTimer: null,
       notice: null,
     }),
     async completeObjective() {
@@ -339,6 +340,7 @@ test('describeState covers no-quest and journal cases', () => {
         queue: [{ id: 'p', title: 'Prep', status: 'queued' }],
         draft: null,
         firstQuest: null,
+        setupTimer: null,
         notice: null,
       }),
     },
