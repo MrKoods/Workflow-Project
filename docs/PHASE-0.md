@@ -12,8 +12,8 @@
 - [x] Record the choice in `docs/FEATURES.md` §0 Decisions log. → **Electron + Forge (vite-typescript)**.
 
 ## Task 1 — Scaffold
-- [ ] Create the app with the chosen framework + a frontend (plain TypeScript + Vite is enough; React optional).
-- [ ] Folder layout:
+- [x] Create the app with the chosen framework + a frontend (plain TypeScript + Vite is enough; React optional).
+- [x] Folder layout:
   ```
   app/            desktop shell (main process / backend)
   ui/             HUD + panels
@@ -22,8 +22,8 @@
   quests/         quest files (markdown)
   docs/
   ```
-- [ ] `npm run dev` opens a borderless full-screen window. Global hotkey shows/hides it.
-- [ ] `.env.example` with `ANTHROPIC_API_KEY=`; real `.env` is gitignored.
+- [x] `npm run dev` opens a borderless full-screen window. Global hotkey shows/hides it. (Ctrl+Alt+C; quit Ctrl+Alt+Q or tray.)
+- [x] `.env.example` with `ANTHROPIC_API_KEY=`; real `.env` is gitignored.
 
 ## Task 2 — Frostbound skin + static HUD
 - [ ] Port the Frostbound design (see `docs/SKINS.md`; reference prototype: `docs/reference/frostbound-prototype.html`, CSS only — ignore its script) into `skins/frostbound/`.

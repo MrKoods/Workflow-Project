@@ -8,6 +8,8 @@
 ## 0. Decisions log
 - 2026-10-17 — **Windows** desktop app. **Wake word** for voice (push-to-talk fallback). **First workflow:** Fiverr gig page for AI automation (see CONNECTORS.md). Connectors chosen per workflow, not up front.
 - 2026-10-17 — **Desktop framework: Electron** (via Electron Forge, `vite-typescript` template). Reasons: Node 24 already installed, no Rust/MSVC toolchain needed; orchestrator, Claude client (official TS SDK) and UI all in TypeScript; bundled Chromium renders the prototype CSS identically. Accepted cost: heavier app; Forge's Vite plugin is marked experimental (docs checked 2026-10-17, Electron 44.9.0 latest stable).
+- 2026-10-17 — **Window hotkeys:** show/hide = **Ctrl+Alt+C** (Ctrl+Alt+Space was first choice but is already owned by another app on Nick's PC, likely Claude desktop quick entry); quit = **Ctrl+Alt+Q**. Hotkey only hides; a **tray icon** (Show/hide, Quit) keeps Cockpit running in the background. Window is borderless full-screen; F12 toggles DevTools.
+- 2026-10-17 — Scaffold note: Forge 8's CLI renamed the template; the command is now `npx create-electron-app@latest <name> --template vite --typescript` (the Forge docs page still shows `vite-typescript`).
 - 2026-10-17 — Frostbound reference prototype lives at `docs/reference/frostbound-prototype.html`. Port its CSS/markup; its script block is prototype-only and is ignored.
 
 ## 1. What Cockpit is, in one paragraph

@@ -24,3 +24,8 @@ journal/local/
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+# electron-forge / vite
+.vite/
+*.log
+*.tsbuildinfo
+.oxlintcache
