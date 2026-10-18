@@ -1,0 +1,21 @@
+{
+  "id": "crimson",
+  "name": "Crimson",
+  "ground": {
+    "center": "#1E0509",
+    "mid": "#070103",
+    "edge": "#000000"
+  },
+  "accent": "#FF5C6C",
+  "reply": "#FFD27A",
+  "third": "#B07CFF",
+  "card": "14,4,6",
+  "text": "#E9F3FA",
+  "muted": "#7A8796",
+  "onAccent": "#06080A",
+  "companion": {
+    "core": "#FF5C6C",
+    "filamentsA": "#B07CFF",
+    "filamentsB": "#FFD27A"
+  }
+}

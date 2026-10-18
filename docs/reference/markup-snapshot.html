@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Orbit · markup reference</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Manrope:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap">
+<link rel="stylesheet" href="orbit.css">
+<style>body{margin:0;background:#000} .fx{width:1440px;height:900px}
+.fx{--acc:#7DE3FF;--acc2:#C6FF8A;--c3:#B18CFF;--card:4,8,14;--acctext:#06080A;--edge:color-mix(in srgb,#7DE3FF 17%,transparent);--saybg:rgba(4,8,14,.9);--chipbg:rgba(4,8,14,.85);--bg:radial-gradient(ellipse 70% 60% at 50% 34%,#07101C 0%,#020409 55%,#000 100%),#000}</style>
+</head><body>
+<!-- Static DOM snapshot of the Orbit prototype mid-step ("m-task": step 1 popped out of the orbit).
+     Structure + class reference only. Motion, the companion canvas and the conversation come from
+     focusEngine.ts + bloom.ts. Live version: the "Orbit" boards on the design canvas. -->
+<div class="fx orbt pal-aqua m-task s-speaking ">
+  <div class="stars" aria-hidden="true"></div>
+  <div class="topr2"><div class="q">Today’s quest<b>Get your Fiverr seller profile live</b></div></div>
+  <div class="orbit" aria-label="Quest steps in orbit" style="--rot: 90deg">
+    <div class="ring"></div><div class="ring r2"></div>
+    <i class="mote" style="--j: 0"></i>
+    <i class="mote" style="--j: 1"></i>
+    <i class="mote" style="--j: 2"></i>
+    <i class="mote" style="--j: 3"></i>
+    <i class="mote" style="--j: 4"></i>
+    <i class="mote" style="--j: 5"></i>
+    <i class="mote" style="--j: 6"></i>
+    <i class="mote" style="--j: 7"></i>
+    <i class="mote" style="--j: 8"></i>
+    <i class="mote" style="--j: 9"></i>
+    <i class="mote" style="--j: 10"></i>
+    <i class="mote" style="--j: 11"></i>
+    <div class="pln pulled" style="--k: 0"><span class="pd" aria-hidden="true">↗</span><span><b>Seller account</b><em>In progress</em></span></div><div class="pln later" style="--k: 1"><span class="pd" aria-hidden="true">✎</span><span><b>Profile</b><em>Later</em></span></div><div class="pln later" style="--k: 2"><span class="pd" aria-hidden="true">◆</span><span><b>Skills</b><em>Later</em></span></div><div class="pln later" style="--k: 3"><span class="pd" aria-hidden="true">☑</span><span><b>Verify</b><em>Later</em></span></div>
+  </div>
+  <div class="tether" aria-hidden="true"></div>
+  <div class="comp" role="img" aria-label="Companion is Speaking"><canvas class="mol" width="184" height="184"></canvas></div>
+  <div class="logx" aria-label="Conversation"><div class="lg you" style="opacity: 0.70"><b>You</b>I’m in</div><div class="lg co" style="opacity: 0.55"><b>Companion</b>Here’s the door. Click through and claim your seller account. I’ll keep watch from here.</div><div class="lg you" style="opacity: 0.40"><b>You</b>Let’s dive in</div><div class="lg co" style="opacity: 0.25"><b>Companion</b>Evening, Nick. One quest tonight: your Fiverr seller profile. Four moves, about thirty minutes, and I’ve already laid out the first one. Want to dive in?</div></div>
+  <div class="capx" aria-live="polite">
+    <div class="who3"><b></b>Companion · Speaking</div><div class="ln3">Love it. When it offers 2-step verificat<span class="caret" aria-hidden="true"></span></div>
+    
+  </div>
+  <section class="it hero" style="--d: 0" aria-label="Fiverr · Join as a seller">
+    <div class="ih"><span class="ic" aria-hidden="true">↗</span><span class="itt"><b>Fiverr · Join as a seller</b><span>Link · opens in your browser</span></span></div>
+    <div class="ib">
+      <div class="bbar"><i></i><i></i><i></i><span>fiverr.com/join</span></div>
+      <div class="pg"><div class="pf"><label>Email</label><span>nick@…</span></div><div class="pf"><label>Username</label><span>nick_automates</span></div><div class="pf"><label>Password</label><span>••••••••••</span></div></div>
+      
+      
+      
+    </div>
+    <button class="cta">Open sign-up page <span aria-hidden="true">→</span></button>
+  </section>
+  <section class="it sup1" style="--d: 0" aria-label="Account setup">
+    <div class="ih"><span class="ic" aria-hidden="true">☑</span><span class="itt"><b>Account setup</b><span>Checklist</span></span><span class="cnt">0/3</span></div>
+    <div class="ib">
+      
+      
+      <div class="cks"><span class="ck "><i aria-hidden="true"></i>Sign up with your work email</span><span class="ck "><i aria-hidden="true"></i>Pick a username</span><span class="ck "><i aria-hidden="true"></i>Turn on 2-step verification</span></div>
+      
+      
+    </div>
+    
+  </section>
+  <section class="it off" style="--d: 0" aria-label="Your profile editor">
+    <div class="ih"><span class="ic" aria-hidden="true">↗</span><span class="itt"><b>Your profile editor</b><span>Link · opens in your browser</span></span></div>
+    <div class="ib">
+      <div class="bbar"><i></i><i></i><i></i><span>fiverr.com/profile</span></div>
+      <div class="pg"><div class="pf"><label>Display name</label><span>Nick · AI Automation</span></div><div class="pf"><label>Photo</label><span>Upload a real photo</span></div><div class="pf"><label>Description</label><span>Paste your bio</span></div></div>
+      
+      
+      
+    </div>
+    <button class="cta">Open profile editor <span aria-hidden="true">→</span></button>
+  </section>
+  <section class="it off" style="--d: 0" aria-label="Your bio">
+    <div class="ih"><span class="ic" aria-hidden="true">✎</span><span class="itt"><b>Your bio</b><span>Draft · from your companion</span></span></div>
+    <div class="ib">
+      
+      
+      
+      
+      <p class="nt">I build automations for gyms and studios. Every new lead gets a reply in minutes, follow-ups run on their own, and trials get booked while you coach.</p>
+    </div>
+    <button class="cta">Copy bio <span aria-hidden="true">→</span></button>
+  </section>
+  <section class="it off" style="--d: 0" aria-label="Your 5 skills">
+    <div class="ih"><span class="ic" aria-hidden="true">◆</span><span class="itt"><b>Your 5 skills</b><span>Suggested · from what buyers search</span></span></div>
+    <div class="ib">
+      
+      
+      
+      <div class="tags"><span class="tg">AI automation</span><span class="tg">n8n</span><span class="tg">Lead follow-up</span><span class="tg">CRM integration</span><span class="tg">Chatbots</span></div>
+      
+    </div>
+    <button class="cta">Copy all <span aria-hidden="true">→</span></button>
+  </section>
+  <section class="it off" style="--d: 0" aria-label="Verify + secure">
+    <div class="ih"><span class="ic" aria-hidden="true">☑</span><span class="itt"><b>Verify + secure</b><span>Checklist · you do this part</span></span><span class="cnt">0/3</span></div>
+    <div class="ib">
+      
+      
+      <div class="cks"><span class="ck "><i aria-hidden="true"></i>Verify your phone number</span><span class="ck "><i aria-hidden="true"></i>Turn on 2-step verification</span><span class="ck "><i aria-hidden="true"></i>Set your availability</span></div>
+      
+      
+    </div>
+    
+  </section>
+  <div class="chipsx"></div>
+  <div class="sayx"><label for="sayOrb">Say</label><input id="sayOrb" type="text" placeholder="Talk to me… (try “yeah” or “done”)" value=""><button class="send">Send</button></div>
+  
+</div>
+</body></html>

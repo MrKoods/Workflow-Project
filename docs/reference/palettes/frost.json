@@ -1,0 +1,21 @@
+{
+  "id": "frost",
+  "name": "Frost",
+  "ground": {
+    "center": "#0C1C30",
+    "mid": "#03070E",
+    "edge": "#000000"
+  },
+  "accent": "#BDF4FF",
+  "reply": "#6BFFB8",
+  "third": "#9FA8FF",
+  "card": "6,12,20",
+  "text": "#E9F3FA",
+  "muted": "#7A8796",
+  "onAccent": "#06080A",
+  "companion": {
+    "core": "#BDF4FF",
+    "filamentsA": "#9FA8FF",
+    "filamentsB": "#6BFFB8"
+  }
+}

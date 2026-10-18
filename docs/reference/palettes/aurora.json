@@ -1,0 +1,21 @@
+{
+  "id": "aurora",
+  "name": "Aurora",
+  "ground": {
+    "center": "#04201A",
+    "mid": "#010806",
+    "edge": "#000000"
+  },
+  "accent": "#5CF2B0",
+  "reply": "#E6FF7A",
+  "third": "#4FB6FF",
+  "card": "4,12,10",
+  "text": "#E9F3FA",
+  "muted": "#7A8796",
+  "onAccent": "#06080A",
+  "companion": {
+    "core": "#5CF2B0",
+    "filamentsA": "#4FB6FF",
+    "filamentsB": "#E6FF7A"
+  }
+}

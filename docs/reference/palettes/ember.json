@@ -1,0 +1,21 @@
+{
+  "id": "ember",
+  "name": "Ember",
+  "ground": {
+    "center": "#1C0D05",
+    "mid": "#070302",
+    "edge": "#000000"
+  },
+  "accent": "#FFB15C",
+  "reply": "#FFE08A",
+  "third": "#FF5E7A",
+  "card": "14,8,5",
+  "text": "#E9F3FA",
+  "muted": "#7A8796",
+  "onAccent": "#06080A",
+  "companion": {
+    "core": "#FFB15C",
+    "filamentsA": "#FF5E7A",
+    "filamentsB": "#FFE08A"
+  }
+}
