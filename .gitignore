@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+
+# builds
+dist/
+out/
+build/
+target/
+release/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# local data
+*.sqlite
+*.db
+logs/
+journal/local/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json

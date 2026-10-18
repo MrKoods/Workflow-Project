@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cockpit · Frostbound</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aboreto&amp;family=Alegreya+Sans:wght@300;400;500;700;800&amp;family=Noto+Sans+Runic&amp;display=swap">
+<style>
+body{margin:0;background:#050A12}
+a{color:#7FE7FF}a:hover{color:#EAFBFF}
+.eyebrow{font:600 13px 'Alegreya Sans','Noto Sans Runic',sans-serif;letter-spacing:.32em;text-transform:uppercase;color:#7F95AE}
+.txtbtn{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;min-height:44px}
+.txtbtn:focus-visible,.sch:focus-visible,.tiny:focus-visible,.go:focus-visible,.slot:focus-visible{outline:2px solid #EAFBFF;outline-offset:4px}
+
+.vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 40%,transparent 42%,rgba(0,4,10,.75) 100%)}
+.snow{position:absolute;border-radius:50%;background:#EAFBFF;opacity:0;animation:fall linear infinite;pointer-events:none}
+@keyframes fall{0%{transform:translate(0,-40px);opacity:0}15%{opacity:.75}100%{transform:translate(-80px,700px);opacity:0}}
+.lightA{position:absolute;width:1000px;height:760px;margin:-380px 0 0 -500px;border-radius:50%;pointer-events:none;background:radial-gradient(ellipse,rgba(127,231,255,.14) 0%,rgba(127,231,255,.04) 36%,transparent 64%)}
+.lightC{position:absolute;width:720px;height:720px;margin:-360px 0 0 -360px;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(107,255,184,.14) 0%,rgba(107,255,184,.04) 38%,transparent 64%);animation:glowBreath 5s ease-in-out infinite;transition:background .8s}
+.lightC.s-waiting{background:radial-gradient(circle,rgba(127,231,255,.16) 0%,transparent 56%)}
+.aurora{position:absolute;left:-10%;right:-10%;top:-200px;height:400px;pointer-events:none;filter:blur(70px);opacity:.4;background:linear-gradient(95deg,transparent 15%,rgba(107,255,184,.5) 35%,rgba(127,231,255,.4) 55%,rgba(150,120,255,.3) 70%,transparent 85%);animation:sway 18s ease-in-out infinite alternate}
+@keyframes sway{from{transform:skewY(-5deg) translateX(-5%)}to{transform:skewY(-2deg) translateX(5%)}}
+@keyframes glowBreath{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+.parallax{transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+
+/* XP: segmented ice */
+.xpwrap{position:absolute;top:24px;left:50%;transform:translateX(-50%);width:min(500px,42vw);display:flex;flex-direction:column;align-items:center;gap:6px}
+.xptrack{position:relative;width:100%;height:8px;background:rgba(127,231,255,.08);transform:skewX(-24deg)}
+.xpfill{height:100%;background:linear-gradient(90deg,#3FA7D6,#7FE7FF 70%,#EAFBFF);box-shadow:0 0 14px rgba(127,231,255,.9);transition:width 1.2s cubic-bezier(.2,.8,.2,1);-webkit-mask-image:repeating-linear-gradient(90deg,#000 0 18px,transparent 18px 21px);mask-image:repeating-linear-gradient(90deg,#000 0 18px,transparent 18px 21px)}
+.pop{position:absolute;right:-6px;top:-30px;font:700 20px 'Alegreya Sans','Noto Sans Runic',sans-serif;letter-spacing:.08em;color:#EAFBFF;text-shadow:0 0 14px rgba(127,231,255,1);animation:pop 1.5s ease-out forwards;pointer-events:none}
+@keyframes pop{0%{transform:translateY(10px) scale(.6);opacity:0}20%{transform:translateY(0) scale(1.15);opacity:1}100%{transform:translateY(-34px);opacity:0}}
+.banner{position:absolute;left:0;right:0;top:44%;display:flex;justify-content:center;pointer-events:none;z-index:40}
+.banner span{font:400 clamp(30px,3.6vw,54px) 'Aboreto',serif;letter-spacing:.22em;text-transform:uppercase;color:#EAFBFF;text-shadow:0 0 30px rgba(127,231,255,.9),0 0 2px #FFF;animation:freeze 1.8s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes freeze{0%{filter:blur(12px);opacity:0;transform:scale(1.15)}22%{filter:blur(0);opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0;filter:blur(6px)}}
+
+/* orb — aurora green companion, ice handoff */
+.orb-wrap{position:relative;width:210px;height:210px;perspective:900px}
+.orb{position:absolute;inset:0;transform-style:preserve-3d;animation:tumble 22s linear infinite}
+@keyframes tumble{from{transform:rotateY(0) rotateX(8deg)}to{transform:rotateY(360deg) rotateX(8deg)}}
+.ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(107,255,184,.55);box-shadow:0 0 22px rgba(107,255,184,.22),inset 0 0 22px rgba(107,255,184,.1);transition:border-color .8s,box-shadow .8s}
+.ring::after{content:"";position:absolute;top:-5px;left:calc(50% - 5px);width:10px;height:10px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:#E6FFF3;box-shadow:0 0 14px 3px rgba(107,255,184,.8);transition:background .8s}
+.r1{animation:spinA 7s linear infinite}
+.r2{inset:7%;animation:spinB 9s linear infinite reverse}
+.r3{inset:14%;animation:spinC 5.5s linear infinite}
+@keyframes spinA{from{transform:rotateX(72deg) rotateZ(0)}to{transform:rotateX(72deg) rotateZ(360deg)}}
+@keyframes spinB{from{transform:rotateY(68deg) rotateX(18deg) rotateZ(0)}to{transform:rotateY(68deg) rotateX(18deg) rotateZ(360deg)}}
+@keyframes spinC{from{transform:rotateX(40deg) rotateY(-50deg) rotateZ(0)}to{transform:rotateX(40deg) rotateY(-50deg) rotateZ(360deg)}}
+.core{position:absolute;inset:31%;border-radius:50%;background:radial-gradient(circle at 34% 30%,#F4FFF9 0%,#A8FFD6 22%,#1E9E6A 58%,#03201A 100%);box-shadow:0 0 70px 14px rgba(107,255,184,.28),0 0 0 1px rgba(230,255,243,.25);animation:breathe 4.2s ease-in-out infinite;transition:background .8s,box-shadow .8s}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+.floor{width:170px;height:22px;border-radius:50%;background:radial-gradient(ellipse,rgba(107,255,184,.34),transparent 70%);filter:blur(5px);transition:background .8s}
+.s-listening .core{animation-duration:3s}
+.s-thinking .r1{animation-duration:1.6s}.s-thinking .r2{animation-duration:2.1s}.s-thinking .r3{animation-duration:1.2s}
+.s-thinking .core{filter:brightness(.75);animation-duration:1.4s}
+.s-speaking .core{animation:talk .42s ease-in-out infinite alternate}
+@keyframes talk{from{transform:scale(.97)}to{transform:scale(1.1)}}
+.s-waiting .ring{border-color:rgba(127,231,255,.7);box-shadow:0 0 22px rgba(127,231,255,.25),inset 0 0 22px rgba(127,231,255,.12)}
+.s-waiting .ring::after{background:#EAFBFF}
+.s-waiting .core{background:radial-gradient(circle at 34% 30%,#FFFFFF 0%,#BDF4FF 24%,#2A86B8 60%,#03142A 100%);box-shadow:0 0 70px 14px rgba(127,231,255,.32),0 0 0 1px rgba(234,251,255,.3);animation-duration:5.5s}
+.floor.s-waiting{background:radial-gradient(ellipse,rgba(127,231,255,.38),transparent 70%)}
+.s-working .ring{border-style:dashed}
+.s-working .orb{animation-duration:9s}
+.wave{display:flex;align-items:center;gap:4px;height:32px}
+.bar{width:3px;height:28px;background:#6BFFB8;opacity:.85;transform:scaleY(.12);transition:transform .5s,background .8s}
+.wave.s-speaking .bar{animation:wv .8s ease-in-out infinite alternate}
+.wave.s-listening .bar{animation:wv 2.4s ease-in-out infinite alternate;opacity:.45}
+.wave.s-thinking .bar{transform:scaleY(.2);opacity:.5}
+.wave.s-waiting .bar{background:#7FE7FF;transform:scaleY(.1);opacity:.7}
+.wave.s-working .bar{animation:wv 3.2s ease-in-out infinite alternate;opacity:.35}
+@keyframes wv{from{transform:scaleY(.12)}to{transform:scaleY(1)}}
+
+/* type: frosted inscription */
+.title{margin:0;font-family:'Aboreto',serif;font-weight:400;letter-spacing:.1em;line-height:1.04;font-size:clamp(48px,5.6vw,92px);
+  background:linear-gradient(180deg,#FFFFFF 0%,#DDF7FF 40%,#7FE7FF 75%,#3FA7D6 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 24px rgba(127,231,255,.4))}
+.objective{display:flex;align-items:center;gap:14px;font:500 clamp(22px,2.2vw,30px) 'Alegreya Sans','Noto Sans Runic',sans-serif;letter-spacing:.06em;color:#EAFBFF}
+.objective .box{width:16px;height:18px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:#7FE7FF;box-shadow:0 0 12px #7FE7FF;animation:fillPulse 2s ease-in-out infinite}
+@keyframes fillPulse{0%,100%{opacity:.5}50%{opacity:1}}
+
+/* button: frozen-glass capsule — frosted pane, ice rim, spinning snowflake, frost creeps in on hover */
+.go{position:relative;overflow:hidden;isolation:isolate;display:inline-flex;align-items:center;gap:14px;min-height:56px;padding:0 30px 0 18px;cursor:pointer;
+  font:700 16px 'Alegreya Sans','Noto Sans Runic',sans-serif;letter-spacing:.24em;text-transform:uppercase;color:#EAFBFF;
+  background:linear-gradient(180deg,rgba(234,251,255,.16),rgba(127,231,255,.06));
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  border:1px solid rgba(189,244,255,.55);border-radius:999px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -10px 18px rgba(127,231,255,.12),0 0 0 4px rgba(127,231,255,.07),0 0 26px rgba(127,231,255,.35);
+  text-shadow:0 0 12px rgba(127,231,255,.8);transition:color .4s,box-shadow .4s,transform .3s}
+.go::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:radial-gradient(circle at 0% 50%,#FFFFFF 0%,#BDF4FF 30%,#7FE7FF 60%,rgba(127,231,255,0) 61%);background-size:0% 0%;background-position:0 50%;background-repeat:no-repeat;transition:background-size .6s cubic-bezier(.2,.8,.2,1)}
+.go::after{content:"";position:absolute;top:0;left:12%;right:12%;height:1px;background:linear-gradient(90deg,transparent,#FFFFFF,transparent);animation:rim 3s ease-in-out infinite}
+@keyframes rim{0%,100%{opacity:.3}50%{opacity:1}}
+.go .flake{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:rgba(127,231,255,.16);box-shadow:inset 0 0 0 1px rgba(189,244,255,.5);transition:background .4s}
+.go .flake svg{animation:flakeSpin 9s linear infinite}
+@keyframes flakeSpin{to{transform:rotate(360deg)}}
+.go:hover{color:#05121E;text-shadow:none;transform:translateY(-2px);box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 0 0 4px rgba(127,231,255,.18),0 0 40px rgba(127,231,255,.75)}
+.go:hover::before{background-size:260% 260%}
+.go:hover .flake{background:rgba(5,18,30,.12)}
+.go:hover .flake svg{animation-duration:2s}
+.soft{display:inline-flex;align-items:center;gap:10px;font:600 14px 'Alegreya Sans','Noto Sans Runic',sans-serif;letter-spacing:.22em;text-transform:uppercase;color:#9FB4CA;border-bottom:1px solid transparent;transition:color .3s,border-color .3s}
+.soft:hover{border-bottom-color:rgba(127,231,255,.6)}
+.soft::before{content:"ᛟ";font:400 14px 'Noto Sans Runic',sans-serif;color:#7FE7FF}
+.rune{font-family:'Noto Sans Runic',sans-serif;font-size:15px;letter-spacing:0;color:#BDF4FF;text-shadow:0 0 10px rgba(127,231,255,.8)}
+.runeband{margin-top:10px;font:400 15px 'Noto Sans Runic',sans-serif;letter-spacing:.32em;color:rgba(189,244,255,.38);text-shadow:0 0 8px rgba(127,231,255,.35);animation:runeGlow 5s ease-in-out infinite}
+@keyframes runeGlow{0%,100%{color:rgba(189,244,255,.3)}50%{color:rgba(189,244,255,.6)}}
+.soft:hover{color:#EAFBFF}
+
+/* trail */
+.trailglow{fill:none;stroke:rgba(127,231,255,.07);stroke-width:18;stroke-linecap:round}
+.flowbase{fill:none;stroke:rgba(200,230,255,.22);stroke-width:1.2}
+.flowprog{fill:none;stroke:#BDF4FF;stroke-width:3;stroke-linecap:round;filter:drop-shadow(0 0 8px rgba(127,231,255,1));transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1)}
+.flowpulse2{fill:none;stroke:#6BFFB8;stroke-width:2.5;stroke-linecap:round;stroke-dasharray:2 120;animation:travel 3.4s linear infinite;filter:drop-shadow(0 0 5px #6BFFB8)}
+.ctxline{fill:none;stroke:rgba(107,255,184,.12);stroke-width:1;stroke-dasharray:1 8}
+@keyframes travel{from{stroke-dashoffset:244}to{stroke-dashoffset:0}}
+.node{position:absolute;transform:translate(-50%,-50%);clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);transition:all .9s cubic-bezier(.2,.8,.2,1)}
+.node.done{width:13px;height:15px;background:#6BFFB8}
+.node.now{width:24px;height:28px;background:linear-gradient(135deg,#FFFFFF,#7FE7FF);filter:drop-shadow(0 0 14px #7FE7FF)}
+.node.next{width:13px;height:15px;background:rgba(200,230,255,.35)}
+.marker{position:absolute;transform:translate(-50%,-100%);animation:bounce 1.2s ease-in-out infinite;filter:drop-shadow(0 0 10px rgba(127,231,255,1))}
+@keyframes bounce{0%,100%{margin-top:-30px}50%{margin-top:-42px}}
+.slabel{position:absolute;transform:translateX(-50%);white-space:nowrap;text-align:center;transition:color .8s}
+.slabel.done{color:#7FC9A6;font:500 14px 'Alegreya Sans','Noto Sans Runic',sans-serif;letter-spacing:.12em;text-transform:uppercase}
+.slabel.now{color:#EAFBFF;font:400 18px 'Aboreto',serif;letter-spacing:.06em;text-transform:uppercase;text-shadow:0 0 14px rgba(127,231,255,.8)}
+.slabel.next{color:#9FB4CA;font:500 14px 'Alegreya Sans','Noto Sans Runic',sans-serif;letter-spacing:.12em;text-transform:uppercase}
+.frag{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:8px;font:500 14px 'Alegreya Sans','Noto Sans Runic',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#93D9BB;white-space:nowrap;animation:bob 6s ease-in-out infinite}
+.frag .pip{width:7px;height:8px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:#6BFFB8}
+.frag .pip.stale{background:#2A3A4A}
+@keyframes bob{0%,100%{transform:translate(-50%,-50%)}50%{transform:translate(-50%,calc(-50% - 7px))}}
+
+/* hotbar: ice hex crystals */
+.hotbar{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:12px;align-items:flex-end;z-index:20}
+.slot{display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:0;cursor:pointer;padding:0;min-width:50px}
+.slot .med{width:46px;height:50px;display:grid;place-items:center;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:linear-gradient(160deg,rgba(234,251,255,.22),rgba(127,231,255,.06) 60%);color:#BFE6F5;transition:background .3s,color .3s,transform .3s}
+.slot:hover .med{transform:translateY(-4px);color:#FFFFFF}
+.slot.on .med{background:linear-gradient(160deg,#FFFFFF,#7FE7FF);color:#05121E;filter:drop-shadow(0 0 14px #7FE7FF)}
+.slot .k{font:500 11px 'Alegreya Sans','Noto Sans Runic',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#7F95AE}
+.slot.on .k{color:#EAFBFF}
+
+.sch{background:none;border:0;cursor:pointer;font:500 13px 'Alegreya Sans','Noto Sans Runic',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#6F86A0;padding:0 8px;min-height:32px}
+.sch.on{color:#E6FFF3;text-shadow:0 0 10px rgba(107,255,184,.9)}
+.sdot{display:inline-block;width:7px;height:8px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);margin-right:10px;vertical-align:middle}
+.sdot.running{background:#6BFFB8;animation:blink 1.4s ease-in-out infinite}
+.sdot.approve{background:#7FE7FF}
+.sdot.done{background:#2A3A4A}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.tiny{background:none;border:0;cursor:pointer;font:600 14px 'Alegreya Sans','Noto Sans Runic',sans-serif;letter-spacing:.14em;text-transform:uppercase;padding:0 8px;min-height:36px}
+.tiny.ok{color:#7FE7FF}.tiny.no{color:#6F86A0}
+.tiny:hover{text-decoration:underline}
+
+.calm *,.calm *::before,.calm *::after{animation-duration:0s !important;animation-iteration-count:1 !important}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none !important;transition:none !important}}
+@media (max-width:900px){.hero{position:relative !important;left:auto !important;top:auto !important;width:auto !important;padding:140px 24px 0}.orbcol{position:relative !important;right:auto !important;top:auto !important;margin:40px auto 0}}
+</style>
+</helmet>
+
+<div class="{{rootCls}}" onMouseMove="{{onMove}}" onMouseLeave="{{onLeave}}" style="position: relative; min-height: 900px; height: 100%; background: radial-gradient(ellipse at 50% 0%, #0C1A2C 0%, #050A12 62%); color: #E2EEF8; overflow: hidden; font-family: 'Alegreya Sans', 'Noto Sans Runic',system-ui, sans-serif">
+  <div class="aurora" aria-hidden="true"></div>
+  <div class="lightA" aria-hidden="true" style="left: 28%; top: 320px"></div>
+  <div class="lightC {{aiCls}}" aria-hidden="true" style="left: 77%; top: 240px"></div>
+  <sc-for list="{{flakes}}" as="m" hint-placeholder-count="30">
+    <span class="snow" aria-hidden="true" style="left: {{m.x}}%; top: {{m.y}}px; width: {{m.s}}px; height: {{m.s}}px; animation-duration: {{m.dur}}s; animation-delay: {{m.del}}s"></span>
+  </sc-for>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <div style="position: absolute; top: 20px; left: 5vw; display: flex; align-items: center; gap: 12px">
+    <svg width="28" height="32" viewBox="0 0 28 32" aria-hidden="true"><path d="M14 1 L27 8.5 V23.5 L14 31 L1 23.5 V8.5 Z" fill="none" stroke="#7FE7FF" stroke-width="1.5"></path><path d="M14 9 L20 12.5 V19.5 L14 23 L8 19.5 V12.5 Z" fill="#BDF4FF"></path></svg>
+    <span style="font: 400 20px 'Aboreto', serif; letter-spacing: .24em; color: #DDF7FF">Cockpit</span>
+  </div>
+
+  <div class="xpwrap" aria-label="Session progress">
+    <div style="display: flex; justify-content: space-between; width: 100%">
+      <span class="eyebrow" style="color: #7FE7FF">Session XP</span>
+      <span class="eyebrow" style="color: #EAFBFF">{{xp}} / {{xpMax}}</span>
+    </div>
+    <div class="xptrack"><div class="xpfill" style="width: {{xpPct}}%"></div></div>
+    <sc-if value="{{pop}}" hint-placeholder-val="{{false}}"><span class="pop">+100 XP</span></sc-if>
+  </div>
+
+  <div role="group" aria-label="Preview AI state" style="position: absolute; top: 22px; right: 4vw; display: flex; gap: 2px; flex-wrap: wrap; justify-content: flex-end; max-width: 30vw">
+    <sc-for list="{{stateBtns}}" as="b" hint-placeholder-count="5">
+      <button class="sch {{b.cls}}" onClick="{{b.pick}}">{{b.label}}</button>
+    </sc-for>
+  </div>
+
+  <section class="hero parallax" aria-label="Active quest" style="position: absolute; left: 6vw; top: 112px; width: 52vw; transform: translate({{heroX}}px, {{heroY}}px)">
+    <div class="eyebrow" style="color: #7FE7FF"><span class="rune" aria-hidden="true">ᚠ</span> Active quest <span class="rune" aria-hidden="true">ᚱ</span></div>
+    <h1 class="title" style="margin-top: 14px">Pre-Market Prep</h1>
+    <div class="runeband" aria-hidden="true">ᚦ ᛁ ᚾ ᚷ · ᛟ ᚠ · ᛞ ᚨ ᚷ ᚱ</div>
+    <p style="margin: 14px 0 0; font-size: 19px; font-weight: 300; letter-spacing: .03em; color: #9FB4CA; max-width: 540px">Complete when today's plan has entry, invalidation and size.</p>
+    <div class="eyebrow" style="margin-top: 30px">Objective {{stepNo}}</div>
+    <div class="objective" style="margin-top: 8px"><span class="box" aria-hidden="true"></span>{{currentTitle}}</div>
+    <div style="margin-top: 24px; display: flex; gap: 30px; align-items: center; flex-wrap: wrap">
+      <button class="go" onClick="{{enter}}"><span class="flake" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7M12 2l-2.5 2.5M12 2l2.5 2.5M12 22l-2.5-2.5M12 22l2.5-2.5"></path></svg></span>{{enterLabel}}</button>
+      <button class="txtbtn soft" onClick="{{talk}}">Speak with companion</button>
+    </div>
+  </section>
+
+  <section class="orbcol parallax" aria-label="AI companion" style="position: absolute; right: 7vw; top: 100px; width: 380px; display: flex; flex-direction: column; align-items: center; gap: 6px; transform: translate({{orbX}}px, {{orbY}}px)">
+    <div class="orb-wrap {{aiCls}}" role="img" aria-label="Companion is {{aiLabel}}">
+      <div class="orb"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div></div>
+      <div class="core"></div>
+    </div>
+    <div class="floor {{aiCls}}" aria-hidden="true"></div>
+    <div class="wave {{aiCls}}" aria-hidden="true">
+      <sc-for list="{{bars}}" as="bar" hint-placeholder-count="24">
+        <span class="bar" style="animation-delay: {{bar.d}}s"></span>
+      </sc-for>
+    </div>
+    <div style="font: 600 13px 'Alegreya Sans','Noto Sans Runic',sans-serif; letter-spacing: .3em; text-transform: uppercase; color: {{aiTone}}">Companion · {{aiLabel}}</div>
+    <p aria-live="polite" style="margin: 6px 0 0; text-align: center; font-size: 20px; font-weight: 300; line-height: 1.4; color: #EAF4FB">{{line}}</p>
+    <div style="margin-top: 14px; width: 100%; display: flex; flex-direction: column; gap: 4px">
+      <span class="eyebrow">Party</span>
+      <sc-for list="{{agents}}" as="a" hint-placeholder-count="3">
+        <div style="font-size: 16px; color: #9FB4CA; line-height: 1.45">
+          <span class="sdot {{a.status}}" aria-hidden="true"></span>{{a.t}}
+          <sc-if value="{{a.needs}}" hint-placeholder-val="{{false}}">
+            <span style="white-space: nowrap"><button class="tiny ok" onClick="{{a.approve}}">Accept</button><button class="tiny no" onClick="{{a.reject}}">Decline</button></span>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section aria-label="Quest trail" style="position: absolute; left: 0; right: 0; bottom: 76px; height: 340px">
+    <svg width="100%" height="340" viewBox="0 0 1440 340" preserveAspectRatio="none" aria-hidden="true" style="position: absolute; inset: 0">
+      <path class="ctxline" d="{{ctxPath}}" vector-effect="non-scaling-stroke"></path>
+      <path class="trailglow" d="{{flowPath}}" vector-effect="non-scaling-stroke"></path>
+      <path class="flowbase" d="{{flowPath}}" vector-effect="non-scaling-stroke"></path>
+      <path class="flowpulse2" d="{{flowPath}}" vector-effect="non-scaling-stroke"></path>
+      <path class="flowprog" d="{{flowPath}}" pathLength="100" stroke-dasharray="100" stroke-dashoffset="{{progOffset}}" vector-effect="non-scaling-stroke"></path>
+    </svg>
+    <sc-for list="{{ctx}}" as="c" hint-placeholder-count="6">
+      <span class="frag" style="left: {{c.x}}%; top: {{c.y}}px; animation-delay: {{c.del}}s"><span class="pip {{c.pip}}" aria-hidden="true"></span>{{c.name}}</span>
+    </sc-for>
+    <sc-for list="{{steps}}" as="s" hint-placeholder-count="5">
+      <button class="txtbtn" onClick="{{s.pick}}" aria-label="Go to objective {{s.n}}: {{s.t}}" style="position: absolute; left: {{s.x}}%; top: {{s.y}}px; width: 44px; height: 44px; transform: translate(-50%,-50%)">
+        <span class="node {{s.cls}}" style="left: 50%; top: 50%"></span>
+      </button>
+      <sc-if value="{{s.isNow}}" hint-placeholder-val="{{false}}">
+        <svg class="marker" width="20" height="28" viewBox="0 0 20 28" aria-hidden="true" style="left: {{s.x}}%; top: {{s.y}}px"><path d="M10 27 L1 8 L10 1 L19 8 Z" fill="#EAFBFF" stroke="#7FE7FF" stroke-width="1.5"></path></svg>
+      </sc-if>
+      <span class="slabel {{s.cls}}" style="left: {{s.x}}%; top: {{s.ly}}px">{{s.t}}</span>
+    </sc-for>
+  </section>
+
+  <nav class="hotbar" aria-label="Workspace hotbar">
+    <sc-for list="{{slots}}" as="sl" hint-placeholder-count="6">
+      <button class="slot {{sl.cls}}" onClick="{{sl.pick}}" aria-label="{{sl.name}}">
+        <span class="med"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="{{sl.d}}"></path></svg></span>
+        <span class="k">{{sl.k}} {{sl.name}}</span>
+      </button>
+    </sc-for>
+  </nav>
+
+  <sc-if value="{{banner}}" hint-placeholder-val="{{false}}">
+    <div class="banner" aria-live="polite"><span>{{bannerText}}</span></div>
+  </sc-if>
+
+  <button class="txtbtn soft" onClick="{{toggleQueue}}" style="position: absolute; right: 4vw; bottom: 18px; font-size: 13px; z-index: 20">{{queueLabel}}</button>
+  <sc-if value="{{queueOpen}}" hint-placeholder-val="{{false}}">
+    <div style="position: absolute; right: 4vw; bottom: 70px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; z-index: 20">
+      <sc-for list="{{queue}}" as="q" hint-placeholder-count="3">
+        <span style="font-size: 18px; letter-spacing: .04em; color: #BFD3E4"><span class="rune" aria-hidden="true">ᛉ</span> {{q}}</span>
+      </sc-for>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"startState":{"editor":"enum","options":["listening","thinking","speaking","waiting","working"],"default":"waiting"},"motion":{"editor":"enum","options":["full","calm"],"default":"full"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { ai: props.startState || 'waiting', step: 1, slot: -1, slotMsg: '', mx: 0, my: 0, queueOpen: false, pop: false, banner: false, agents: { a1: 'running', a2: 'approve', a3: 'done' } };
+    this.timers = [];
+    this.fx = [];
+    this.raf = null;
+  }
+  componentWillUnmount() {
+    this.timers.concat(this.fx).forEach(function (t) { clearTimeout(t); });
+    if (this.raf) cancelAnimationFrame(this.raf);
+  }
+  sequence(list) {
+    var self = this;
+    this.timers.forEach(function (t) { clearTimeout(t); });
+    this.timers = list.map(function (it) { return setTimeout(function () { self.setState({ ai: it[1] }); }, it[0]); });
+  }
+  celebrate() {
+    var self = this;
+    this.fx.forEach(function (t) { clearTimeout(t); });
+    this.setState({ pop: false, banner: false });
+    this.fx = [
+      setTimeout(function () { self.setState({ pop: true, banner: true }); }, 20),
+      setTimeout(function () { self.setState({ pop: false }); }, 1600),
+      setTimeout(function () { self.setState({ banner: false }); }, 1900)
+    ];
+  }
+  renderVals() {
+    var self = this, s = this.state, ai = s.ai;
+    var calm = (this.props.motion || 'full') === 'calm';
+    var labels = { listening: 'Listening', thinking: 'Thinking', speaking: 'Speaking', waiting: 'Your move', working: 'Party working' };
+    var lines = {
+      listening: 'I’m listening. Talk through the level you’re looking at.',
+      thinking: 'Checking your model notes against the levels you marked…',
+      speaking: 'Two of your levels sit close together. Want me to flag the tighter one?',
+      waiting: 'Your move. Mark the key levels; I’ll log them as you go.',
+      working: 'The party is scouting sources. Keep going — I’ll call you if they find something.'
+    };
+    var defs = ['Review overnight moves', 'Mark key levels', 'Check model signals', 'Set alerts, write the plan', 'Log plan to journal'];
+    var allDone = s.step >= defs.length;
+    var W = 1440;
+    var f = function (x) { return 200 + 42 * Math.sin((x / W) * Math.PI * 2 * 1.1 + 0.5); };
+    var g = function (x) { return 50 + 14 * Math.sin((x / W) * Math.PI * 2 * 1.6 + 2.0); };
+    var pts = [], cpts = [];
+    for (var x = 0; x <= W; x += 24) { pts.push(x + ',' + f(x).toFixed(1)); cpts.push(x + ',' + g(x).toFixed(1)); }
+    var xs = [0.12, 0.30, 0.48, 0.66, 0.84];
+    var steps = defs.map(function (t, i) {
+      var py = f(xs[i] * W);
+      return { t: t, n: i + 1, x: (xs[i] * 100).toFixed(2), y: py.toFixed(1), ly: (py + 24).toFixed(1), isNow: i === s.step,
+        cls: i < s.step ? 'done' : (i === s.step ? 'now' : 'next'), pick: function () { self.setState({ step: i }); } };
+    });
+    var progX = allDone ? 1 : xs[s.step];
+    var ctxDefs = [['trading / models', 0], ['Charts', 0], ['trading / levels', 0], ['Broker', 0], ['News feed', 1], ['trading / journal', 1]];
+    var cx = [0.08, 0.24, 0.42, 0.58, 0.74, 0.9];
+    var ctx = ctxDefs.map(function (c, i) { return { name: c[0], pip: c[1] ? 'stale' : '', x: (cx[i] * 100).toFixed(2), y: g(cx[i] * W).toFixed(1), del: (i * 0.8).toFixed(1) }; });
+    var agentDefs = [{ id: 'a1', t: 'Scouting overnight headlines' }, { id: 'a2', t: 'Drafted your journal entry' }, { id: 'a3', t: 'Opened charts and broker' }];
+    var agents = agentDefs.map(function (a) {
+      var st = s.agents[a.id];
+      return { t: a.t, status: st === 'rejected' ? 'done' : st, needs: st === 'approve',
+        approve: function () { var n = Object.assign({}, s.agents); n[a.id] = 'done'; self.setState({ agents: n }); },
+        reject: function () { var n = Object.assign({}, s.agents); n[a.id] = 'rejected'; self.setState({ agents: n }); } };
+    });
+    var slotDefs = [
+      ['Quests', 'M5 21V4M5 4h11l-2 4 2 4H5'],
+      ['Files', 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'],
+      ['Web', 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18'],
+      ['Comms', 'M4 5h16v11H9l-5 4z'],
+      ['Inbox', 'M3 13l3-8h12l3 8v6H3zM3 13h5l1 3h6l1-3h5'],
+      ['Journal', 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11']
+    ];
+    var slots = slotDefs.map(function (d, i) {
+      return { name: d[0], d: d[1], k: i + 1, cls: s.slot === i ? 'on' : '',
+        pick: function () { self.setState({ slot: i, slotMsg: 'Opening ' + d[0].toLowerCase() + ' for this quest…' }); self.sequence([[0, 'working'], [2600, 'waiting']]); } };
+    });
+    var bars = [];
+    for (var i = 0; i < 24; i++) bars.push({ d: ((i * 0.37) % 0.8).toFixed(2) });
+    var flakes = [];
+    for (var j = 0; j < 30; j++) flakes.push({ x: ((j * 37.3) % 100).toFixed(1), y: (j * 31) % 200, s: 2 + (j % 3), dur: 10 + (j * 7) % 10, del: -((j * 1.3) % 16).toFixed(1) });
+    var xp = Math.min(s.step, defs.length) * 100;
+    return {
+      rootCls: calm ? 'calm' : '',
+      onMove: function (e) {
+        if (calm) return;
+        var r = e.currentTarget.getBoundingClientRect();
+        var nx = (e.clientX - r.left) / r.width - 0.5, ny = (e.clientY - r.top) / r.height - 0.5;
+        if (self.raf) return;
+        self.raf = requestAnimationFrame(function () { self.raf = null; self.setState({ mx: nx, my: ny }); });
+      },
+      onLeave: function () { self.setState({ mx: 0, my: 0 }); },
+      heroX: (s.mx * -18).toFixed(1), heroY: (s.my * -12).toFixed(1), orbX: (s.mx * 26).toFixed(1), orbY: (s.my * 18).toFixed(1),
+      aiCls: 's-' + ai, aiLabel: labels[ai], aiTone: ai === 'waiting' ? '#7FE7FF' : '#A8FFD6',
+      line: ai === 'working' && s.slotMsg ? s.slotMsg : lines[ai],
+      stateBtns: Object.keys(labels).map(function (k) { return { label: k, cls: ai === k ? 'on' : '', pick: function () { self.sequence([]); self.setState({ ai: k, slotMsg: '' }); } }; }),
+      flowPath: 'M' + pts.join(' L'), ctxPath: 'M' + cpts.join(' L'), progOffset: (100 - progX * 100).toFixed(1),
+      steps: steps, ctx: ctx, agents: agents, slots: slots, bars: bars, flakes: flakes,
+      xp: xp, xpMax: defs.length * 100, xpPct: Math.round(xp / (defs.length * 100) * 100), pop: s.pop,
+      banner: s.banner, bannerText: allDone ? 'Quest Complete' : 'Objective Complete',
+      stepNo: allDone ? '— all clear' : (s.step + 1) + ' of ' + defs.length,
+      currentTitle: allDone ? 'Quest complete. Claim the next one.' : defs[s.step],
+      enterLabel: allDone ? 'Next quest' : 'Complete objective',
+      enter: function () {
+        if (allDone) { self.setState({ step: 0 }); self.sequence([[0, 'speaking'], [2600, 'waiting']]); return; }
+        self.setState({ step: s.step + 1, slotMsg: '' });
+        if (!calm) self.celebrate();
+        self.sequence([[0, 'thinking'], [1100, 'speaking'], [3600, 'waiting']]);
+      },
+      talk: function () { self.sequence([]); self.setState({ ai: 'listening' }); },
+      queueOpen: s.queueOpen, queueLabel: s.queueOpen ? 'Close quest log' : 'Quest log · 3',
+      toggleQueue: function () { self.setState({ queueOpen: !s.queueOpen }); },
+      queue: ['Follow up with trial leads', 'Script next avatar episode', 'Tailor resume for [ROLE]']
+    };
+  }
+}
+</script>
+</body>
+</html>
