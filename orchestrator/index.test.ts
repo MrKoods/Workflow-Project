@@ -10,7 +10,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, test } from 'node:test';
-import { insideHome } from './bundle.ts';
+import { isInside } from './bundle.ts';
 import { createOrchestrator, type Orchestrator } from './index.ts';
 
 let root: string;
@@ -44,6 +44,7 @@ async function setup(files: Record<string, string> = {}) {
     questsDir: path.join(root, 'quests'),
     journalDir: path.join(root, 'journal'),
     stateFile: path.join(root, 'state.json'),
+    documentsDir: path.join(root, 'Documents'),
     opener: fakeOpener,
     warn: (m) => warnings.push(m),
     now: () => clock,
@@ -274,10 +275,106 @@ test('missing folders are offered; creating them works inside home only', async 
   assert.deepEqual(opened, [wanted]);
 });
 
-test('insideHome boundaries', () => {
+test('isInside boundaries', () => {
   const home = path.resolve('/home/nick');
-  assert.equal(insideHome(path.join(home, 'Documents', 'Fiverr'), home), true);
-  assert.equal(insideHome(home, home), false);
-  assert.equal(insideHome(path.resolve('/home/nick2/x'), home), false);
-  assert.equal(insideHome(path.join(home, '..', 'other'), home), false);
+  assert.equal(isInside(path.join(home, 'Documents', 'Fiverr'), home), true);
+  assert.equal(isInside(home, home), false);
+  assert.equal(isInside(path.resolve('/home/nick2/x'), home), false);
+  assert.equal(isInside(path.join(home, '..', 'other'), home), false);
+});
+
+const DRAFT = {
+  title: 'Gym follow-ups',
+  doneWhen: 'Every trial lead has a reply',
+  objectives: ['Pull leads', 'Draft replies', 'Send'],
+  folders: [],
+  urls: [],
+};
+
+test('Quest Forge: accept writes a file; start now only when nothing is active; discard writes nothing', async () => {
+  await setup({ 'a.md': quest('A', 'active', ['a1']) });
+  orch.setDraft(DRAFT);
+  assert.equal(orch.snapshot().draft?.rev, 1);
+  orch.setDraft({ ...DRAFT, title: 'Gym follow-ups v2' });
+  assert.equal(orch.snapshot().draft?.rev, 2);
+
+  await orch.discardDraft();
+  assert.equal(orch.snapshot().draft, null);
+  assert.deepEqual((await readdir(path.join(root, 'quests'))).sort(), ['a.md']);
+
+  // A is active, so "start" is ignored and the new quest is queued.
+  const queued = await orch.acceptDraft(DRAFT, true);
+  assert.deepEqual(queued, {
+    ok: true,
+    id: 'gym-follow-ups',
+    status: 'queued',
+  });
+  assert.equal(orch.snapshot().current?.id, 'a');
+  assert.ok(orch.snapshot().queue.some((q) => q.id === 'gym-follow-ups'));
+
+  const bad = await orch.acceptDraft({ ...DRAFT, objectives: [] }, false);
+  assert.equal(bad.ok, false);
+
+  await orch.pauseQuest('');
+  const started = await orch.acceptDraft(
+    { ...DRAFT, title: 'Script episode' },
+    true,
+  );
+  assert.deepEqual(started, {
+    ok: true,
+    id: 'script-episode',
+    status: 'active',
+  });
+  assert.equal(orch.snapshot().current?.id, 'script-episode');
+  assert.match(
+    await read('script-episode.md'),
+    /^---\ntitle: Script episode\n/,
+  );
+});
+
+test('updateQuest keeps done flags and notes; switchQuest pauses the current quest', async () => {
+  await setup({
+    'a.md':
+      '---\ntitle: A\nstatus: active\n---\nNotes up top.\n\n- [x] a1\n- [ ] a2\n\nNotes below.\n',
+    'b.md': quest('B', 'queued', ['b1']),
+  });
+  assert.equal(
+    await orch.updateQuest('a', { objectives: ['a1', 'a2 renamed', 'a3'] }),
+    'Updated "A".',
+  );
+  assert.equal(
+    await read('a.md'),
+    '---\ntitle: A\nstatus: active\n---\nNotes up top.\n\n- [x] a1\n- [ ] a2 renamed\n- [ ] a3\n\nNotes below.\n',
+  );
+  assert.match(
+    await orch.updateQuest('a', { objectives: [] }),
+    /1-7 objectives/,
+  );
+  assert.match(await orch.updateQuest('nope', { title: 'X' }), /No quest/);
+
+  assert.equal(await orch.switchQuest('b'), 'Paused "A" and started "B".');
+  const s = orch.snapshot();
+  assert.equal(s.current?.id, 'b');
+  assert.equal(
+    s.queue.find((q) => q.id === 'a')?.resumeNote,
+    'Paused to switch to "B", was on objective 2: a2 renamed',
+  );
+});
+
+test('createFolder only inside Documents', async () => {
+  await setup({ 'a.md': quest('A', 'active', ['a1']) });
+  const docs = path.join(root, 'Documents');
+  assert.equal(
+    orch.folderInDocuments('Fiverr/portfolio'),
+    path.join(docs, 'Fiverr', 'portfolio'),
+  );
+  assert.equal(orch.folderInDocuments('../Windows'), null);
+  assert.equal(orch.folderInDocuments(root), null);
+  assert.equal(
+    await orch.createFolder('Fiverr/portfolio'),
+    `Created ${path.join(docs, 'Fiverr', 'portfolio')}.`,
+  );
+  assert.ok((await stat(path.join(docs, 'Fiverr', 'portfolio'))).isDirectory());
+  assert.match(await orch.createFolder('../escape'), /Only folders inside/);
+  await assert.rejects(stat(path.join(root, 'escape')));
 });

@@ -86,6 +86,7 @@ function fakeHost() {
     snapshot: (): CockpitSnapshot => ({
       current: quest,
       queue: [],
+      draft: null,
       notice: null,
     }),
     async completeObjective() {
@@ -103,6 +104,23 @@ function fakeHost() {
     },
     async recentJournal() {
       return [];
+    },
+    setDraft(d) {
+      log.push(`draft:${d.title}:${d.objectives.length}`);
+    },
+    async updateQuest(id, changes) {
+      log.push(`update:${id}:${JSON.stringify(changes)}`);
+      return 'Updated.';
+    },
+    async switchQuest(id) {
+      log.push(`switch:${id}`);
+      return 'Switched.';
+    },
+    folderInDocuments: (f) =>
+      f.startsWith('..') ? null : `C:/Users/nick/Documents/${f}`,
+    async createFolder(f) {
+      log.push(`mkdir:${f}`);
+      return 'Created.';
     },
   };
   return { host, log, quest };
@@ -162,6 +180,10 @@ test('plain reply: streams text, drives orb states, sends the documented request
       'complete_objective',
       'add_journal_entry',
       'open_bundle_item',
+      'draft_quest',
+      'update_quest',
+      'set_active_quest',
+      'create_folder',
     ],
   );
   assert.deepEqual(
@@ -309,12 +331,66 @@ test('describeState covers no-quest and journal cases', () => {
       snapshot: () => ({
         current: null,
         queue: [{ id: 'p', title: 'Prep', status: 'queued' }],
+        draft: null,
         notice: null,
       }),
     },
     [{ kind: 'note', text: 'Chose gym niche', at: '2026-10-18T09:05:00.000Z' }],
   );
   assert.match(text, /No quest is active\./);
-  assert.match(text, /Quest log: "Prep" \(queued\)\./);
+  assert.match(text, /Quest log: "Prep" \(id p, queued\)\./);
   assert.match(text, /note: Chose gym niche/);
+});
+
+test('draft_quest validates and shows the card without writing anything', async () => {
+  const good = {
+    title: 'Launch my AI automation gig on Fiverr',
+    doneWhen: 'Gig is live',
+    objectives: ['Research', 'Packages', 'Copy'],
+    folders: ['~/Documents/Fiverr'],
+    urls: ['https://www.fiverr.com'],
+  };
+  const { companion, calls, log } = setup([
+    { tools: [{ name: 'draft_quest', input: { ...good, objectives: [] } }] },
+    { tools: [{ name: 'draft_quest', input: good }] },
+    { text: 'Card is up.' },
+  ]);
+  await companion.send('new quest: fiverr gig');
+  const bad = calls[1].messages.at(-1).content[0];
+  assert.equal(bad.is_error, true);
+  assert.match(bad.content, /1-7 objectives/);
+  assert.deepEqual(log, ['draft:Launch my AI automation gig on Fiverr:3']);
+  assert.match(
+    calls[2].messages.at(-1).content[0].content,
+    /Nothing is written until he accepts/,
+  );
+});
+
+test('update_quest and create_folder ask first; outside-Documents folders are refused', async () => {
+  const { companion, log, answers, calls } = setup([
+    {
+      tools: [
+        { name: 'update_quest', input: { id: 'q', objectives: ['A', 'B'] } },
+        { name: 'create_folder', input: { path: '../Windows' } },
+        { name: 'create_folder', input: { path: 'Fiverr/portfolio' } },
+      ],
+    },
+    { text: 'Done.' },
+  ]);
+  answers.push(true, false);
+  await companion.send('rename objectives and make folders');
+  assert.deepEqual(log, ['update:q:{"objectives":["A","B"]}']);
+  const [upd, outside, declined] = calls[1].messages.at(-1).content;
+  assert.equal(upd.content, 'Updated.');
+  assert.equal(outside.is_error, true);
+  assert.equal(declined.content, 'Nick declined. No folder was created.');
+});
+
+test('set_active_quest switches via the orchestrator', async () => {
+  const { companion, log } = setup([
+    { tools: [{ name: 'set_active_quest', input: { id: 'pre-market-prep' } }] },
+    { text: 'Switched.' },
+  ]);
+  await companion.send('start pre-market prep now');
+  assert.deepEqual(log, ['switch:pre-market-prep']);
 });

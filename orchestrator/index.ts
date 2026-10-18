@@ -6,19 +6,27 @@ import path from 'node:path';
 import {
   createFolders,
   describeOpen,
+  expandHome,
+  isInside,
   openBundle,
   type Opener,
 } from './bundle.ts';
+import { validateDraft, writeNewQuest } from './forge.ts';
 import { createJournal, localDay } from './journal.ts';
 import {
   parseQuestFile,
   setFrontmatter,
   setObjectiveDone,
+  setObjectives,
 } from './questFile.ts';
 import type {
+  AcceptResult,
   CockpitSnapshot,
   CompleteResult,
   Quest,
+  QuestChanges,
+  QuestDraft,
+  QuestDraftInput,
   QueueItem,
 } from './types.ts';
 
@@ -27,6 +35,8 @@ export interface OrchestratorOptions {
   journalDir: string;
   /** Small JSON file for app state that isn't quest content (e.g. last bundle open). */
   stateFile: string;
+  /** The user's Documents folder: the only place create_folder may write. */
+  documentsDir: string;
   opener: Opener;
   warn?: (msg: string) => void;
   now?: () => Date;
@@ -40,6 +50,7 @@ export function createOrchestrator({
   questsDir,
   journalDir,
   stateFile,
+  documentsDir,
   opener,
   warn = console.warn,
   now = () => new Date(),
@@ -49,6 +60,7 @@ export function createOrchestrator({
   let quests: Quest[] = [];
   let justFinished: string | null = null; // keeps a finished quest on screen until the next starts
   let notice: CockpitSnapshot['notice'] = null;
+  let draft: QuestDraft | null = null; // Quest Forge card, in memory until Accept
   let watcher: FSWatcher | null = null;
 
   // Mutations run one at a time so two clicks can't race on the same file.
@@ -132,6 +144,7 @@ export function createOrchestrator({
     return {
       current,
       queue: [...waiting('paused'), ...waiting('queued')],
+      draft,
       notice,
     };
   }
@@ -179,6 +192,24 @@ export function createOrchestrator({
     justFinished = null;
     await reload();
     await openAndTell(active()!);
+  }
+
+  async function pause(quest: Quest, note?: string) {
+    const step = quest.objectives.findIndex((o) => !o.done);
+    const resumeNote =
+      note?.trim() ||
+      (step >= 0
+        ? `Paused on objective ${step + 1}: ${quest.objectives[step].title}`
+        : 'Paused');
+    await edit(quest.id, (t) =>
+      setFrontmatter(t, {
+        status: 'paused',
+        resumeNote,
+        pausedAt: now().toISOString(),
+      }),
+    );
+    await journal.add({ kind: 'pause', questId: quest.id, text: resumeNote });
+    return resumeNote;
   }
 
   return {
@@ -298,24 +329,7 @@ export function createOrchestrator({
         await load();
         const quest = active();
         if (!quest) return;
-        const step = quest.objectives.findIndex((o) => !o.done);
-        const resumeNote =
-          note?.trim() ||
-          (step >= 0
-            ? `Paused on objective ${step + 1}: ${quest.objectives[step].title}`
-            : 'Paused');
-        await edit(quest.id, (t) =>
-          setFrontmatter(t, {
-            status: 'paused',
-            resumeNote,
-            pausedAt: now().toISOString(),
-          }),
-        );
-        await journal.add({
-          kind: 'pause',
-          questId: quest.id,
-          text: resumeNote,
-        });
+        await pause(quest, note);
         say(`Paused "${quest.title}". Pick it up from the quest log.`);
         await reload();
       }),
@@ -326,6 +340,145 @@ export function createOrchestrator({
         await load();
         const quest = active();
         if (quest) await openAndTell(quest);
+      }),
+
+    // ---- Quest Forge (Task 5b) -------------------------------------------
+
+    /** Companion tool draft_quest: show (or revise) the draft card. Writes nothing. */
+    setDraft(input: QuestDraftInput) {
+      draft = { ...input, rev: (draft?.rev ?? 0) + 1 };
+      emit();
+    },
+
+    /** The user pressed Accept: validate their (possibly edited) card and write the file. */
+    acceptDraft: (input: unknown, start: boolean) =>
+      serial(async (): Promise<AcceptResult> => {
+        const checked = validateDraft(input);
+        if (!checked.ok) return checked;
+        await load();
+        // One active quest: start now only if nothing else is active.
+        const status = start && !active() ? 'active' : 'queued';
+        await mkdir(questsDir, { recursive: true });
+        const id = await writeNewQuest(
+          questsDir,
+          checked.draft,
+          status,
+          now().toISOString(),
+        );
+        await journal.add({
+          kind: status === 'active' ? 'start' : 'decision',
+          questId: id,
+          text:
+            status === 'active'
+              ? checked.draft.title
+              : `Created quest "${checked.draft.title}" (queued)`,
+        });
+        draft = null;
+        justFinished = null;
+        await reload();
+        if (status === 'active') await openAndTell(active()!);
+        else {
+          say(`Queued "${checked.draft.title}". It's in the quest log.`);
+          emit();
+        }
+        return { ok: true, id, status };
+      }),
+
+    discardDraft: () =>
+      serial(async () => {
+        draft = null;
+        emit();
+      }),
+
+    /** Companion tool update_quest (after the user confirms): title, done-when, objectives. */
+    updateQuest: (id: string, changes: QuestChanges) =>
+      serial(async (): Promise<string> => {
+        await load();
+        const quest = quests.find((q) => q.id === id);
+        if (!quest) return `No quest with id "${id}".`;
+        const patch: Record<string, string> = {};
+        if (changes.title !== undefined) patch.title = changes.title;
+        if (changes.doneWhen !== undefined) patch.doneWhen = changes.doneWhen;
+        // Reuse the draft rules so an edited quest is as valid as a new one.
+        const checked = validateDraft({
+          title: patch.title ?? quest.title,
+          doneWhen: patch.doneWhen ?? (quest.doneWhen || '-'),
+          objectives:
+            changes.objectives ?? quest.objectives.map((o) => o.title),
+        });
+        if (!checked.ok) return checked.error;
+        if (Object.keys(patch).length) {
+          await edit(id, (t) => setFrontmatter(t, patch));
+        }
+        if (changes.objectives) {
+          // Keep the done flag of objectives whose title didn't change.
+          const done = new Set(
+            quest.objectives.filter((o) => o.done).map((o) => o.title),
+          );
+          const list = checked.draft.objectives.map((title) => ({
+            title,
+            done: done.has(title),
+          }));
+          await edit(id, (t) => setObjectives(t, list));
+        }
+        await journal.add({
+          kind: 'decision',
+          questId: id,
+          text: `Edited quest "${checked.draft.title}"`,
+        });
+        await reload();
+        return `Updated "${checked.draft.title}".`;
+      }),
+
+    /** Companion tool set_active_quest: pause the current quest (with a resume note) and switch. */
+    switchQuest: (id: string) =>
+      serial(async (): Promise<string> => {
+        await load();
+        const target = quests.find((q) => q.id === id);
+        if (!target) return `No quest with id "${id}".`;
+        if (target.status === 'active')
+          return `"${target.title}" is already active.`;
+        if (target.status === 'done')
+          return `"${target.title}" is already done.`;
+        const current = active();
+        if (current) {
+          const step = current.objectives.findIndex((o) => !o.done);
+          await pause(
+            current,
+            `Paused to switch to "${target.title}"` +
+              (step >= 0
+                ? `, was on objective ${step + 1}: ${current.objectives[step].title}`
+                : ''),
+          );
+          await load();
+        }
+        await activate(quests.find((q) => q.id === id)!);
+        return current
+          ? `Paused "${current.title}" and started "${target.title}".`
+          : `Started "${target.title}".`;
+      }),
+
+    /** Resolve a folder for create_folder: must be inside Documents. */
+    folderInDocuments(folder: string) {
+      const docs = path.resolve(documentsDir);
+      const full = path.resolve(docs, expandHome(folder));
+      return isInside(full, docs) ? full : null;
+    },
+
+    /** Companion tool create_folder (after the user confirms). */
+    createFolder: (folder: string) =>
+      serial(async (): Promise<string> => {
+        const docs = path.resolve(documentsDir);
+        const full = path.resolve(docs, expandHome(folder));
+        if (!isInside(full, docs))
+          return `Only folders inside ${docs} can be created.`;
+        await mkdir(full, { recursive: true });
+        await journal.add({
+          kind: 'decision',
+          questId: active()?.id,
+          text: `Created folder ${full}`,
+        });
+        return `Created ${full}.`;
       }),
 
     /** Companion tool: a journal note in its own words. */

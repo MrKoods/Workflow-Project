@@ -8,6 +8,7 @@ import type { SkinTokens } from '../skin';
 import { createAtmosphere } from './atmosphere';
 import { createChat } from './chat';
 import { createCompanion } from './companion';
+import { createForgeCard } from './forge';
 import { h, replay } from './dom';
 import { createHotbar, SLOTS } from './hotbar';
 import { createQuest } from './quest';
@@ -191,6 +192,12 @@ export function mountHud(
     }
   });
   const pickSlot = (slot: number) => {
+    // Slot 1 (Quests) starts a new quest with the companion (Quest Forge).
+    if (slot === 0) {
+      chat.prefill('New quest: ');
+      set({ slot, ai: 'listening' });
+      return;
+    }
     set({ slot });
     sequence([
       [0, 'working'],
@@ -203,10 +210,16 @@ export function mountHud(
     actions.activate,
   );
 
+  const forge = createForgeCard({
+    accept: (draft, start) => api.acceptDraft(draft, start),
+    discard: () => void api.discardDraft(),
+  });
+
   const hud = h('div', { class: 'hud' }, [
     ...createAtmosphere(skin.fx.particles.count),
     views.xp.el,
-    views.quest.el,
+    // Left column: the active quest, with the Quest Forge card under it.
+    h('div', { class: 'quest-col' }, [views.quest.el, forge.el]),
     companion.el,
     views.trail.el,
     hotbar.el,
@@ -221,6 +234,7 @@ export function mountHud(
     hud.classList.toggle('is-calm', state.calm);
     views.xp.update(objectives.filter((o) => o.done).length);
     views.quest.update(snap.current);
+    forge.update(snap.draft, snap.current?.status === 'active');
     views.trail.update(objectives);
     companion.update(state.ai, say, offerCreate, chat.started);
     hotbar.update(state.slot);

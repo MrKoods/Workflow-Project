@@ -12,7 +12,9 @@ import type {
   CompanionHost,
   CompanionState,
   JournalEntry,
+  QuestChanges,
 } from './types.ts';
+import { validateDraft } from './forge.ts';
 
 export const MODEL = 'claude-opus-5-5';
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
@@ -37,6 +39,11 @@ Tools:
 - complete_objective: when he says the current objective is done. Cockpit asks him to confirm on screen. Only the current objective can be completed; if he declines, leave it open.
 - add_journal_entry: record a decision, a blocker or where he left off, in one or two sentences.
 - open_bundle_item: open one of the quest's folders, sites or apps, using the exact entry from the bundle.
+
+Creating quests (Quest Forge): when Nick wants a new quest (he may start with "new quest:"), draft it right away with draft_quest if you can make a reasonable draft, and say briefly which assumptions he may want to change (done-when, folder, sites); the card is editable. Ask clarifying questions first only when you can't draft anything sensible, at most three. Cockpit shows the draft as a card he can edit, then Accept or Discard; you never write the file yourself. Aim for 3-7 concrete objectives, each a step he can finish in one sitting. When he asks for a change ("change objective 2 to ..."), call draft_quest again with the full revised draft. After he accepts, the new quest shows up in the live state.
+- update_quest: change the title, done-when or objectives of an existing quest. He confirms on screen.
+- set_active_quest: switch to another quest. The current one is paused with a resume note and the new one's bundle opens. Use it when he says to start or switch to a quest.
+- create_folder: create a folder inside his Documents folder, for example for a new quest's bundle. He confirms on screen.
 
 You can't send messages, submit forms, delete anything, touch accounts or money, or place trades; those stay with Nick. Market data and analysis are fine, trading orders never.`;
 
@@ -87,6 +94,68 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
     },
     ['item'],
   ),
+  tool(
+    'draft_quest',
+    'Show a new quest as an editable draft card for the user to Accept or Discard. Writes nothing. Call again with the full draft to revise it.',
+    {
+      title: {
+        type: 'string',
+        description: 'Short outcome-style title, max 120 characters.',
+      },
+      doneWhen: {
+        type: 'string',
+        description: 'One sentence: what is true when the quest is done.',
+      },
+      objectives: {
+        type: 'array',
+        items: { type: 'string' },
+        description: '3-7 concrete steps, in order.',
+      },
+      folders: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Full folder paths (C:/... or ~/...). Empty if unknown.',
+      },
+      urls: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'http(s) links the quest needs. Empty if none.',
+      },
+    },
+    ['title', 'doneWhen', 'objectives', 'folders', 'urls'],
+  ),
+  tool(
+    'update_quest',
+    'Change the title, done-when and/or objectives of an existing quest. The user confirms on screen. Objectives replace the whole list; unchanged titles keep their done state.',
+    {
+      id: {
+        type: 'string',
+        description: 'Quest id from the live state or get_current_quest.',
+      },
+      title: { type: 'string' },
+      doneWhen: { type: 'string' },
+      objectives: { type: 'array', items: { type: 'string' } },
+    },
+    ['id'],
+  ),
+  tool(
+    'set_active_quest',
+    'Make a queued or paused quest the active one. The current active quest is paused with a resume note.',
+    { id: { type: 'string', description: 'Quest id.' } },
+    ['id'],
+  ),
+  tool(
+    'create_folder',
+    "Create a folder inside the user's Documents folder. The user confirms on screen.",
+    {
+      path: {
+        type: 'string',
+        description:
+          'Path relative to Documents (e.g. "Fiverr/portfolio") or a full path inside it.',
+      },
+    },
+    ['path'],
+  ),
 ];
 
 /** The per-turn system message: everything the companion should know right now. */
@@ -95,7 +164,7 @@ export function describeState(
   journal: JournalEntry[],
   now = new Date(),
 ): string {
-  const { current, queue } = host.snapshot();
+  const { current, queue, draft } = host.snapshot();
   const time = now.toLocaleString('en-US', {
     weekday: 'long',
     hour: 'numeric',
@@ -106,7 +175,7 @@ export function describeState(
   if (current && current.status === 'active') {
     const step = current.objectives.findIndex((o) => !o.done);
     lines.push(
-      `Active quest: "${current.title}". Done when: ${current.doneWhen || '(not set)'}.`,
+      `Active quest: "${current.title}" (id ${current.id}). Done when: ${current.doneWhen || '(not set)'}.`,
       'Objectives:',
       ...current.objectives.map(
         (o, i) =>
@@ -126,9 +195,20 @@ export function describeState(
 
   lines.push(
     queue.length
-      ? `Quest log: ${queue.map((q) => `"${q.title}" (${q.status})`).join(', ')}.`
+      ? `Quest log: ${queue.map((q) => `"${q.title}" (id ${q.id}, ${q.status})`).join(', ')}.`
       : 'Quest log: empty.',
   );
+  if (draft) {
+    lines.push(
+      `Draft card on screen, waiting for Accept or Discard: ${JSON.stringify({
+        title: draft.title,
+        doneWhen: draft.doneWhen,
+        objectives: draft.objectives,
+        folders: draft.folders,
+        urls: draft.urls,
+      })}`,
+    );
+  }
   if (journal.length) {
     lines.push(
       "Today's journal, latest last:",
@@ -255,6 +335,96 @@ export function createCompanion({
         if (!item)
           return { content: 'item (string) is required.', is_error: true };
         const said = await host.openBundleItem(item);
+        emit({ type: 'action', text: said });
+        return { content: said };
+      }
+
+      case 'draft_quest': {
+        const checked = validateDraft(input);
+        if (!checked.ok) return { content: checked.error, is_error: true };
+        host.setDraft(checked.draft);
+        emit({ type: 'action', text: 'Draft quest on screen.' });
+        return {
+          content:
+            'The draft card is on screen. Nick can edit it, then Accept or Discard. Nothing is written until he accepts.',
+        };
+      }
+
+      case 'update_quest': {
+        const id = str(input.id, 200);
+        if (!id) return { content: 'id (string) is required.', is_error: true };
+        const changes: QuestChanges = {};
+        for (const key of ['title', 'doneWhen'] as const) {
+          if (input[key] === undefined) continue;
+          const v = str(input[key], 300);
+          if (!v)
+            return {
+              content: `${key} must be a non-empty string.`,
+              is_error: true,
+            };
+          changes[key] = v;
+        }
+        if (input.objectives !== undefined) {
+          if (
+            !Array.isArray(input.objectives) ||
+            !input.objectives.every((o) => typeof o === 'string')
+          ) {
+            return {
+              content: 'objectives must be a list of strings.',
+              is_error: true,
+            };
+          }
+          changes.objectives = input.objectives;
+        }
+        if (!Object.keys(changes).length) {
+          return { content: 'Nothing to change.', is_error: true };
+        }
+        const quest = [host.snapshot().current, ...host.snapshot().queue].find(
+          (q) => q?.id === id,
+        );
+        if (!quest)
+          return { content: `No open quest with id "${id}".`, is_error: true };
+        const summary = [
+          changes.title && `title → "${changes.title}"`,
+          changes.doneWhen && `done when → "${changes.doneWhen}"`,
+          changes.objectives &&
+            `objectives → ${changes.objectives.map((o, i) => `${i + 1}. ${o}`).join('; ')}`,
+        ]
+          .filter(Boolean)
+          .join(', ');
+        setState('waiting');
+        const ok = await askUser(`Update "${quest.title}": ${summary}?`);
+        setState('working');
+        if (!ok) return { content: 'Nick declined. The quest is unchanged.' };
+        const said = await host.updateQuest(id, changes);
+        emit({ type: 'action', text: said });
+        return { content: said };
+      }
+
+      case 'set_active_quest': {
+        const id = str(input.id, 200);
+        if (!id) return { content: 'id (string) is required.', is_error: true };
+        const said = await host.switchQuest(id);
+        emit({ type: 'action', text: said });
+        return { content: said };
+      }
+
+      case 'create_folder': {
+        const folder = str(input.path, 500);
+        if (!folder)
+          return { content: 'path (string) is required.', is_error: true };
+        const full = host.folderInDocuments(folder);
+        if (!full) {
+          return {
+            content: 'Only folders inside the Documents folder can be created.',
+            is_error: true,
+          };
+        }
+        setState('waiting');
+        const ok = await askUser(`Create folder ${full}?`);
+        setState('working');
+        if (!ok) return { content: 'Nick declined. No folder was created.' };
+        const said = await host.createFolder(folder);
         emit({ type: 'action', text: said });
         return { content: said };
       }

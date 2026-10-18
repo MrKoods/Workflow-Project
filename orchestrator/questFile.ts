@@ -114,3 +114,26 @@ export function setFrontmatter(
     .join(eol);
   return `---${eol}${fm}${eol}---${eol}${body}`;
 }
+
+/**
+ * Replace the checklist with `objectives`, keeping other body text (notes) in
+ * place: the new list goes where the first checkbox was, or at the end.
+ */
+export function setObjectives(
+  text: string,
+  objectives: { title: string; done: boolean }[],
+): string {
+  const { head, body } = split(text);
+  const eol = eolOf(text);
+  const lines = body.split(/\r?\n/);
+  const first = lines.findIndex((l) => CHECKBOX.test(l));
+  const kept = lines.filter((l) => !CHECKBOX.test(l));
+  const list = objectives.map((o) => `- [${o.done ? 'x' : ' '}] ${o.title}`);
+  if (first < 0) {
+    while (kept.length && kept[kept.length - 1] === '') kept.pop();
+    return head + [...kept, ...list, ''].join(eol);
+  }
+  kept.splice(first, 0, ...list); // nothing before `first` was removed
+
+  return head + kept.join(eol);
+}

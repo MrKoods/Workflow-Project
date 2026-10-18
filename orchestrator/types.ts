@@ -27,6 +27,24 @@ export interface Quest {
   completedAt?: string;
 }
 
+/** A quest the companion drafted (Quest Forge), shown as an editable card. */
+export interface QuestDraftInput {
+  title: string;
+  doneWhen: string;
+  objectives: string[];
+  folders: string[];
+  urls: string[];
+}
+
+export interface QuestDraft extends QuestDraftInput {
+  /** Bumped on every revision so the card knows to refresh its fields. */
+  rev: number;
+}
+
+export type AcceptResult =
+  | { ok: true; id: string; status: 'active' | 'queued' }
+  | { ok: false; error: string };
+
 export interface QueueItem {
   id: string;
   title: string;
@@ -39,6 +57,8 @@ export interface CockpitSnapshot {
   current: Quest | null;
   /** Paused quests first, then queued, each in file-name order. */
   queue: QueueItem[];
+  /** Quest Forge draft awaiting Accept / Discard. */
+  draft: QuestDraft | null;
   /** Latest one-line message for the companion (e.g. what the bundle opened). New seq = new message. */
   notice: {
     seq: number;
@@ -90,6 +110,16 @@ export interface CockpitApi {
   answerConfirm(id: string, ok: boolean): Promise<void>;
   onChat(cb: (event: ChatEvent) => void): () => void;
   onSnapshot(cb: (snapshot: CockpitSnapshot) => void): () => void;
+  /** Quest Forge: write the (possibly edited) draft as a new quest file. */
+  acceptDraft(draft: QuestDraftInput, start: boolean): Promise<AcceptResult>;
+  discardDraft(): Promise<void>;
+}
+
+/** Changes the companion can make to an existing quest (after the user confirms). */
+export interface QuestChanges {
+  title?: string;
+  doneWhen?: string;
+  objectives?: string[];
 }
 
 /** Orb states the companion drives while it works. */
@@ -114,4 +144,13 @@ export interface CompanionHost {
   addJournalNote(text: string): Promise<void>;
   openBundleItem(item: string): Promise<string>;
   recentJournal(limit: number): Promise<JournalEntry[]>;
+  /** Show (or replace) the Quest Forge draft card. Writes nothing. */
+  setDraft(draft: QuestDraftInput): void;
+  /** Apply validated changes to a quest file. Errors come back as a string. */
+  updateQuest(id: string, changes: QuestChanges): Promise<string>;
+  /** Make a quest active, pausing the current one with a resume note. */
+  switchQuest(id: string): Promise<string>;
+  /** Resolve a folder path if it may be created (inside Documents); null otherwise. */
+  folderInDocuments(folder: string): string | null;
+  createFolder(folder: string): Promise<string>;
 }

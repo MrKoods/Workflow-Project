@@ -16,6 +16,9 @@ const api: CockpitApi = {
   pauseQuest: (note) => ipcRenderer.invoke(IPC.pauseQuest, note),
   openBundle: () => ipcRenderer.invoke(IPC.openBundle),
   createMissingFolders: () => ipcRenderer.invoke(IPC.createMissingFolders),
+  acceptDraft: (draft, start) =>
+    ipcRenderer.invoke(IPC.acceptDraft, draft, start),
+  discardDraft: () => ipcRenderer.invoke(IPC.discardDraft),
   sendChat: (text) => ipcRenderer.invoke(IPC.chatSend, text),
   answerConfirm: (id, ok) => ipcRenderer.invoke(IPC.chatAnswer, id, ok),
   onChat(cb) {

@@ -96,9 +96,9 @@ export function describeOpen({ opened, missing, failed }: BundleOpenResult) {
   return [head, ...tail].filter(Boolean).join(' ');
 }
 
-/** True when `full` is strictly inside the home folder (not the home folder itself). */
-export const insideHome = (full: string, home = os.homedir()) => {
-  const rel = path.relative(home, full);
+/** True when `full` is strictly inside `base` (default: the home folder), not `base` itself. */
+export const isInside = (full: string, base = os.homedir()) => {
+  const rel = path.relative(base, full);
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
 };
 
@@ -108,7 +108,7 @@ export async function createFolders(folders: string[], opener: Opener) {
   const refused: string[] = [];
   for (const item of folders) {
     const full = path.resolve(expandHome(item));
-    if (!insideHome(full)) {
+    if (!isInside(full)) {
       refused.push(item);
       continue;
     }

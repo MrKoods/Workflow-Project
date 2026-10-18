@@ -90,6 +90,8 @@ export function createTrail(titles: string[], bundle: BundleItem[]) {
 
   // Nodes are display-only: progress changes through the orchestrator, not by clicking the trail.
   const xs = spread(titles.length, 0.12, 0.84);
+  // Fraction of the width between neighbouring nodes (labels wrap within it).
+  const labelGap = titles.length > 1 ? xs[1] - xs[0] : 0.3;
   const marker = h('span', {
     class: 'trail-marker',
     attrs: { 'aria-hidden': 'true' },
@@ -110,8 +112,13 @@ export function createTrail(titles: string[], bundle: BundleItem[]) {
     const label = h('span', {
       class: 'trail-label',
       text: title,
-      attrs: { 'aria-hidden': 'true' },
-      vars: { '--x': x, '--y': `${(y + 24).toFixed(1)}px` },
+      attrs: { 'aria-hidden': 'true', title },
+      vars: {
+        '--x': x,
+        '--y': `${(y + 24).toFixed(1)}px`,
+        // Wrap within the gap to the next node so long titles don't collide.
+        '--label-w': `${(labelGap * 95).toFixed(2)}vw`,
+      },
     });
     el.append(node, label);
     return { node, shape, label, title, x, y };

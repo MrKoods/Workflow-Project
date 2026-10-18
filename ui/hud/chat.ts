@@ -50,6 +50,12 @@ export function createChat(on: {
   return {
     el: h('div', { class: 'chat' }, [log, form]),
     focus: () => input.focus(),
+    /** Start a message for the user, cursor at the end. */
+    prefill(text: string) {
+      input.value = text;
+      input.focus();
+      input.setSelectionRange(text.length, text.length);
+    },
     get started() {
       return log.childElementCount > 0;
     },

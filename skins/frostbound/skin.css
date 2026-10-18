@@ -921,3 +921,50 @@
   font-style: italic;
   color: var(--color-ice);
 }
+
+/* ---------- Quest Forge draft card ---------- */
+.forge {
+  background: linear-gradient(
+    180deg,
+    rgb(from var(--color-ground-glow) r g b / 0.92),
+    rgb(from var(--color-ground) r g b / 0.92)
+  );
+  backdrop-filter: blur(14px);
+  border: 1px solid rgb(from var(--color-ice) r g b / 0.3);
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 4px rgb(from var(--color-task) r g b / 0.05),
+    0 20px 60px rgb(from var(--color-shadow) r g b / 0.6);
+  scrollbar-width: thin;
+  scrollbar-color: rgb(from var(--color-task) r g b / 0.3) transparent;
+}
+.forge-body {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(from var(--color-task) r g b / 0.3) transparent;
+}
+.forge-eyebrow {
+  color: var(--color-task);
+}
+.field-area {
+  border-radius: 14px;
+  font-family: var(--font-body);
+}
+.forge-objectives {
+  color: var(--color-muted);
+  font-size: 15px;
+}
+.forge-remove {
+  font-size: 11px;
+  color: var(--color-muted-deep);
+}
+.forge-remove::before {
+  content: none;
+}
+.forge-question {
+  font-size: 18px;
+  color: var(--color-task-bright);
+}
+.forge-error {
+  font-style: italic;
+  color: var(--color-ice);
+}

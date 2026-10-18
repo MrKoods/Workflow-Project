@@ -121,11 +121,75 @@ button {
 }
 
 /* quest, left */
-.quest {
+.quest-col {
   position: absolute;
   left: 6vw;
   top: 112px;
   width: 52vw;
+  z-index: 25; /* the draft card may extend over the trail */
+}
+
+/* Quest Forge draft card */
+.forge {
+  margin-top: 28px;
+  width: min(640px, 100%);
+  max-height: 56vh;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.forge-body {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-right: 8px;
+}
+.forge-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.forge-field > .field {
+  width: 100%;
+  box-sizing: border-box;
+}
+.field-area {
+  padding: 10px 16px;
+  resize: vertical;
+}
+.forge-objectives {
+  margin: 0;
+  padding: 0 0 0 22px;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.forge-objective {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.forge-objective > .field {
+  flex: 1;
+}
+.forge-error {
+  margin: 0;
+}
+.forge-error:empty {
+  display: none;
+}
+.forge-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
 }
 .quest-title {
   margin: 14px 0 0;
@@ -212,6 +276,7 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  z-index: 25; /* chat sits above the trail's floating labels */
 }
 .orb {
   position: relative;
@@ -267,7 +332,8 @@ button {
   gap: 12px;
 }
 .chat-log {
-  max-height: 34vh;
+  /* End above the trail (bottom ~420px) on tall screens; never collapse completely. */
+  max-height: max(140px, calc(100vh - 1060px));
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -352,8 +418,15 @@ button {
   left: var(--x);
   top: var(--y);
   transform: translateX(-50%);
-  white-space: nowrap;
+  width: max-content;
+  max-width: min(var(--label-w, 14vw), 22vw);
   text-align: center;
+  /* Long objective titles wrap to two lines, then ellipsis (full text on hover). */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
 }
 .trail-frag {
   position: absolute;

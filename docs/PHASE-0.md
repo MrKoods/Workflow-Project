@@ -86,10 +86,10 @@
 - The companion never writes a quest file without an explicit Accept.
 
 **Done when**
-- [ ] Saying "new quest: launch my Fiverr AI automation gig" produces a draft card in under ~10 seconds.
-- [ ] Editing a field on the card and pressing Accept creates a valid file in `quests/` that the Task 3 loader picks up with no hand-editing.
-- [ ] Discard leaves `quests/` untouched.
-- [ ] Creating a quest while another is active queues it (or swaps with a resume note if you say "start now").
+- [x] Saying "new quest: launch my Fiverr AI automation gig" produces a draft card in under ~10 seconds. (Measured 5.6–5.9 s.)
+- [x] Editing a field on the card and pressing Accept creates a valid file in `quests/` that the Task 3 loader picks up with no hand-editing.
+- [x] Discard leaves `quests/` untouched.
+- [x] Creating a quest while another is active queues it (or swaps with a resume note if you say "start now").
 
 ## Task 6 — Journal + session summary
 - [ ] Journal panel (hotbar slot 6) lists today's entries.

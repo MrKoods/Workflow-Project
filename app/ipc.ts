@@ -10,4 +10,6 @@ export const IPC = {
   chatSend: 'cockpit:chat-send',
   chatAnswer: 'cockpit:chat-answer',
   chatEvent: 'cockpit:chat-event',
+  acceptDraft: 'cockpit:accept-draft',
+  discardDraft: 'cockpit:discard-draft',
 } as const;

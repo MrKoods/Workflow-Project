@@ -71,6 +71,7 @@ const orchestrator = createOrchestrator({
     process.env.COCKPIT_QUESTS_DIR ?? path.join(app.getAppPath(), 'quests'),
   journalDir,
   stateFile: path.join(journalDir, 'state.json'),
+  documentsDir: app.getPath('documents'),
   opener,
 });
 
@@ -116,16 +117,28 @@ const createWindow = () => {
   const shot = process.env.COCKPIT_SCREENSHOT;
   if (shot) {
     const press = async (keys?: string) => {
-      for (const key of keys?.split(',').filter(Boolean) ?? []) {
-        win?.webContents.sendInputEvent({ type: 'keyDown', keyCode: key });
-        win?.webContents.sendInputEvent({ type: 'keyUp', keyCode: key });
+      // "Tab,Control+Enter,Space": comma-separated, modifiers joined with +.
+      for (const combo of keys?.split(',').filter(Boolean) ?? []) {
+        const parts = combo.split('+');
+        const keyCode = parts.pop()!;
+        const modifiers = parts.map((m) => m.toLowerCase()) as Array<
+          'control' | 'shift' | 'alt' | 'meta'
+        >;
+        win?.webContents.sendInputEvent({
+          type: 'keyDown',
+          keyCode,
+          modifiers,
+        });
+        win?.webContents.sendInputEvent({ type: 'keyUp', keyCode, modifiers });
         await wait(300);
       }
     };
+    // Wait for the chat to finish or ask; give up early if nothing starts.
     const settleChat = async () => {
       for (let t = 0; t < 180; t++) {
         await wait(500);
         if (['done', 'confirm', 'error'].includes(lastChatEvent ?? '')) return;
+        if (t >= 8 && lastChatEvent === null) return;
       }
     };
     win.webContents.once('did-finish-load', async () => {
@@ -208,6 +221,11 @@ const connectOrchestrator = async () => {
   ipcMain.handle(IPC.createMissingFolders, () =>
     orchestrator.createMissingFolders(),
   );
+  // The draft is re-validated in the orchestrator; only the start flag is checked here.
+  ipcMain.handle(IPC.acceptDraft, (_e, draft: unknown, start: unknown) =>
+    orchestrator.acceptDraft(draft, start === true),
+  );
+  ipcMain.handle(IPC.discardDraft, () => orchestrator.discardDraft());
   orchestrator.onChange((s) => win?.webContents.send(IPC.snapshot, s));
 
   let client: Anthropic | null = null;
@@ -222,6 +240,9 @@ const connectOrchestrator = async () => {
       if (event.type === 'delta' && turn && !turn.firstText) {
         turn.firstText = now;
         console.log(`[companion] first text after ${now - turn.start} ms`);
+      }
+      if (event.type === 'action' && turn) {
+        console.log(`[companion] "${event.text}" after ${now - turn.start} ms`);
       }
       if ((event.type === 'done' || event.type === 'error') && turn) {
         console.log(
