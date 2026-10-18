@@ -6,7 +6,9 @@ import {
   nativeImage,
   Tray,
 } from 'electron';
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { setTimeout as wait } from 'node:timers/promises';
 import started from 'electron-squirrel-startup';
 import trayIconUrl from './assets/tray.png';
 
@@ -51,6 +53,24 @@ const createWindow = () => {
       event.preventDefault();
     }
   });
+
+  // Dev aid: COCKPIT_SCREENSHOT=<file.png> captures the window once it has
+  // settled. COCKPIT_SCREENSHOT_KEYS="F2,F2" presses keys first.
+  const shot = process.env.COCKPIT_SCREENSHOT;
+  if (shot) {
+    win.webContents.once('did-finish-load', async () => {
+      await wait(2500);
+      for (const key of process.env.COCKPIT_SCREENSHOT_KEYS?.split(',') ?? []) {
+        win?.webContents.sendInputEvent({ type: 'keyDown', keyCode: key });
+        win?.webContents.sendInputEvent({ type: 'keyUp', keyCode: key });
+        await wait(300);
+      }
+      await wait(1500);
+      const image = await win?.webContents.capturePage();
+      if (image) await writeFile(shot, image.toPNG());
+      console.log(`[cockpit] screenshot -> ${shot}`);
+    });
+  }
 
   win.on('closed', () => {
     win = null;

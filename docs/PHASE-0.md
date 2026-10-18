@@ -26,9 +26,9 @@
 - [x] `.env.example` with `ANTHROPIC_API_KEY=`; real `.env` is gitignored.
 
 ## Task 2 — Frostbound skin + static HUD
-- [ ] Port the Frostbound design (see `docs/SKINS.md`; reference prototype: `docs/reference/frostbound-prototype.html`, CSS only — ignore its script) into `skins/frostbound/`.
-- [ ] HUD renders: quest title, done-when, current objective, main button, companion orb (all five states, switchable by a debug key), objective trail, XP bar, hotbar (stubs), quest log toggle.
-- [ ] All colors/fonts come from `tokens.json` → CSS variables. Grep check: no hex colors inside `ui/` components.
+- [x] Port the Frostbound design (see `docs/SKINS.md`; reference prototype: `docs/reference/frostbound-prototype.html`, CSS only — ignore its script) into `skins/frostbound/`.
+- [x] HUD renders: quest title, done-when, current objective, main button, companion orb (all five states, switchable by a debug key), objective trail, XP bar, hotbar (stubs), quest log toggle. (F2 cycles orb state, F3 calm mode, 1–6 hotbar.)
+- [x] All colors/fonts come from `tokens.json` → CSS variables. Grep check: no hex colors inside `ui/` components.
 
 ## Task 3 — Quests from files
 - [ ] Quest file format (markdown + frontmatter), e.g. `quests/fiverr-gig.md`:

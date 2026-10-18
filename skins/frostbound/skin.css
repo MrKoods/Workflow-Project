@@ -1,0 +1,842 @@
+/* Frostbound — ice/aurora skin. Ported from docs/reference/frostbound-prototype.html.
+   Colors come from tokens.json (as --color-*, --orb-*, --shape-*, --font-*).
+   Alpha variants use CSS relative color: rgb(from var(--x) r g b / a). */
+
+@import '@fontsource/aboreto/400.css';
+@import '@fontsource/alegreya-sans/300.css';
+@import '@fontsource/alegreya-sans/400.css';
+@import '@fontsource/alegreya-sans/500.css';
+@import '@fontsource/alegreya-sans/700.css';
+@import '@fontsource/noto-sans-runic/400.css';
+
+/* ---------- ground ---------- */
+.hud {
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    var(--color-ground-glow) 0%,
+    var(--color-ground) 62%
+  );
+  color: var(--color-text);
+  font-family: var(--font-body);
+}
+.hud a {
+  color: var(--color-task);
+}
+.hud :focus-visible {
+  outline: 2px solid var(--color-task-bright);
+  outline-offset: 4px;
+}
+.eyebrow {
+  font: 600 13px var(--font-body);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--color-muted-dim);
+}
+
+.hud-vignette {
+  background: radial-gradient(
+    ellipse at 50% 40%,
+    transparent 42%,
+    rgb(from var(--color-shadow) r g b / 0.75) 100%
+  );
+}
+.hud-sky {
+  filter: blur(70px);
+  opacity: 0.4;
+  background: linear-gradient(
+    95deg,
+    transparent 15%,
+    rgb(from var(--color-companion) r g b / 0.5) 35%,
+    rgb(from var(--color-task) r g b / 0.4) 55%,
+    rgb(from var(--color-aurora) r g b / 0.3) 70%,
+    transparent 85%
+  );
+  animation: fb-sway 18s ease-in-out infinite alternate;
+}
+@keyframes fb-sway {
+  from {
+    transform: skewY(-5deg) translateX(-5%);
+  }
+  to {
+    transform: skewY(-2deg) translateX(5%);
+  }
+}
+.hud-light--task {
+  background: radial-gradient(
+    ellipse,
+    rgb(from var(--color-task) r g b / 0.14) 0%,
+    rgb(from var(--color-task) r g b / 0.04) 36%,
+    transparent 64%
+  );
+}
+.hud-light--companion {
+  background: radial-gradient(
+    circle,
+    rgb(from var(--color-companion) r g b / 0.14) 0%,
+    rgb(from var(--color-companion) r g b / 0.04) 38%,
+    transparent 64%
+  );
+  animation: fb-glow-breath 5s ease-in-out infinite;
+  transition: background 0.8s;
+}
+.hud[data-ai='waiting'] .hud-light--companion {
+  background: radial-gradient(
+    circle,
+    rgb(from var(--color-task) r g b / 0.16) 0%,
+    transparent 56%
+  );
+}
+@keyframes fb-glow-breath {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
+}
+
+/* particles: snow */
+.particle {
+  border-radius: 50%;
+  background: var(--color-task-bright);
+  opacity: 0;
+  animation: fb-fall linear infinite;
+  animation-duration: var(--dur);
+  animation-delay: var(--delay);
+}
+@keyframes fb-fall {
+  0% {
+    transform: translate(0, -40px);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translate(-80px, 700px);
+    opacity: 0;
+  }
+}
+
+/* ---------- brand ---------- */
+.brand-mark {
+  clip-path: var(--shape-marker);
+  background: var(--color-task);
+  display: grid;
+  place-items: center;
+}
+.brand-mark::before {
+  content: '';
+  width: calc(100% - 3px);
+  height: calc(100% - 3px);
+  clip-path: var(--shape-marker);
+  background: var(--color-ground);
+}
+.brand-mark::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 45%;
+  height: 45%;
+  clip-path: var(--shape-marker);
+  background: var(--color-ice);
+}
+.brand-name {
+  font: 400 20px var(--font-title);
+  letter-spacing: 0.24em;
+  color: var(--color-frost);
+}
+
+/* ---------- XP: segmented ice ---------- */
+.xp-label {
+  color: var(--color-task);
+}
+.xp-count {
+  color: var(--color-task-bright);
+}
+.xp-track {
+  background: rgb(from var(--color-task) r g b / 0.08);
+  transform: skewX(-24deg);
+}
+.xp-fill {
+  background: linear-gradient(
+    90deg,
+    var(--color-task-deep),
+    var(--color-task) 70%,
+    var(--color-task-bright)
+  );
+  box-shadow: 0 0 14px rgb(from var(--color-task) r g b / 0.9);
+  transition: width 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  mask-image: repeating-linear-gradient(
+    90deg,
+    black 0 18px,
+    transparent 18px 21px
+  );
+}
+.xp-pop {
+  font: 700 20px var(--font-body);
+  letter-spacing: 0.08em;
+  color: var(--color-task-bright);
+  text-shadow: 0 0 14px var(--color-task);
+}
+.xp-pop.is-on {
+  animation: fb-pop 1.5s ease-out forwards;
+}
+@keyframes fb-pop {
+  0% {
+    transform: translateY(10px) scale(0.6);
+    opacity: 0;
+  }
+  20% {
+    transform: translateY(0) scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-34px);
+    opacity: 0;
+  }
+}
+
+/* ---------- celebration: freezes in from blur ---------- */
+.banner-text {
+  font: 400 clamp(30px, 3.6vw, 54px) var(--font-title);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-task-bright);
+  text-shadow:
+    0 0 30px rgb(from var(--color-task) r g b / 0.9),
+    0 0 2px var(--color-white);
+}
+.banner.is-on .banner-text {
+  animation: fb-freeze 1.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+@keyframes fb-freeze {
+  0% {
+    filter: blur(12px);
+    opacity: 0;
+    transform: scale(1.15);
+  }
+  22% {
+    filter: blur(0);
+    opacity: 1;
+    transform: scale(1);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    filter: blur(6px);
+  }
+}
+
+/* ---------- quest (left) ---------- */
+.quest-eyebrow {
+  color: var(--color-task);
+}
+.quest-eyebrow::before,
+.quest-eyebrow::after {
+  font-family: var(--font-rune);
+  font-size: 15px;
+  letter-spacing: 0;
+  color: var(--color-ice);
+  text-shadow: 0 0 10px rgb(from var(--color-task) r g b / 0.8);
+}
+.quest-eyebrow::before {
+  content: 'ᚠ ';
+}
+.quest-eyebrow::after {
+  content: ' ᚱ';
+}
+.quest-title {
+  font-family: var(--font-title);
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  line-height: 1.04;
+  font-size: clamp(48px, 5.6vw, 92px);
+  background: linear-gradient(
+    180deg,
+    var(--color-white) 0%,
+    var(--color-frost) 40%,
+    var(--color-task) 75%,
+    var(--color-task-deep) 100%
+  );
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 24px rgb(from var(--color-task) r g b / 0.4));
+}
+.quest-ornament::before {
+  content: 'ᚦ ᛁ ᚾ ᚷ · ᛟ ᚠ · ᛞ ᚨ ᚷ ᚱ';
+  font: 400 15px var(--font-rune);
+  letter-spacing: 0.32em;
+  text-shadow: 0 0 8px rgb(from var(--color-task) r g b / 0.35);
+  animation: fb-rune-glow 5s ease-in-out infinite;
+}
+@keyframes fb-rune-glow {
+  0%,
+  100% {
+    color: rgb(from var(--color-ice) r g b / 0.3);
+  }
+  50% {
+    color: rgb(from var(--color-ice) r g b / 0.6);
+  }
+}
+.quest-done {
+  font-size: 19px;
+  font-weight: 300;
+  letter-spacing: 0.03em;
+  color: var(--color-muted);
+}
+.objective {
+  font: 500 clamp(22px, 2.2vw, 30px) var(--font-body);
+  letter-spacing: 0.06em;
+  color: var(--color-task-bright);
+}
+.objective-marker {
+  clip-path: var(--shape-marker);
+  background: var(--color-task);
+  box-shadow: 0 0 12px var(--color-task);
+  animation: fb-fill-pulse 2s ease-in-out infinite;
+}
+@keyframes fb-fill-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* main button: frozen-glass capsule, spinning snowflake, frost creeps in on hover */
+.btn-primary {
+  overflow: hidden;
+  isolation: isolate;
+  cursor: pointer;
+  font: 700 16px var(--font-body);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--color-task-bright);
+  background: linear-gradient(
+    180deg,
+    rgb(from var(--color-task-bright) r g b / 0.16),
+    rgb(from var(--color-task) r g b / 0.06)
+  );
+  backdrop-filter: blur(10px);
+  border: 1px solid rgb(from var(--color-ice) r g b / 0.55);
+  border-radius: var(--shape-button);
+  box-shadow:
+    inset 0 1px 0 rgb(from var(--color-white) r g b / 0.55),
+    inset 0 -10px 18px rgb(from var(--color-task) r g b / 0.12),
+    0 0 0 4px rgb(from var(--color-task) r g b / 0.07),
+    0 0 26px rgb(from var(--color-task) r g b / 0.35);
+  text-shadow: 0 0 12px rgb(from var(--color-task) r g b / 0.8);
+  transition:
+    color 0.4s,
+    box-shadow 0.4s,
+    transform 0.3s;
+}
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at 0% 50%,
+    var(--color-white) 0%,
+    var(--color-ice) 30%,
+    var(--color-task) 60%,
+    rgb(from var(--color-task) r g b / 0) 61%
+  );
+  background-size: 0% 0%;
+  background-position: 0 50%;
+  background-repeat: no-repeat;
+  transition: background-size 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-white),
+    transparent
+  );
+  animation: fb-rim 3s ease-in-out infinite;
+}
+@keyframes fb-rim {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.btn-icon {
+  border-radius: 50%;
+  background: rgb(from var(--color-task) r g b / 0.16);
+  box-shadow: inset 0 0 0 1px rgb(from var(--color-ice) r g b / 0.5);
+  transition: background 0.4s;
+}
+.btn-icon::before {
+  content: '';
+  width: 18px;
+  height: 18px;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7M12 2l-2.5 2.5M12 2l2.5 2.5M12 22l-2.5-2.5M12 22l2.5-2.5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  animation: fb-flake-spin 9s linear infinite;
+}
+@keyframes fb-flake-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.btn-primary:hover {
+  color: var(--color-ink);
+  text-shadow: none;
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgb(from var(--color-white) r g b / 0.8),
+    0 0 0 4px rgb(from var(--color-task) r g b / 0.18),
+    0 0 40px rgb(from var(--color-task) r g b / 0.75);
+}
+.btn-primary:hover::before {
+  background-size: 260% 260%;
+}
+.btn-primary:hover .btn-icon {
+  background: rgb(from var(--color-ink) r g b / 0.12);
+}
+.btn-primary:hover .btn-icon::before {
+  animation-duration: 2s;
+}
+
+.btn-link {
+  font: 600 14px var(--font-body);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  border-bottom: 1px solid transparent;
+  transition:
+    color 0.3s,
+    border-color 0.3s;
+}
+.btn-link:hover {
+  color: var(--color-task-bright);
+  border-bottom-color: rgb(from var(--color-task) r g b / 0.6);
+}
+.btn-link::before {
+  content: 'ᛟ';
+  font: 400 14px var(--font-rune);
+  color: var(--color-task);
+}
+
+/* ---------- companion orb: aurora green, ice handoff ---------- */
+.orb-gimbal {
+  animation: fb-tumble 22s linear infinite;
+}
+@keyframes fb-tumble {
+  from {
+    transform: rotateY(0) rotateX(8deg);
+  }
+  to {
+    transform: rotateY(360deg) rotateX(8deg);
+  }
+}
+.orb-ring {
+  border-radius: 50%;
+  border: 1.5px solid rgb(from var(--color-companion) r g b / 0.55);
+  box-shadow:
+    0 0 22px rgb(from var(--color-companion) r g b / 0.22),
+    inset 0 0 22px rgb(from var(--color-companion) r g b / 0.1);
+  transition:
+    border-color 0.8s,
+    box-shadow 0.8s;
+}
+.orb-ring::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: calc(50% - 5px);
+  width: 10px;
+  height: 10px;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: var(--color-companion-bright);
+  box-shadow: 0 0 14px 3px rgb(from var(--color-companion) r g b / 0.8);
+  transition: background 0.8s;
+}
+.orb-ring--1 {
+  animation: fb-spin-a 7s linear infinite;
+}
+.orb-ring--2 {
+  animation: fb-spin-b 9s linear infinite reverse;
+}
+.orb-ring--3 {
+  animation: fb-spin-c 5.5s linear infinite;
+}
+@keyframes fb-spin-a {
+  from {
+    transform: rotateX(72deg) rotateZ(0);
+  }
+  to {
+    transform: rotateX(72deg) rotateZ(360deg);
+  }
+}
+@keyframes fb-spin-b {
+  from {
+    transform: rotateY(68deg) rotateX(18deg) rotateZ(0);
+  }
+  to {
+    transform: rotateY(68deg) rotateX(18deg) rotateZ(360deg);
+  }
+}
+@keyframes fb-spin-c {
+  from {
+    transform: rotateX(40deg) rotateY(-50deg) rotateZ(0);
+  }
+  to {
+    transform: rotateX(40deg) rotateY(-50deg) rotateZ(360deg);
+  }
+}
+.orb-core {
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 34% 30%,
+    var(--orb-palette-core1) 0%,
+    var(--orb-palette-core2) 22%,
+    var(--orb-palette-core3) 58%,
+    var(--orb-palette-core4) 100%
+  );
+  box-shadow:
+    0 0 70px 14px rgb(from var(--color-companion) r g b / 0.28),
+    0 0 0 1px rgb(from var(--color-companion-bright) r g b / 0.25);
+  animation: fb-breathe 4.2s ease-in-out infinite;
+  transition:
+    background 0.8s,
+    box-shadow 0.8s;
+}
+@keyframes fb-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
+}
+.orb-floor {
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse,
+    rgb(from var(--color-companion) r g b / 0.34),
+    transparent 70%
+  );
+  filter: blur(5px);
+  transition: background 0.8s;
+}
+.wave-bar {
+  background: var(--color-companion);
+  opacity: 0.85;
+  transform: scaleY(0.12);
+  transition:
+    transform 0.5s,
+    background 0.8s;
+}
+@keyframes fb-wave {
+  from {
+    transform: scaleY(0.12);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+.companion-status {
+  font: 600 13px var(--font-body);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--color-companion-soft);
+}
+.companion-line {
+  font-size: 20px;
+  font-weight: 300;
+  line-height: 1.4;
+  color: var(--color-text-bright);
+}
+
+/* orb states */
+.hud[data-ai='listening'] .orb-core {
+  animation-duration: 3s;
+}
+.hud[data-ai='listening'] .wave-bar {
+  animation: fb-wave 2.4s ease-in-out infinite alternate;
+  animation-delay: var(--delay);
+  opacity: 0.45;
+}
+.hud[data-ai='thinking'] .orb-ring--1 {
+  animation-duration: 1.6s;
+}
+.hud[data-ai='thinking'] .orb-ring--2 {
+  animation-duration: 2.1s;
+}
+.hud[data-ai='thinking'] .orb-ring--3 {
+  animation-duration: 1.2s;
+}
+.hud[data-ai='thinking'] .orb-core {
+  filter: brightness(0.75);
+  animation-duration: 1.4s;
+}
+.hud[data-ai='thinking'] .wave-bar {
+  transform: scaleY(0.2);
+  opacity: 0.5;
+}
+.hud[data-ai='speaking'] .orb-core {
+  animation: fb-talk 0.42s ease-in-out infinite alternate;
+}
+@keyframes fb-talk {
+  from {
+    transform: scale(0.97);
+  }
+  to {
+    transform: scale(1.1);
+  }
+}
+.hud[data-ai='speaking'] .wave-bar {
+  animation: fb-wave 0.8s ease-in-out infinite alternate;
+  animation-delay: var(--delay);
+}
+/* your move: the orb hands off to ice (task color) */
+.hud[data-ai='waiting'] .orb-ring {
+  border-color: rgb(from var(--color-task) r g b / 0.7);
+  box-shadow:
+    0 0 22px rgb(from var(--color-task) r g b / 0.25),
+    inset 0 0 22px rgb(from var(--color-task) r g b / 0.12);
+}
+.hud[data-ai='waiting'] .orb-ring::after {
+  background: var(--color-task-bright);
+}
+.hud[data-ai='waiting'] .orb-core {
+  background: radial-gradient(
+    circle at 34% 30%,
+    var(--orb-handoff-palette-core1) 0%,
+    var(--orb-handoff-palette-core2) 24%,
+    var(--orb-handoff-palette-core3) 60%,
+    var(--orb-handoff-palette-core4) 100%
+  );
+  box-shadow:
+    0 0 70px 14px rgb(from var(--color-task) r g b / 0.32),
+    0 0 0 1px rgb(from var(--color-task-bright) r g b / 0.3);
+  animation-duration: 5.5s;
+}
+.hud[data-ai='waiting'] .orb-floor {
+  background: radial-gradient(
+    ellipse,
+    rgb(from var(--color-task) r g b / 0.38),
+    transparent 70%
+  );
+}
+.hud[data-ai='waiting'] .wave-bar {
+  background: var(--color-task);
+  transform: scaleY(0.1);
+  opacity: 0.7;
+}
+.hud[data-ai='waiting'] .companion-status {
+  color: var(--color-task);
+}
+.hud[data-ai='working'] .orb-ring {
+  border-style: dashed;
+}
+.hud[data-ai='working'] .orb-gimbal {
+  animation-duration: 9s;
+}
+.hud[data-ai='working'] .wave-bar {
+  animation: fb-wave 3.2s ease-in-out infinite alternate;
+  animation-delay: var(--delay);
+  opacity: 0.35;
+}
+
+/* ---------- trail ---------- */
+.trail-glow {
+  fill: none;
+  stroke: rgb(from var(--color-task) r g b / 0.07);
+  stroke-width: 18;
+  stroke-linecap: round;
+}
+.trail-base {
+  fill: none;
+  stroke: rgb(from var(--color-mist) r g b / 0.22);
+  stroke-width: 1.2;
+}
+.trail-progress {
+  fill: none;
+  stroke: var(--color-ice);
+  stroke-width: 3;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 8px var(--color-task));
+}
+.trail-svg--progress {
+  transition: clip-path 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.trail-pulse {
+  fill: none;
+  stroke: var(--color-companion);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 2 120;
+  animation: fb-travel 3.4s linear infinite;
+  filter: drop-shadow(0 0 5px var(--color-companion));
+}
+@keyframes fb-travel {
+  from {
+    stroke-dashoffset: 244;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.trail-context {
+  fill: none;
+  stroke: rgb(from var(--color-companion) r g b / 0.12);
+  stroke-width: 1;
+  stroke-dasharray: 1 8;
+}
+.trail-node-shape {
+  clip-path: var(--shape-marker);
+  transition: all 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.trail-node-shape[data-state='done'] {
+  background: var(--color-companion);
+}
+.trail-node-shape[data-state='now'] {
+  background: linear-gradient(135deg, var(--color-white), var(--color-task));
+  filter: drop-shadow(0 0 14px var(--color-task));
+}
+.trail-node-shape[data-state='next'] {
+  background: rgb(from var(--color-mist) r g b / 0.35);
+}
+.trail-marker {
+  filter: drop-shadow(0 0 10px var(--color-task));
+  animation: fb-bounce 1.2s ease-in-out infinite;
+}
+.trail-marker::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: var(--shape-chevron);
+  background: var(--color-task);
+}
+.trail-marker::after {
+  content: '';
+  position: absolute;
+  inset: 2px 2px 3px;
+  clip-path: var(--shape-chevron);
+  background: var(--color-task-bright);
+}
+@keyframes fb-bounce {
+  0%,
+  100% {
+    margin-top: -30px;
+  }
+  50% {
+    margin-top: -42px;
+  }
+}
+.trail-label {
+  transition: color 0.8s;
+  font: 500 14px var(--font-body);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.trail-label[data-state='done'] {
+  color: var(--color-companion-done);
+}
+.trail-label[data-state='now'] {
+  color: var(--color-task-bright);
+  font: 400 18px var(--font-title);
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 14px rgb(from var(--color-task) r g b / 0.8);
+}
+.trail-label[data-state='next'] {
+  color: var(--color-muted);
+}
+.trail-frag {
+  font: 500 14px var(--font-body);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-companion-text);
+  animation: fb-bob 6s ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+@keyframes fb-bob {
+  0%,
+  100% {
+    transform: translate(-50%, -50%);
+  }
+  50% {
+    transform: translate(-50%, calc(-50% - 7px));
+  }
+}
+.trail-frag-pip {
+  clip-path: var(--shape-marker);
+  background: var(--color-companion);
+}
+.trail-frag-pip[data-stale] {
+  background: var(--color-stale);
+}
+
+/* ---------- hotbar: ice hex crystals ---------- */
+.slot-medallion {
+  clip-path: var(--shape-slot);
+  background: linear-gradient(
+    160deg,
+    rgb(from var(--color-task-bright) r g b / 0.22),
+    rgb(from var(--color-task) r g b / 0.06) 60%
+  );
+  color: var(--color-slot-text);
+  transition:
+    background 0.3s,
+    color 0.3s,
+    transform 0.3s;
+}
+.slot:hover .slot-medallion {
+  transform: translateY(-4px);
+  color: var(--color-white);
+}
+.slot[aria-pressed='true'] .slot-medallion {
+  background: linear-gradient(160deg, var(--color-white), var(--color-task));
+  color: var(--color-ink);
+  filter: drop-shadow(0 0 14px var(--color-task));
+}
+.slot-key {
+  font: 500 11px var(--font-body);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-muted-dim);
+}
+.slot[aria-pressed='true'] .slot-key {
+  color: var(--color-task-bright);
+}
+
+/* ---------- quest log ---------- */
+.quest-log-toggle {
+  font-size: 13px;
+}
+.quest-log-item {
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  color: var(--color-log-text);
+}
+.quest-log-item::before {
+  content: 'ᛉ ';
+  font-family: var(--font-rune);
+  font-size: 15px;
+  color: var(--color-ice);
+  text-shadow: 0 0 10px rgb(from var(--color-task) r g b / 0.8);
+}
