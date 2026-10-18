@@ -7,9 +7,9 @@
 ---
 
 ## Task 0 — Pick the desktop framework (decide before coding)
-- [ ] Check what's installed: `node -v`, `npm -v`, `git --version` (and `rustc --version` if considering Tauri).
-- [ ] Choose: **Electron** (fewest installs if Node is present; more examples) or **Tauri** (lighter app; needs Rust). Verify current setup requirements in each project's docs.
-- [ ] Record the choice in `docs/FEATURES.md` §0 Decisions log.
+- [x] Check what's installed: `node -v`, `npm -v`, `git --version` (and `rustc --version` if considering Tauri).
+- [x] Choose: **Electron** (fewest installs if Node is present; more examples) or **Tauri** (lighter app; needs Rust). Verify current setup requirements in each project's docs.
+- [x] Record the choice in `docs/FEATURES.md` §0 Decisions log. → **Electron + Forge (vite-typescript)**.
 
 ## Task 1 — Scaffold
 - [ ] Create the app with the chosen framework + a frontend (plain TypeScript + Vite is enough; React optional).
@@ -26,7 +26,7 @@
 - [ ] `.env.example` with `ANTHROPIC_API_KEY=`; real `.env` is gitignored.
 
 ## Task 2 — Frostbound skin + static HUD
-- [ ] Port the Frostbound design (see `docs/SKINS.md`; reference prototype on the design canvas) into `skins/frostbound/`.
+- [ ] Port the Frostbound design (see `docs/SKINS.md`; reference prototype: `docs/reference/frostbound-prototype.html`, CSS only — ignore its script) into `skins/frostbound/`.
 - [ ] HUD renders: quest title, done-when, current objective, main button, companion orb (all five states, switchable by a debug key), objective trail, XP bar, hotbar (stubs), quest log toggle.
 - [ ] All colors/fonts come from `tokens.json` → CSS variables. Grep check: no hex colors inside `ui/` components.
 

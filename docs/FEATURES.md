@@ -7,6 +7,8 @@
 
 ## 0. Decisions log
 - 2026-10-17 — **Windows** desktop app. **Wake word** for voice (push-to-talk fallback). **First workflow:** Fiverr gig page for AI automation (see CONNECTORS.md). Connectors chosen per workflow, not up front.
+- 2026-10-17 — **Desktop framework: Electron** (via Electron Forge, `vite-typescript` template). Reasons: Node 24 already installed, no Rust/MSVC toolchain needed; orchestrator, Claude client (official TS SDK) and UI all in TypeScript; bundled Chromium renders the prototype CSS identically. Accepted cost: heavier app; Forge's Vite plugin is marked experimental (docs checked 2026-10-17, Electron 44.9.0 latest stable).
+- 2026-10-17 — Frostbound reference prototype lives at `docs/reference/frostbound-prototype.html`. Port its CSS/markup; its script block is prototype-only and is ignored.
 
 ## 1. What Cockpit is, in one paragraph
 Cockpit is a full-screen workspace that sits **on top of** your normal computer and becomes the place you run your day from. You and the AI companion work on one quest at a time. Quests come from talking to the companion or from things you import. Each quest carries its own folders, sites and apps, and background agents keep them prepared. You never leave Cockpit to "go find" things; the hotbar opens them, already scoped to what you're doing. It is still Claude underneath — Cockpit is the cockpit, Claude is the co-pilot.
