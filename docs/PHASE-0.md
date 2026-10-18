@@ -56,10 +56,10 @@
 - [x] Pause saves a resume note; resume reopens the bundle and shows the note.
 
 ## Task 5 — Text chat with Claude
-- [ ] Chat input + transcript area tied to the orb (thinking while waiting, speaking while streaming, "your move" when done).
-- [ ] System prompt built from: companion role (see FEATURES §3.1), current quest, objective, bundle contents, last journal entries.
-- [ ] Tools available to Claude in Phase 0 (all Read/Prep tier): `get_current_quest`, `complete_objective` (asks user to confirm), `add_journal_entry`, `open_bundle_item`.
-- [ ] Verify current Claude API usage (models, streaming, tool use) in the official docs before writing the client.
+- [x] Chat input + transcript area tied to the orb (thinking while waiting, speaking while streaming, "your move" when done).
+- [x] System prompt built from: companion role (see FEATURES §3.1), current quest, objective, bundle contents, last journal entries. (Role = frozen cached system prompt; live state = a system message each turn.)
+- [x] Tools available to Claude in Phase 0 (all Read/Prep tier): `get_current_quest`, `complete_objective` (asks user to confirm), `add_journal_entry`, `open_bundle_item`.
+- [x] Verify current Claude API usage (models, streaming, tool use) in the official docs before writing the client.
 
 ## Task 5b — Quest Forge: create quests by talking to the companion
 **Why:** quests should never need hand-written files. You describe what you want; the companion drafts the quest; you approve; Cockpit writes the file.

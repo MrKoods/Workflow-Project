@@ -259,6 +259,45 @@ button {
 .companion-action {
   margin-top: 4px;
 }
+.chat {
+  width: 100%;
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.chat-log {
+  max-height: 34vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 6px;
+}
+.chat-log:empty {
+  display: none;
+}
+.chat-msg {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.chat-msg[data-role='user'] {
+  align-self: flex-end;
+  max-width: 85%;
+  padding: 8px 14px;
+}
+.chat-msg[data-role='confirm'] {
+  padding-left: 12px;
+}
+.confirm-row {
+  display: flex;
+  gap: 18px;
+}
+.chat-form {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
 
 /* trail, bottom */
 .trail {

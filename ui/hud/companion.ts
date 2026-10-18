@@ -52,10 +52,17 @@ export function createCompanion(onCreateFolders: () => void) {
   return {
     el,
     /** `say` overrides the stock line (e.g. what the bundle opened). */
-    update(ai: AiState, say?: string | null, offerCreate = false) {
+    update(
+      ai: AiState,
+      say?: string | null,
+      offerCreate = false,
+      chatting = false,
+    ) {
       orb.setAttribute('aria-label', `Companion is ${AI_LABELS[ai]}`);
       status.textContent = `Companion · ${AI_LABELS[ai]}`;
+      // Once the conversation has started, the stock line would just repeat it.
       line.textContent = say || COMPANION_LINES[ai];
+      line.hidden = !say && chatting;
       createBtn.hidden = !offerCreate;
     },
   };

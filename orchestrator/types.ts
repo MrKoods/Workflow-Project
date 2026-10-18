@@ -61,6 +61,7 @@ export type JournalKind =
   | 'objective'
   | 'decision'
   | 'agent'
+  | 'note' // written by the companion via add_journal_entry
   | 'summary';
 
 export interface JournalEntry {
@@ -83,5 +84,34 @@ export interface CockpitApi {
   openBundle(): Promise<void>;
   /** Create (inside the home folder) and open the folders the last bundle open couldn't find. */
   createMissingFolders(): Promise<void>;
+  /** Send a chat message to the companion; replies stream back through onChat. */
+  sendChat(text: string): Promise<void>;
+  /** Answer a confirmation the companion asked for (e.g. completing an objective). */
+  answerConfirm(id: string, ok: boolean): Promise<void>;
+  onChat(cb: (event: ChatEvent) => void): () => void;
   onSnapshot(cb: (snapshot: CockpitSnapshot) => void): () => void;
+}
+
+/** Orb states the companion drives while it works. */
+export type CompanionState = 'thinking' | 'speaking' | 'working' | 'waiting';
+
+/** Streamed from the companion (main process) to the UI. */
+export type ChatEvent =
+  | { type: 'user'; text: string }
+  | { type: 'state'; ai: CompanionState }
+  | { type: 'delta'; text: string }
+  | { type: 'done' }
+  | { type: 'action'; text: string } // a short line about a tool the companion ran
+  | { type: 'confirm'; id: string; text: string }
+  | { type: 'confirmed'; id: string; ok: boolean }
+  | { type: 'objective-completed'; result: CompleteResult }
+  | { type: 'error'; text: string };
+
+/** What the companion's tools need from the orchestrator. */
+export interface CompanionHost {
+  snapshot(): CockpitSnapshot;
+  completeObjective(): Promise<CompleteResult | null>;
+  addJournalNote(text: string): Promise<void>;
+  openBundleItem(item: string): Promise<string>;
+  recentJournal(limit: number): Promise<JournalEntry[]>;
 }

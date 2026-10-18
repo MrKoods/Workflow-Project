@@ -328,6 +328,38 @@ export function createOrchestrator({
         if (quest) await openAndTell(quest);
       }),
 
+    /** Companion tool: a journal note in its own words. */
+    addJournalNote: (text: string) =>
+      serial(async () => {
+        await journal.add({ kind: 'note', questId: active()?.id, text });
+      }),
+
+    /**
+     * Companion tool: open one entry of the active quest's bundle. Only exact
+     * bundle entries open, so the model can't open arbitrary paths or URLs.
+     */
+    openBundleItem: (item: string) =>
+      serial(async () => {
+        await load();
+        const quest = active();
+        if (!quest) return 'No active quest.';
+        const { folders, urls, apps } = quest.bundle;
+        const pick = (list: string[]) => list.filter((x) => x === item);
+        const one = {
+          folders: pick(folders),
+          urls: pick(urls),
+          apps: pick(apps),
+        };
+        if (!one.folders.length && !one.urls.length && !one.apps.length) {
+          return `"${item}" is not in this quest's bundle. Bundle: ${JSON.stringify(quest.bundle)}`;
+        }
+        return describeOpen(await openBundle(one, opener));
+      }),
+
+    /** The most recent journal entries from today, oldest first. */
+    recentJournal: async (limit: number) =>
+      (await journal.day(now())).slice(-limit),
+
     /** User clicked "Create folder": make the missing folders (home folder only) and open them. */
     createMissingFolders: () =>
       serial(async () => {

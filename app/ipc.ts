@@ -7,4 +7,7 @@ export const IPC = {
   pauseQuest: 'cockpit:pause-quest',
   openBundle: 'cockpit:open-bundle',
   createMissingFolders: 'cockpit:create-missing-folders',
+  chatSend: 'cockpit:chat-send',
+  chatAnswer: 'cockpit:chat-answer',
+  chatEvent: 'cockpit:chat-event',
 } as const;

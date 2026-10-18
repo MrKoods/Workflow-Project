@@ -1,5 +1,5 @@
 // Append-only journal: one JSON line per entry, one file per local day.
-import { appendFile, mkdir } from 'node:fs/promises';
+import { appendFile, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { JournalEntry } from './types.ts';
 
@@ -18,6 +18,23 @@ export function createJournal(dir: string) {
         path.join(dir, `${localDay(now)}.jsonl`),
         JSON.stringify(line) + '\n',
       );
+    },
+
+    /** Entries for one local day (today by default); unreadable lines are skipped. */
+    async day(d = new Date()): Promise<JournalEntry[]> {
+      let text: string;
+      try {
+        text = await readFile(path.join(dir, `${localDay(d)}.jsonl`), 'utf8');
+      } catch {
+        return [];
+      }
+      return text.split('\n').flatMap((line) => {
+        try {
+          return line.trim() ? [JSON.parse(line) as JournalEntry] : [];
+        } catch {
+          return [];
+        }
+      });
     },
   };
 }

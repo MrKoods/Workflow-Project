@@ -2,9 +2,11 @@ import type {
   Bundle,
   CockpitApi,
   CockpitSnapshot,
+  CompleteResult,
 } from '../../orchestrator/types';
 import type { SkinTokens } from '../skin';
 import { createAtmosphere } from './atmosphere';
+import { createChat } from './chat';
 import { createCompanion } from './companion';
 import { h, replay } from './dom';
 import { createHotbar, SLOTS } from './hotbar';
@@ -85,12 +87,16 @@ export function mountHud(
     views.xp.pop();
   };
 
+  const celebrateResult = (result: CompleteResult) => {
+    const fx = skin.fx.celebration;
+    celebrate(result.questComplete ? fx.quest : fx.objective);
+  };
+
   const actions = {
     async complete() {
       const result = await api.completeObjective();
       if (!result) return;
-      const fx = skin.fx.celebration;
-      celebrate(result.questComplete ? fx.quest : fx.objective);
+      celebrateResult(result);
       sequence([
         [0, 'thinking'],
         [1100, 'speaking'],
@@ -107,6 +113,7 @@ export function mountHud(
     talk() {
       sequence([]);
       set({ ai: 'listening' });
+      chat.focus();
     },
     async openBundle() {
       sequence([[0, 'working']]);
@@ -165,6 +172,24 @@ export function mountHud(
     render();
     await api.createMissingFolders();
   });
+  const chat = createChat({
+    send: (text) => void api.sendChat(text),
+    answer: (id, ok) => void api.answerConfirm(id, ok),
+  });
+  companion.el.append(chat.el);
+  // The companion's own state (thinking / speaking / working / waiting)
+  // replaces the scripted orb sequences while it's talking.
+  api.onChat((e) => {
+    chat.handle(e);
+    if (e.type === 'state') {
+      sequence([]);
+      set({ ai: e.ai });
+    } else if (e.type === 'objective-completed') {
+      celebrateResult(e.result);
+    } else {
+      render();
+    }
+  });
   const pickSlot = (slot: number) => {
     set({ slot });
     sequence([
@@ -197,7 +222,7 @@ export function mountHud(
     views.xp.update(objectives.filter((o) => o.done).length);
     views.quest.update(snap.current);
     views.trail.update(objectives);
-    companion.update(state.ai, say, offerCreate);
+    companion.update(state.ai, say, offerCreate, chat.started);
     hotbar.update(state.slot);
     log.update(snap.queue, state.logOpen, snap.current?.status !== 'active');
   }

@@ -1,0 +1,320 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import Anthropic from '@anthropic-ai/sdk';
+import {
+  CompanionError,
+  createCompanion,
+  describeState,
+  MODEL,
+  SYSTEM_PROMPT,
+} from './companion.ts';
+import type {
+  ChatEvent,
+  CockpitSnapshot,
+  CompanionHost,
+  Quest,
+} from './types.ts';
+
+type Scripted =
+  | { text?: string; tools?: { name: string; input: unknown }[]; stop?: string }
+  | Error;
+
+/** A stand-in for client.beta.messages.stream that replays scripted turns. */
+function fakeClient(script: Scripted[]) {
+  const calls: any[] = [];
+  let n = 0;
+  const client = {
+    beta: {
+      messages: {
+        stream(params: any) {
+          calls.push(structuredClone(params));
+          const turn = script[n++];
+          let onText: ((t: string) => void) | undefined;
+          return {
+            on(event: string, cb: (t: string) => void) {
+              if (event === 'text') onText = cb;
+              return this;
+            },
+            async finalMessage() {
+              if (!turn) throw new Error('script ran out');
+              if (turn instanceof Error) throw turn;
+              if (turn.text) onText?.(turn.text);
+              const content: any[] = [
+                { type: 'thinking', thinking: '', signature: `sig-${n}` },
+              ];
+              if (turn.text) content.push({ type: 'text', text: turn.text });
+              for (const [i, t] of (turn.tools ?? []).entries()) {
+                content.push({
+                  type: 'tool_use',
+                  id: `tu-${n}-${i}`,
+                  name: t.name,
+                  input: t.input,
+                });
+              }
+              return {
+                content,
+                stop_reason:
+                  turn.stop ?? (turn.tools ? 'tool_use' : 'end_turn'),
+              };
+            },
+          };
+        },
+      },
+    },
+  };
+  return { client: client as unknown as Anthropic, calls };
+}
+
+function fakeHost() {
+  const quest: Quest = {
+    id: 'q',
+    title: 'Launch the gig',
+    doneWhen: 'Gig is live',
+    status: 'active',
+    bundle: {
+      folders: ['~/Documents/Fiverr'],
+      urls: ['https://www.fiverr.com'],
+      apps: [],
+    },
+    objectives: [
+      { title: 'Research what sells', done: false },
+      { title: 'Write gig copy', done: false },
+    ],
+  };
+  const log: string[] = [];
+  const host: CompanionHost = {
+    snapshot: (): CockpitSnapshot => ({
+      current: quest,
+      queue: [],
+      notice: null,
+    }),
+    async completeObjective() {
+      const i = quest.objectives.findIndex((o) => !o.done);
+      quest.objectives[i].done = true;
+      log.push(`complete:${quest.objectives[i].title}`);
+      return { objective: quest.objectives[i].title, questComplete: false };
+    },
+    async addJournalNote(text) {
+      log.push(`note:${text}`);
+    },
+    async openBundleItem(item) {
+      log.push(`open:${item}`);
+      return 'Opened your quest item.';
+    },
+    async recentJournal() {
+      return [];
+    },
+  };
+  return { host, log, quest };
+}
+
+function setup(script: Scripted[], clientFactory?: () => Anthropic) {
+  const { client, calls } = fakeClient(script);
+  const { host, log } = fakeHost();
+  const events: ChatEvent[] = [];
+  const companion = createCompanion({
+    host,
+    client: clientFactory ?? (() => client),
+    emit: (e) => {
+      events.push(e);
+      // Auto-answer confirmations per test via `answers`.
+      if (e.type === 'confirm')
+        queueMicrotask(() => companion.answer(e.id, answers.shift() ?? false));
+    },
+  });
+  const answers: boolean[] = [];
+  return { companion, calls, events, log, answers };
+}
+
+const kinds = (events: ChatEvent[]) =>
+  events.map((e) => (e.type === 'state' ? `state:${e.ai}` : e.type));
+
+test('plain reply: streams text, drives orb states, sends the documented request shape', async () => {
+  const { companion, calls, events } = setup([
+    { text: 'Morning. Start with the top 10 gigs.' },
+  ]);
+  await companion.send('  hi  ');
+
+  assert.deepEqual(kinds(events), [
+    'user',
+    'state:thinking',
+    'state:speaking',
+    'delta',
+    'done',
+    'state:waiting',
+  ]);
+  const p = calls[0];
+  assert.equal(p.model, MODEL);
+  assert.equal(p.fallbacks, 'default');
+  assert.deepEqual(p.betas, ['server-side-fallback-2026-07-01']);
+  assert.deepEqual(p.cache_control, { type: 'ephemeral' });
+  assert.deepEqual(p.output_config, { effort: 'medium' });
+  assert.equal(
+    p.thinking,
+    undefined,
+    'Opus 5.5: thinking is always on; no param',
+  );
+  assert.equal(p.system[0].text, SYSTEM_PROMPT);
+  assert.deepEqual(
+    p.tools.map((t: any) => t.name),
+    [
+      'get_current_quest',
+      'complete_objective',
+      'add_journal_entry',
+      'open_bundle_item',
+    ],
+  );
+  assert.deepEqual(
+    p.messages.map((m: any) => m.role),
+    ['user', 'system'],
+  );
+  assert.equal(p.messages[0].content, 'hi');
+  assert.match(p.messages[1].content, /Active quest: "Launch the gig"/);
+  assert.match(
+    p.messages[1].content,
+    /\[ \] 1\. Research what sells {2}<- current/,
+  );
+  assert.deepEqual(
+    companion.history().map((m) => m.role),
+    ['user', 'system', 'assistant'],
+  );
+});
+
+test('complete_objective asks the user, completes on confirm, and reports back', async () => {
+  const { companion, calls, events, log, answers } = setup([
+    {
+      text: 'Nice.',
+      tools: [
+        {
+          name: 'complete_objective',
+          input: { objective: 'research what sells' },
+        },
+      ],
+    },
+    { text: 'Done. Gig copy next.' },
+  ]);
+  answers.push(true);
+  await companion.send('research is done');
+
+  assert.deepEqual(log, ['complete:Research what sells']);
+  assert.ok(kinds(events).includes('confirm'));
+  assert.ok(events.some((e) => e.type === 'objective-completed'));
+  const toolResult = calls[1].messages.at(-1).content[0];
+  assert.equal(toolResult.type, 'tool_result');
+  assert.equal(toolResult.content, 'Completed "Research what sells".');
+  // Assistant turn passed back unchanged, thinking block included.
+  assert.equal(calls[1].messages[2].content[0].signature, 'sig-1');
+});
+
+test('declining leaves the objective open; a wrong objective is refused without asking', async () => {
+  const declined = setup([
+    {
+      tools: [
+        {
+          name: 'complete_objective',
+          input: { objective: 'Research what sells' },
+        },
+      ],
+    },
+    { text: 'No problem.' },
+  ]);
+  declined.answers.push(false);
+  await declined.companion.send('mark it done');
+  assert.deepEqual(declined.log, []);
+  assert.equal(
+    declined.calls[1].messages.at(-1).content[0].content,
+    'Nick declined. The objective stays open.',
+  );
+
+  const wrong = setup([
+    {
+      tools: [
+        { name: 'complete_objective', input: { objective: 'Write gig copy' } },
+      ],
+    },
+    { text: 'Right, research first.' },
+  ]);
+  await wrong.companion.send('copy is done');
+  assert.ok(!kinds(wrong.events).includes('confirm'));
+  const result = wrong.calls[1].messages.at(-1).content[0];
+  assert.equal(result.is_error, true);
+  assert.match(result.content, /current objective is "Research what sells"/);
+});
+
+test('invalid tool input is returned as an error result, not run', async () => {
+  const { companion, calls, log } = setup([
+    {
+      tools: [
+        { name: 'add_journal_entry', input: { text: '' } },
+        { name: 'open_bundle_item', input: { item: 42 } },
+      ],
+    },
+    { text: 'Let me try that again later.' },
+  ]);
+  await companion.send('note that');
+  assert.deepEqual(log, []);
+  const results = calls[1].messages.at(-1).content;
+  assert.equal(results.length, 2, 'all results in one user message');
+  assert.ok(results.every((r: any) => r.is_error));
+});
+
+test('API errors and refusals roll the turn back so history stays valid', async () => {
+  const failing = setup([
+    new Anthropic.APIConnectionError({ message: 'offline' }),
+  ]);
+  await failing.companion.send('hello?');
+  assert.deepEqual(failing.companion.history(), []);
+  assert.equal(
+    (failing.events.find((e) => e.type === 'error') as any).text,
+    "Can't reach Claude. Check your internet connection.",
+  );
+
+  const refused = setup([{ text: 'partial', stop: 'refusal' }]);
+  await refused.companion.send('something');
+  assert.deepEqual(refused.companion.history(), []);
+  assert.ok(refused.events.some((e) => e.type === 'error'));
+});
+
+test('follow-up turns resend history unchanged (append-only)', async () => {
+  const { companion, calls } = setup([{ text: 'First.' }, { text: 'Second.' }]);
+  await companion.send('one');
+  await companion.send('two');
+  assert.deepEqual(calls[1].messages.slice(0, 3), [
+    calls[0].messages[0],
+    calls[0].messages[1],
+    { role: 'assistant', content: companion.history()[2].content },
+  ]);
+  assert.deepEqual(
+    calls[1].messages.slice(3).map((m: any) => m.role),
+    ['user', 'system'],
+  );
+});
+
+test('a missing key is reported in the chat, nothing is sent', async () => {
+  const { companion, calls, events } = setup([], () => {
+    throw new CompanionError('No API key.');
+  });
+  await companion.send('hi');
+  assert.equal(calls.length, 0);
+  assert.equal(
+    (events.find((e) => e.type === 'error') as any).text,
+    'No API key.',
+  );
+  assert.deepEqual(companion.history(), []);
+});
+
+test('describeState covers no-quest and journal cases', () => {
+  const text = describeState(
+    {
+      snapshot: () => ({
+        current: null,
+        queue: [{ id: 'p', title: 'Prep', status: 'queued' }],
+        notice: null,
+      }),
+    },
+    [{ kind: 'note', text: 'Chose gym niche', at: '2026-10-18T09:05:00.000Z' }],
+  );
+  assert.match(text, /No quest is active\./);
+  assert.match(text, /Quest log: "Prep" \(queued\)\./);
+  assert.match(text, /note: Chose gym niche/);
+});

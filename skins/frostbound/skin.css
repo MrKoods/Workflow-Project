@@ -889,3 +889,35 @@
   opacity: 0.4;
   cursor: default;
 }
+
+/* ---------- chat ---------- */
+.chat-log {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(from var(--color-task) r g b / 0.3) transparent;
+}
+.chat-msg {
+  font-size: 17px;
+  font-weight: 300;
+  line-height: 1.45;
+  color: var(--color-text-bright);
+}
+.chat-msg[data-role='user'] {
+  color: var(--color-task-bright);
+  background: rgb(from var(--color-task) r g b / 0.08);
+  border: 1px solid rgb(from var(--color-ice) r g b / 0.22);
+  border-radius: 16px 16px 4px 16px;
+}
+.chat-msg[data-role='action'] {
+  font: 600 12px var(--font-body);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-companion-text);
+}
+.chat-msg[data-role='confirm'] {
+  color: var(--color-task-bright);
+  border-left: 2px solid var(--color-task);
+}
+.chat-msg[data-role='error'] {
+  font-style: italic;
+  color: var(--color-ice);
+}

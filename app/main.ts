@@ -12,7 +12,15 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as wait } from 'node:timers/promises';
 import started from 'electron-squirrel-startup';
+import Anthropic from '@anthropic-ai/sdk';
+import {
+  CompanionError,
+  createCompanion,
+  type Companion,
+  type Effort,
+} from '../orchestrator/companion.ts';
 import { createOrchestrator } from '../orchestrator/index.ts';
+import type { ChatEvent } from '../orchestrator/types.ts';
 import trayIconUrl from './assets/tray.png';
 import { IPC } from './ipc';
 
@@ -31,6 +39,14 @@ if (!isPrimary) {
 }
 
 // Quest files and the journal live in the repo during Phase 0; env vars override.
+// Secrets live in a gitignored .env (CLAUDE.md rule 6) and stay in the main
+// process: the UI never sees the key.
+try {
+  process.loadEnvFile(path.join(app.getAppPath(), '.env'));
+} catch {
+  // No .env yet: the companion reports the missing key in the chat.
+}
+
 const journalDir =
   process.env.COCKPIT_JOURNAL_DIR ??
   path.join(app.getAppPath(), 'journal', 'local');
@@ -60,6 +76,8 @@ const orchestrator = createOrchestrator({
 
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
+let companion: Companion | null = null;
+let lastChatEvent: ChatEvent['type'] | null = null;
 
 const createWindow = () => {
   win = new BrowserWindow({
@@ -91,17 +109,37 @@ const createWindow = () => {
   });
 
   // Dev aid: COCKPIT_SCREENSHOT=<file.png> captures the window once it has
-  // settled. COCKPIT_SCREENSHOT_KEYS="F2,F2" presses keys first.
+  // settled. Optional, in order: COCKPIT_SCREENSHOT_KEYS="F2,F2" presses keys;
+  // COCKPIT_SCREENSHOT_CHAT="…" sends a message and waits for the reply (or a
+  // confirmation prompt); COCKPIT_SCREENSHOT_AFTER_KEYS presses keys after
+  // that (e.g. Space on a focused Confirm) and waits for the reply again.
   const shot = process.env.COCKPIT_SCREENSHOT;
   if (shot) {
-    win.webContents.once('did-finish-load', async () => {
-      await wait(2500);
-      for (const key of process.env.COCKPIT_SCREENSHOT_KEYS?.split(',').filter(
-        Boolean,
-      ) ?? []) {
+    const press = async (keys?: string) => {
+      for (const key of keys?.split(',').filter(Boolean) ?? []) {
         win?.webContents.sendInputEvent({ type: 'keyDown', keyCode: key });
         win?.webContents.sendInputEvent({ type: 'keyUp', keyCode: key });
         await wait(300);
+      }
+    };
+    const settleChat = async () => {
+      for (let t = 0; t < 180; t++) {
+        await wait(500);
+        if (['done', 'confirm', 'error'].includes(lastChatEvent ?? '')) return;
+      }
+    };
+    win.webContents.once('did-finish-load', async () => {
+      await wait(2500);
+      await press(process.env.COCKPIT_SCREENSHOT_KEYS);
+      const say = process.env.COCKPIT_SCREENSHOT_CHAT;
+      if (say && companion) {
+        void companion.send(say);
+        await settleChat();
+        if (process.env.COCKPIT_SCREENSHOT_AFTER_KEYS) {
+          lastChatEvent = null;
+          await press(process.env.COCKPIT_SCREENSHOT_AFTER_KEYS);
+          await settleChat();
+        }
       }
       await wait(1500);
       const image = await win?.webContents.capturePage();
@@ -171,6 +209,45 @@ const connectOrchestrator = async () => {
     orchestrator.createMissingFolders(),
   );
   orchestrator.onChange((s) => win?.webContents.send(IPC.snapshot, s));
+
+  let client: Anthropic | null = null;
+  let turn: { start: number; firstText: number } | null = null;
+  companion = createCompanion({
+    host: orchestrator,
+    emit: (event) => {
+      lastChatEvent = event.type;
+      // Latency matters for a talking companion (FEATURES §7 #3): log it.
+      const now = Date.now();
+      if (event.type === 'user') turn = { start: now, firstText: 0 };
+      if (event.type === 'delta' && turn && !turn.firstText) {
+        turn.firstText = now;
+        console.log(`[companion] first text after ${now - turn.start} ms`);
+      }
+      if ((event.type === 'done' || event.type === 'error') && turn) {
+        console.log(
+          `[companion] turn ${event.type} after ${now - turn.start} ms`,
+        );
+        turn = null;
+      }
+      win?.webContents.send(IPC.chatEvent, event);
+    },
+    client: () => {
+      if (!process.env.ANTHROPIC_API_KEY) {
+        throw new CompanionError(
+          'No API key yet. Add ANTHROPIC_API_KEY to .env (see .env.example) and restart Cockpit.',
+        );
+      }
+      return (client ??= new Anthropic());
+    },
+    effort: (process.env.COCKPIT_EFFORT as Effort | undefined) ?? 'medium',
+  });
+  ipcMain.handle(IPC.chatSend, (_e, text: unknown) => {
+    if (typeof text !== 'string') return;
+    return companion?.send(text.slice(0, 8000));
+  });
+  ipcMain.handle(IPC.chatAnswer, (_e, id: unknown, ok: unknown) => {
+    if (typeof id === 'string') companion?.answer(id, ok === true);
+  });
 };
 
 app.whenReady().then(async () => {
