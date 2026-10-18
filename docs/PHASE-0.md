@@ -61,6 +61,36 @@
 - [ ] Tools available to Claude in Phase 0 (all Read/Prep tier): `get_current_quest`, `complete_objective` (asks user to confirm), `add_journal_entry`, `open_bundle_item`.
 - [ ] Verify current Claude API usage (models, streaming, tool use) in the official docs before writing the client.
 
+## Task 5b — Quest Forge: create quests by talking to the companion
+**Why:** quests should never need hand-written files. You describe what you want; the companion drafts the quest; you approve; Cockpit writes the file.
+
+**Flow**
+1. Open it by: hotbar slot 1 → "New quest", or typing "new quest: …" in chat (wake word later uses the same path).
+2. You describe it in plain words, e.g. "I want to launch a Fiverr gig for AI automation."
+3. Companion asks **at most 3** clarifying questions, only if needed (what "done" means, which folder, which sites).
+4. Companion shows a **draft quest card** in the HUD: title, done-when, 3–7 objectives, suggested folders and URLs.
+5. You can edit any field on the card, or say "change objective 2 to …".
+6. **Accept** → Cockpit writes `quests/<slug>.md` in the Task 3 format. If no quest is active, it asks "Start this now?" (active) — otherwise it's queued.
+7. **Discard** → nothing is written.
+
+**Claude tools (all go through the orchestrator's permission gate)**
+- `draft_quest({title, doneWhen, objectives[], folders[], urls[]})` → returns a draft to the UI. Writes nothing.
+- `create_quest(draftId)` → only callable after you press Accept. Writes the file. (Prep tier)
+- `update_quest(id, changes)` → edits title/doneWhen/objectives of an existing quest after confirmation.
+- `set_active_quest(id)` → enforces one active; current active quest is paused with a resume note.
+- `create_folder(path)` → only inside the user's Documents (or a configured root), only after confirmation.
+
+**Rules**
+- Validate the draft against the quest schema before writing (required fields, 1–7 objectives, valid paths/URLs).
+- Slug from title, lowercase-dashed; never overwrite an existing file — append `-2`, `-3`.
+- The companion never writes a quest file without an explicit Accept.
+
+**Done when**
+- [ ] Saying "new quest: launch my Fiverr AI automation gig" produces a draft card in under ~10 seconds.
+- [ ] Editing a field on the card and pressing Accept creates a valid file in `quests/` that the Task 3 loader picks up with no hand-editing.
+- [ ] Discard leaves `quests/` untouched.
+- [ ] Creating a quest while another is active queues it (or swaps with a resume note if you say "start now").
+
 ## Task 6 — Journal + session summary
 - [ ] Journal panel (hotbar slot 6) lists today's entries.
 - [ ] "End session" asks Claude for a short debrief and sets tomorrow's first quest.

@@ -6,6 +6,7 @@
 ---
 
 ## 0. Decisions log
+- 2026-10-17 — **Quest Forge:** quests are created by talking to the companion (draft card → edit → Accept writes the file). Hand-editing quest files stays possible but is never required. Built in Phase 0 as Task 5b.
 - 2026-10-17 — **Windows** desktop app. **Wake word** for voice (push-to-talk fallback). **First workflow:** Fiverr gig page for AI automation (see CONNECTORS.md). Connectors chosen per workflow, not up front.
 - 2026-10-17 — **Desktop framework: Electron** (via Electron Forge, `vite-typescript` template). Reasons: Node 24 already installed, no Rust/MSVC toolchain needed; orchestrator, Claude client (official TS SDK) and UI all in TypeScript; bundled Chromium renders the prototype CSS identically. Accepted cost: heavier app; Forge's Vite plugin is marked experimental (docs checked 2026-10-17, Electron 44.9.0 latest stable).
 - 2026-10-17 — **Window hotkeys:** show/hide = **Ctrl+Alt+C** (Ctrl+Alt+Space was first choice but is already owned by another app on Nick's PC, likely Claude desktop quick entry); quit = **Ctrl+Alt+Q**. Hotkey only hides; a **tray icon** (Show/hide, Quit) keeps Cockpit running in the background. Window is borderless full-screen; F12 toggles DevTools.
@@ -99,7 +100,7 @@ Cockpit is a full-screen workspace that sits **on top of** your normal computer 
 - **Quest** = one outcome with a done-condition ("Done when…") and 1–7 objectives.
 - **Rule: one active quest at a time.** Everything else lives in the quest log, hidden until you finish or pause.
 - **Where quests come from:**
-  1. **Talking** — "Let's prep for market" → companion drafts the quest + objectives, you confirm.
+  1. **Talking (Quest Forge)** — "Let's prep for market" → companion asks up to 3 questions, shows a draft quest card (title, done-when, objectives, folders, sites), you edit and Accept → the quest file is written.
   2. **Templates** — recurring workflows saved once, spawned on schedule (pre-market prep every weekday, gym follow-ups every Monday).
   3. **Import** — paste a list, drop a file (markdown/CSV), or pull from calendar / email / CRM / task apps via connectors *(verify which are available)*.
   4. **Party suggestions** — an agent finds something that needs doing; it lands as a *proposed* quest you accept or dismiss.
