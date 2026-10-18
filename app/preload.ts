@@ -8,6 +8,9 @@ const api: CockpitApi = {
   getSnapshot: () => ipcRenderer.invoke(IPC.snapshot),
   completeObjective: () => ipcRenderer.invoke(IPC.completeObjective),
   startNextQuest: () => ipcRenderer.invoke(IPC.startNextQuest),
+  activateQuest: (id) => ipcRenderer.invoke(IPC.activateQuest, id),
+  pauseQuest: (note) => ipcRenderer.invoke(IPC.pauseQuest, note),
+  openBundle: () => ipcRenderer.invoke(IPC.openBundle),
   onSnapshot(cb) {
     const listener = (_e: IpcRendererEvent, s: CockpitSnapshot) => cb(s);
     ipcRenderer.on(IPC.snapshot, listener);

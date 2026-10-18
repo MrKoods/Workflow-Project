@@ -7,19 +7,38 @@ import { createOrchestrator, type Orchestrator } from './index.ts';
 
 let root: string;
 let orch: Orchestrator;
+let clock: Date;
 const warnings: string[] = [];
+const opened: string[] = [];
 
-const quest = (title: string, status: string, objectives: string[]) =>
-  `---\ntitle: ${title}\nstatus: ${status}\n---\n${objectives.map((o) => `- [ ] ${o}`).join('\n')}\n`;
+const fakeOpener = {
+  openPath: async (p: string) => (opened.push(p), ''),
+  openExternal: async (u: string) => void opened.push(u),
+};
 
-async function setup(files: Record<string, string>) {
+const quest = (
+  title: string,
+  status: string,
+  objectives: string[],
+  extra = '',
+) =>
+  `---\ntitle: ${title}\nstatus: ${status}\n${extra}---\n${objectives.map((o) => `- [ ] ${o}`).join('\n')}\n`;
+
+const read = (name: string) =>
+  readFile(path.join(root, 'quests', name), 'utf8');
+
+async function setup(files: Record<string, string> = {}) {
   for (const [name, text] of Object.entries(files)) {
     await writeFile(path.join(root, 'quests', name), text);
   }
+  orch?.stop();
   orch = createOrchestrator({
     questsDir: path.join(root, 'quests'),
     journalDir: path.join(root, 'journal'),
+    stateFile: path.join(root, 'state.json'),
+    opener: fakeOpener,
     warn: (m) => warnings.push(m),
+    now: () => clock,
   });
   await orch.start();
 }
@@ -39,6 +58,8 @@ beforeEach(async () => {
     fs.mkdir(path.join(root, 'quests')),
   );
   warnings.length = 0;
+  opened.length = 0;
+  clock = new Date(2026, 9, 18, 9, 0);
 });
 afterEach(async () => {
   orch?.stop();
@@ -133,4 +154,85 @@ test('picks up edits made outside the app', async () => {
     quest('A renamed', 'active', ['a1']),
   );
   assert.equal(await changed, 'A renamed');
+});
+
+const fwd = (p: string) => p.split(path.sep).join('/');
+const BUNDLE = (dir: string) =>
+  `bundle:\n  folders: ["${fwd(dir)}", "${fwd(dir)}/missing"]\n  urls: ["https://example.com", "file:///C:/Windows"]\n`;
+
+test('first launch of the day opens the active bundle; restarts that day do not', async () => {
+  await setup({ 'a.md': quest('A', 'active', ['a1'], BUNDLE(root)) });
+  assert.deepEqual(opened, [root, 'https://example.com/']);
+  assert.equal(
+    orch.snapshot().notice?.text,
+    `Opened 2 of 4. Not found: ${fwd(root)}/missing. Couldn't open: file:///C:/Windows (only http/https links open).`,
+  );
+
+  opened.length = 0;
+  await setup(); // restart, same day
+  assert.deepEqual(opened, []);
+
+  clock = new Date(2026, 9, 19, 9, 0);
+  await setup(); // next day
+  assert.equal(opened.length, 2);
+});
+
+test('pause saves a note; resume reopens the bundle; next objective clears the note', async () => {
+  await setup({
+    'a.md': quest('A', 'active', ['a1', 'a2'], BUNDLE(root)),
+    'b.md': quest('B', 'queued', ['b1']),
+  });
+  opened.length = 0;
+
+  await orch.pauseQuest('  halfway through the copy  ');
+  let s = orch.snapshot();
+  assert.equal(s.current, null);
+  assert.deepEqual(
+    s.queue.map((q) => [q.id, q.status, q.resumeNote]),
+    [
+      ['a', 'paused', 'halfway through the copy'],
+      ['b', 'queued', undefined],
+    ],
+  );
+  const paused = await read('a.md');
+  assert.match(paused, /\nstatus: paused\n/);
+  assert.match(paused, /\nresumeNote: halfway through the copy\n/);
+  assert.match(paused, /\npausedAt: 2026-10-18T/);
+  assert.match(
+    paused,
+    /\n {2}folders: \[".*", ".*\/missing"\]\n/,
+    'bundle kept on one line',
+  );
+
+  await orch.activateQuest('a');
+  s = orch.snapshot();
+  assert.equal(s.current?.id, 'a');
+  assert.equal(s.current?.resumeNote, 'halfway through the copy');
+  assert.doesNotMatch(await read('a.md'), /pausedAt/);
+  assert.equal(opened.length, 2, 'bundle reopened on resume');
+
+  await orch.completeObjective();
+  assert.equal(orch.snapshot().current?.resumeNote, undefined);
+
+  const kinds = (await journal()).map((e) => e.kind);
+  assert.deepEqual(kinds, ['pause', 'resume', 'objective']);
+});
+
+test('empty pause note becomes "Paused on objective N"; only one quest can be activated', async () => {
+  await setup({
+    'a.md': quest('A', 'active', ['a1', 'a2']),
+    'b.md': quest('B', 'queued', ['b1']),
+  });
+  await orch.activateQuest('b'); // refused: A is active
+  assert.equal(orch.snapshot().current?.id, 'a');
+
+  await orch.completeObjective();
+  await orch.pauseQuest('');
+  assert.equal(
+    orch.snapshot().queue[0].resumeNote,
+    'Paused on objective 2: a2',
+  );
+
+  await orch.startNextQuest(); // queued before paused
+  assert.equal(orch.snapshot().current?.id, 'b');
 });

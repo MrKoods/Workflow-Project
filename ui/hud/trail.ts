@@ -141,7 +141,7 @@ export function createTrail(titles: string[], bundle: BundleItem[]) {
         marker.style.setProperty('--x', nodes[step].x);
         marker.style.setProperty('--y', `${nodes[step].y.toFixed(1)}px`);
       }
-      const progX = allDone ? 1 : xs[step];
+      const progX = nodes.length === 0 ? 0 : allDone ? 1 : xs[step];
       progress.style.setProperty('--prog', `${(progX * 100).toFixed(2)}%`);
     },
   };

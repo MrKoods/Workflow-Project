@@ -108,6 +108,37 @@ export function mountHud(
       sequence([]);
       set({ ai: 'listening' });
     },
+    async openBundle() {
+      sequence([[0, 'working']]);
+      await api.openBundle();
+      sequence([[2600, 'waiting']]);
+    },
+    async pause(note: string) {
+      await api.pauseQuest(note);
+      sequence([[0, 'waiting']]);
+    },
+    async activate(id: string) {
+      sequence([[0, 'working']]);
+      await api.activateQuest(id);
+      set({ logOpen: false });
+      sequence([[2600, 'waiting']]);
+    },
+  };
+
+  // Orchestrator notices (e.g. "Opened 2 of 3. Not found: …") replace the
+  // companion's line for a few seconds.
+  let say: string | null = null;
+  let lastNotice = 0;
+  let sayTimer = 0;
+  const showNotice = (s: CockpitSnapshot) => {
+    if (!s.notice || s.notice.seq === lastNotice) return;
+    lastNotice = s.notice.seq;
+    say = s.notice.text;
+    clearTimeout(sayTimer);
+    sayTimer = window.setTimeout(() => {
+      say = null;
+      render();
+    }, 8000);
   };
 
   // Views that depend on which quest is shown; rebuilt when its shape changes.
@@ -134,7 +165,10 @@ export function mountHud(
     ]);
   };
   const hotbar = createHotbar(pickSlot);
-  const log = createQuestLog(() => set({ logOpen: !state.logOpen }));
+  const log = createQuestLog(
+    () => set({ logOpen: !state.logOpen }),
+    actions.activate,
+  );
 
   const hud = h('div', { class: 'hud' }, [
     ...createAtmosphere(skin.fx.particles.count),
@@ -153,18 +187,17 @@ export function mountHud(
     hud.dataset.ai = state.ai;
     hud.classList.toggle('is-calm', state.calm);
     views.xp.update(objectives.filter((o) => o.done).length);
-    views.quest.update(objectives);
+    views.quest.update(snap.current);
     views.trail.update(objectives);
-    companion.update(state.ai);
+    companion.update(state.ai, say);
     hotbar.update(state.slot);
-    log.update(
-      snap.queue.map((q) => q.title),
-      state.logOpen,
-    );
+    log.update(snap.queue, state.logOpen, snap.current?.status !== 'active');
   }
 
+  showNotice(snap);
   api.onSnapshot((next) => {
     snap = next;
+    showNotice(next);
     if (shapeKey(next) !== views.key) {
       const old = views;
       views = buildViews(next);

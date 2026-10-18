@@ -1,31 +1,49 @@
 // The orchestrator owns all quest state (CLAUDE.md rule 4). The UI only sees
 // snapshots and asks for changes through the preload bridge.
 import { watch, type FSWatcher } from 'node:fs';
-import { readdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { createJournal } from './journal.ts';
+import { describeOpen, openBundle, type Opener } from './bundle.ts';
+import { createJournal, localDay } from './journal.ts';
 import {
   parseQuestFile,
   setFrontmatter,
   setObjectiveDone,
 } from './questFile.ts';
-import type { CockpitSnapshot, CompleteResult, Quest } from './types.ts';
+import type {
+  CockpitSnapshot,
+  CompleteResult,
+  Quest,
+  QueueItem,
+} from './types.ts';
 
 export interface OrchestratorOptions {
   questsDir: string;
   journalDir: string;
+  /** Small JSON file for app state that isn't quest content (e.g. last bundle open). */
+  stateFile: string;
+  opener: Opener;
   warn?: (msg: string) => void;
+  now?: () => Date;
+}
+
+interface LocalState {
+  lastBundleOpen?: { questId: string; day: string };
 }
 
 export function createOrchestrator({
   questsDir,
   journalDir,
+  stateFile,
+  opener,
   warn = console.warn,
+  now = () => new Date(),
 }: OrchestratorOptions) {
   const journal = createJournal(journalDir);
   const listeners = new Set<(s: CockpitSnapshot) => void>();
   let quests: Quest[] = [];
   let justFinished: string | null = null; // keeps a finished quest on screen until the next starts
+  let notice: CockpitSnapshot['notice'] = null;
   let watcher: FSWatcher | null = null;
 
   // Mutations run one at a time so two clicks can't race on the same file.
@@ -37,6 +55,7 @@ export function createOrchestrator({
   };
 
   const fileOf = (id: string) => path.join(questsDir, `${id}.md`);
+  const active = () => quests.find((q) => q.status === 'active');
 
   async function edit(id: string, change: (text: string) => string) {
     const file = fileOf(id);
@@ -44,6 +63,18 @@ export function createOrchestrator({
     const tmp = path.join(questsDir, `.${id}.md.tmp`);
     await writeFile(tmp, next, 'utf8');
     await rename(tmp, file);
+  }
+
+  async function readState(): Promise<LocalState> {
+    try {
+      return JSON.parse(await readFile(stateFile, 'utf8'));
+    } catch {
+      return {};
+    }
+  }
+  async function writeState(state: LocalState) {
+    await mkdir(path.dirname(stateFile), { recursive: true });
+    await writeFile(stateFile, JSON.stringify(state, null, 2));
   }
 
   async function load() {
@@ -81,14 +112,22 @@ export function createOrchestrator({
 
   function snapshot(): CockpitSnapshot {
     const current =
-      quests.find((q) => q.status === 'active') ??
+      active() ??
       quests.find((q) => q.id === justFinished && q.status === 'done') ??
       null;
+    const waiting = (status: QueueItem['status']) =>
+      quests
+        .filter((q) => q.status === status)
+        .map(({ id, title, resumeNote }) => ({
+          id,
+          title,
+          status,
+          resumeNote,
+        }));
     return {
       current,
-      queue: quests
-        .filter((q) => q.status === 'queued')
-        .map(({ id, title }) => ({ id, title })),
+      queue: [...waiting('paused'), ...waiting('queued')],
+      notice,
     };
   }
 
@@ -102,9 +141,49 @@ export function createOrchestrator({
     emit();
   }
 
+  const say = (text: string) => {
+    notice = { seq: (notice?.seq ?? 0) + 1, text };
+  };
+
+  async function openAndTell(quest: Quest) {
+    const result = await openBundle(quest.bundle, opener);
+    await writeState({
+      ...(await readState()),
+      lastBundleOpen: { questId: quest.id, day: localDay(now()) },
+    });
+    say(describeOpen(result));
+    emit();
+  }
+
+  async function activate(quest: Quest) {
+    const resuming = quest.status === 'paused';
+    await edit(quest.id, (t) =>
+      setFrontmatter(t, { status: 'active', pausedAt: undefined }),
+    );
+    await journal.add({
+      kind: resuming ? 'resume' : 'start',
+      questId: quest.id,
+      text: quest.title,
+    });
+    justFinished = null;
+    await reload();
+    await openAndTell(active()!);
+  }
+
   return {
     async start() {
       await load();
+
+      // First launch of the day re-opens the active quest's bundle; later restarts don't.
+      const quest = active();
+      const last = (await readState()).lastBundleOpen;
+      if (
+        quest &&
+        (last?.questId !== quest.id || last.day !== localDay(now()))
+      ) {
+        await serial(() => openAndTell(quest));
+      }
+
       // Quest files are plain markdown: edits from VS Code or Claude Code show up live.
       let timer: NodeJS.Timeout | undefined;
       try {
@@ -140,7 +219,7 @@ export function createOrchestrator({
     completeObjective: () =>
       serial(async (): Promise<CompleteResult | null> => {
         await load();
-        const quest = quests.find((q) => q.status === 'active');
+        const quest = active();
         const index = quest?.objectives.findIndex((o) => !o.done) ?? -1;
         if (!quest || index < 0) return null;
 
@@ -151,6 +230,12 @@ export function createOrchestrator({
           questId: quest.id,
           text: objective,
         });
+        // The resume note described where you left off; once you've moved on, it's stale.
+        if (quest.resumeNote) {
+          await edit(quest.id, (t) =>
+            setFrontmatter(t, { resumeNote: undefined }),
+          );
+        }
 
         const questComplete = quest.objectives.every(
           (o, i) => o.done || i === index,
@@ -159,7 +244,7 @@ export function createOrchestrator({
           await edit(quest.id, (t) =>
             setFrontmatter(t, {
               status: 'done',
-              completedAt: new Date().toISOString(),
+              completedAt: now().toISOString(),
             }),
           );
           await journal.add({
@@ -173,21 +258,63 @@ export function createOrchestrator({
         return { objective, questComplete };
       }),
 
-    /** Activate the first queued quest, if nothing is active. */
+    /** Activate the first queued quest (or, failing that, the first paused one). */
     startNextQuest: () =>
       serial(async () => {
         await load();
-        if (quests.some((q) => q.status === 'active')) return;
-        const next = quests.find((q) => q.status === 'queued');
-        if (!next) return;
-        await edit(next.id, (t) => setFrontmatter(t, { status: 'active' }));
+        if (active()) return;
+        const next =
+          quests.find((q) => q.status === 'queued') ??
+          quests.find((q) => q.status === 'paused');
+        if (next) await activate(next);
+      }),
+
+    /** Start a queued quest or resume a paused one; only when nothing is active. */
+    activateQuest: (id: string) =>
+      serial(async () => {
+        await load();
+        if (active()) return;
+        const quest = quests.find(
+          (q) =>
+            q.id === id && (q.status === 'queued' || q.status === 'paused'),
+        );
+        if (quest) await activate(quest);
+      }),
+
+    /** Pause the active quest, saving where you left off. */
+    pauseQuest: (note?: string) =>
+      serial(async () => {
+        await load();
+        const quest = active();
+        if (!quest) return;
+        const step = quest.objectives.findIndex((o) => !o.done);
+        const resumeNote =
+          note?.trim() ||
+          (step >= 0
+            ? `Paused on objective ${step + 1}: ${quest.objectives[step].title}`
+            : 'Paused');
+        await edit(quest.id, (t) =>
+          setFrontmatter(t, {
+            status: 'paused',
+            resumeNote,
+            pausedAt: now().toISOString(),
+          }),
+        );
         await journal.add({
-          kind: 'start',
-          questId: next.id,
-          text: next.title,
+          kind: 'pause',
+          questId: quest.id,
+          text: resumeNote,
         });
-        justFinished = null;
+        say(`Paused "${quest.title}". Pick it up from the quest log.`);
         await reload();
+      }),
+
+    /** Re-open the active quest's folders and sites. */
+    openBundle: () =>
+      serial(async () => {
+        await load();
+        const quest = active();
+        if (quest) await openAndTell(quest);
       }),
   };
 }

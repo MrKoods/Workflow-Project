@@ -73,6 +73,16 @@ test('setFrontmatter keeps comments and body, preserves CRLF', () => {
     completedAt: '2026-10-17T12:00:00.000Z',
   });
   assert.match(next, /# keep this comment/);
+  assert.match(
+    next,
+    /\n {2}folders: \["~\/Documents\/Fiverr"\]\n/,
+    'bundle not reformatted',
+  );
+  const long = setFrontmatter(
+    SAMPLE.replace('Gig published', 'x'.repeat(120)),
+    { status: 'done' },
+  );
+  assert.match(long, new RegExp(`doneWhen: x{120}`), 'long lines not folded');
   assert.match(next, /status: done/);
   assert.ok(next.endsWith(SAMPLE.slice(SAMPLE.indexOf('Notes stay put.'))));
   assert.equal(

@@ -5,6 +5,7 @@ import {
   ipcMain,
   Menu,
   nativeImage,
+  shell,
   Tray,
 } from 'electron';
 import { writeFile } from 'node:fs/promises';
@@ -30,12 +31,31 @@ if (!isPrimary) {
 }
 
 // Quest files and the journal live in the repo during Phase 0; env vars override.
+const journalDir =
+  process.env.COCKPIT_JOURNAL_DIR ??
+  path.join(app.getAppPath(), 'journal', 'local');
+
+// COCKPIT_DRY_OPEN=1 logs bundle opens instead of launching Explorer/the browser.
+const opener = process.env.COCKPIT_DRY_OPEN
+  ? {
+      openPath: async (p: string) => (
+        console.log(`[cockpit] would open ${p}`),
+        ''
+      ),
+      openExternal: async (u: string) =>
+        void console.log(`[cockpit] would open ${u}`),
+    }
+  : {
+      openPath: (p: string) => shell.openPath(p),
+      openExternal: (u: string) => shell.openExternal(u),
+    };
+
 const orchestrator = createOrchestrator({
   questsDir:
     process.env.COCKPIT_QUESTS_DIR ?? path.join(app.getAppPath(), 'quests'),
-  journalDir:
-    process.env.COCKPIT_JOURNAL_DIR ??
-    path.join(app.getAppPath(), 'journal', 'local'),
+  journalDir,
+  stateFile: path.join(journalDir, 'state.json'),
+  opener,
 });
 
 let win: BrowserWindow | null = null;
@@ -136,6 +156,15 @@ const connectOrchestrator = async () => {
   ipcMain.handle(IPC.snapshot, () => orchestrator.snapshot());
   ipcMain.handle(IPC.completeObjective, () => orchestrator.completeObjective());
   ipcMain.handle(IPC.startNextQuest, () => orchestrator.startNextQuest());
+  // Renderer input is untrusted: check types and sizes before it reaches the orchestrator.
+  ipcMain.handle(IPC.activateQuest, (_e, id: unknown) => {
+    if (typeof id !== 'string' || !/^[\w.-]{1,200}$/.test(id)) return;
+    return orchestrator.activateQuest(id);
+  });
+  ipcMain.handle(IPC.pauseQuest, (_e, note: unknown) =>
+    orchestrator.pauseQuest(typeof note === 'string' ? note.slice(0, 500) : ''),
+  );
+  ipcMain.handle(IPC.openBundle, () => orchestrator.openBundle());
   orchestrator.onChange((s) => win?.webContents.send(IPC.snapshot, s));
 };
 

@@ -10,6 +10,9 @@ body {
 body {
   background: var(--color-ground);
 }
+[hidden] {
+  display: none !important;
+}
 button {
   font: inherit;
   color: inherit;
@@ -154,6 +157,29 @@ button {
   gap: 30px;
   align-items: center;
   flex-wrap: wrap;
+}
+.quest-resume {
+  margin: 12px 0 0;
+  max-width: 540px;
+}
+.pause-form {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 640px;
+}
+.pause-row {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+.field {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 16px;
+  font: inherit;
 }
 .btn-primary {
   position: relative;
@@ -347,8 +373,13 @@ button {
   gap: 6px;
   z-index: 20;
 }
-.quest-log[hidden] {
-  display: none;
+.quest-log-item {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+.quest-log-action {
+  min-height: 32px;
 }
 
 /* celebration banner */

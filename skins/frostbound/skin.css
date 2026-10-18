@@ -840,3 +840,52 @@
   color: var(--color-ice);
   text-shadow: 0 0 10px rgb(from var(--color-task) r g b / 0.8);
 }
+.quest-log-item[data-status='paused'] .quest-log-title {
+  color: var(--color-task-bright);
+}
+.quest-log-tag {
+  font: 600 11px var(--font-body);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-task);
+}
+.quest-log-action {
+  font-size: 12px;
+}
+
+/* ---------- resume note + pause form ---------- */
+.quest-resume {
+  font-size: 18px;
+  font-style: italic;
+  font-weight: 300;
+  color: var(--color-ice);
+}
+.field {
+  color: var(--color-task-bright);
+  background: linear-gradient(
+    180deg,
+    rgb(from var(--color-task-bright) r g b / 0.08),
+    rgb(from var(--color-task) r g b / 0.03)
+  );
+  backdrop-filter: blur(10px);
+  border: 1px solid rgb(from var(--color-ice) r g b / 0.35);
+  border-radius: var(--shape-button);
+  font-size: 17px;
+  letter-spacing: 0.03em;
+  transition:
+    border-color 0.3s,
+    box-shadow 0.3s;
+}
+.field::placeholder {
+  color: var(--color-muted-deep);
+}
+.field:focus {
+  outline: none;
+  border-color: rgb(from var(--color-ice) r g b / 0.8);
+  box-shadow: 0 0 18px rgb(from var(--color-task) r g b / 0.3);
+}
+.btn-link:disabled,
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

@@ -28,6 +28,58 @@ export interface QuestActions {
   complete: () => void;
   startNext: () => void;
   talk: () => void;
+  openBundle: () => void;
+  pause: (note: string) => void;
+}
+
+// Inline "Where did you leave off?" form; the note is optional.
+function createPauseForm(onPause: (note: string) => void, onClose: () => void) {
+  const input = h('input', {
+    class: 'field',
+    attrs: {
+      id: 'pause-note',
+      maxlength: '500',
+      autocomplete: 'off',
+      placeholder: 'Optional — e.g. "halfway through the FAQ"',
+    },
+  });
+  const form = h('form', { class: 'pause-form', attrs: { hidden: '' } }, [
+    h('label', {
+      class: 'eyebrow',
+      text: 'Where did you leave off?',
+      attrs: { for: 'pause-note' },
+    }),
+    h('div', { class: 'pause-row' }, [
+      input,
+      h('button', {
+        class: 'btn-link',
+        text: 'Pause',
+        attrs: { type: 'submit' },
+      }),
+      h('button', {
+        class: 'btn-link',
+        text: 'Cancel',
+        attrs: { type: 'button' },
+        on: { click: onClose },
+      }),
+    ]),
+  ]);
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    onPause(input.value);
+  });
+  input.addEventListener('keydown', (e) => {
+    if ((e as KeyboardEvent).key === 'Escape') onClose();
+  });
+  return {
+    form,
+    open() {
+      form.hidden = false;
+      input.value = '';
+      input.focus();
+    },
+    close: () => (form.hidden = true),
+  };
 }
 
 // Left column: active quest, done-when, current objective, main action.
@@ -51,8 +103,38 @@ export function createQuest(
   const doneWhen = quest
     ? quest.doneWhen
     : queueLength
-      ? 'No active quest. Start the next one from the log.'
+      ? 'No active quest. Start or resume one from the quest log.'
       : 'No quests yet. Add a quest file to quests/ to begin.';
+  const resumeLine = h('p', { class: 'quest-resume' });
+
+  const actions = h('div', { class: 'quest-actions' });
+  const pause = createPauseForm(
+    (note) => {
+      pause.close();
+      on.pause(note);
+    },
+    () => {
+      pause.close();
+      actions.hidden = false;
+    },
+  );
+  const activeOnly = [
+    h('button', {
+      class: 'btn-link',
+      text: 'Open bundle',
+      on: { click: on.openBundle },
+    }),
+    h('button', {
+      class: 'btn-link',
+      text: 'Pause quest',
+      on: {
+        click: () => {
+          actions.hidden = true;
+          pause.open();
+        },
+      },
+    }),
+  ];
 
   const el = h(
     'section',
@@ -73,15 +155,19 @@ export function createQuest(
         }),
         objectiveText,
       ]),
-      h('div', { class: 'quest-actions' }, [
-        action,
-        h('button', {
-          class: 'btn-link',
-          text: 'Speak with companion',
-          on: { click: on.talk },
-        }),
-      ]),
+      resumeLine,
+      actions,
+      pause.form,
     ],
+  );
+  actions.append(
+    action,
+    h('button', {
+      class: 'btn-link',
+      text: 'Speak with companion',
+      on: { click: on.talk },
+    }),
+    ...activeOnly,
   );
 
   // Refit when the column width changes (window resize) and once fonts load.
@@ -111,11 +197,23 @@ export function createQuest(
       observer.disconnect();
       document.fonts.removeEventListener('loadingdone', refit);
     },
-    update(objectives: Quest['objectives']) {
+    update(current: Quest | null) {
+      const objectives = current?.objectives ?? [];
       const total = objectives.length;
       const step = objectives.findIndex((o) => !o.done);
       const allDone = step < 0;
       mode = quest && !allDone ? 'complete' : 'next';
+
+      const isActive = current?.status === 'active';
+      for (const b of activeOnly) b.hidden = !isActive;
+      if (!isActive) {
+        pause.close();
+        actions.hidden = false;
+      }
+      resumeLine.hidden = !(isActive && current?.resumeNote);
+      resumeLine.textContent = current?.resumeNote
+        ? `Left off: ${current.resumeNote}`
+        : '';
 
       if (!quest) stepLabel.textContent = 'Quest log';
       else if (allDone) stepLabel.textContent = 'Objective — all clear';

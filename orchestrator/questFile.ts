@@ -69,6 +69,7 @@ export function parseQuestFile(id: string, text: string): Quest {
     objectives,
     resumeNote: optionalString(fm.resumeNote),
     createdAt: optionalString(fm.createdAt),
+    pausedAt: optionalString(fm.pausedAt),
     completedAt: optionalString(fm.completedAt),
   };
 }
@@ -105,6 +106,11 @@ export function setFrontmatter(
     if (value === undefined) doc.delete(key);
     else doc.set(key, value);
   }
-  const fm = doc.toString().replace(/\n$/, '').split('\n').join(eol);
+  // No re-wrapping and no `[ a ]` padding, so hand-written lines come back as written.
+  const fm = doc
+    .toString({ lineWidth: 0, flowCollectionPadding: false })
+    .replace(/\n$/, '')
+    .split('\n')
+    .join(eol);
   return `---${eol}${fm}${eol}---${eol}${body}`;
 }

@@ -43,10 +43,11 @@ export function createCompanion() {
 
   return {
     el,
-    update(ai: AiState) {
+    /** `say` overrides the stock line (e.g. what the bundle opened). */
+    update(ai: AiState, say?: string | null) {
       orb.setAttribute('aria-label', `Companion is ${AI_LABELS[ai]}`);
       status.textContent = `Companion · ${AI_LABELS[ai]}`;
-      line.textContent = COMPANION_LINES[ai];
+      line.textContent = say || COMPANION_LINES[ai];
     },
   };
 }

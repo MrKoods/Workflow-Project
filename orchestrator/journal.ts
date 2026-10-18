@@ -3,7 +3,7 @@ import { appendFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import type { JournalEntry } from './types.ts';
 
-const localDay = (d: Date) =>
+export const localDay = (d: Date) =>
   [d.getFullYear(), d.getMonth() + 1, d.getDate()]
     .map((n) => String(n).padStart(2, '0'))
     .join('-');

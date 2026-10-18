@@ -52,8 +52,8 @@
 - [x] "Complete objective" checks the box in the file, advances the trail, adds XP, writes a journal entry. (`npm test` covers the orchestrator.)
 
 ## Task 4 — Context bundles
-- [ ] Starting a quest opens its folders (Explorer) and URLs (default browser).
-- [ ] Pause saves a resume note; resume reopens the bundle and shows the note.
+- [x] Starting a quest opens its folders (Explorer) and URLs (default browser). (Also on the first launch of the day; "Open bundle" any time.)
+- [x] Pause saves a resume note; resume reopens the bundle and shows the note.
 
 ## Task 5 — Text chat with Claude
 - [ ] Chat input + transcript area tied to the orb (thinking while waiting, speaking while streaming, "your move" when done).
