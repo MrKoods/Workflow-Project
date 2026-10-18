@@ -59,6 +59,8 @@ export interface CockpitSnapshot {
   queue: QueueItem[];
   /** Quest Forge draft awaiting Accept / Discard. */
   draft: QuestDraft | null;
+  /** Set by End session: the quest the next day starts with. */
+  firstQuest: { id: string; title: string; setOn: string } | null;
   /** Latest one-line message for the companion (e.g. what the bundle opened). New seq = new message. */
   notice: {
     seq: number;
@@ -113,6 +115,10 @@ export interface CockpitApi {
   /** Quest Forge: write the (possibly edited) draft as a new quest file. */
   acceptDraft(draft: QuestDraftInput, start: boolean): Promise<AcceptResult>;
   discardDraft(): Promise<void>;
+  /** Today's journal entries, oldest first. */
+  getJournal(): Promise<JournalEntry[]>;
+  /** Ask the companion for a debrief; it logs it and sets tomorrow's first quest. */
+  endSession(): Promise<void>;
 }
 
 /** Changes the companion can make to an existing quest (after the user confirms). */
@@ -153,4 +159,6 @@ export interface CompanionHost {
   /** Resolve a folder path if it may be created (inside Documents); null otherwise. */
   folderInDocuments(folder: string): string | null;
   createFolder(folder: string): Promise<string>;
+  /** Log the session debrief and set the quest the next day starts with. */
+  recordSession(summary: string, firstQuestId?: string): Promise<string>;
 }

@@ -14,3 +14,15 @@ export const AI_LABELS = {
   waiting: 'Your move',
   working: 'Party working',
 } as const;
+
+export const KIND_LABELS: Record<string, string> = {
+  start: 'Started',
+  pause: 'Paused',
+  resume: 'Resumed',
+  finish: 'Quest done',
+  objective: 'Objective',
+  decision: 'Decision',
+  note: 'Note',
+  agent: 'Agent',
+  summary: 'Session',
+};

@@ -12,4 +12,6 @@ export const IPC = {
   chatEvent: 'cockpit:chat-event',
   acceptDraft: 'cockpit:accept-draft',
   discardDraft: 'cockpit:discard-draft',
+  journalToday: 'cockpit:journal-today',
+  endSession: 'cockpit:end-session',
 } as const;

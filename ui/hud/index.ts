@@ -9,6 +9,7 @@ import { createAtmosphere } from './atmosphere';
 import { createChat } from './chat';
 import { createCompanion } from './companion';
 import { createForgeCard } from './forge';
+import { createJournalPanel } from './journal';
 import { h, replay } from './dom';
 import { createHotbar, SLOTS } from './hotbar';
 import { createQuest } from './quest';
@@ -180,8 +181,28 @@ export function mountHud(
   companion.el.append(chat.el);
   // The companion's own state (thinking / speaking / working / waiting)
   // replaces the scripted orb sequences while it's talking.
+  // Journal panel (slot 6). Refreshed whenever something may have been logged.
+  let chatBusy = false;
+  const journal = createJournalPanel({
+    close: () => toggleJournal(false),
+    endSession: () => void api.endSession(),
+  });
+  const refreshJournal = async () => {
+    if (!journal.open) return;
+    journal.render(await api.getJournal(), snap, chatBusy);
+  };
+  const toggleJournal = (open = !journal.open) => {
+    journal.setOpen(open);
+    set({ slot: open ? 5 : -1 });
+    void refreshJournal();
+  };
+
   api.onChat((e) => {
     chat.handle(e);
+    if (e.type === 'user') chatBusy = true;
+    if (e.type === 'done' || e.type === 'error') chatBusy = false;
+    if (['user', 'done', 'error', 'action'].includes(e.type))
+      void refreshJournal();
     if (e.type === 'state') {
       sequence([]);
       set({ ai: e.ai });
@@ -198,6 +219,8 @@ export function mountHud(
       set({ slot, ai: 'listening' });
       return;
     }
+    // Slot 6 (Journal) toggles the journal panel.
+    if (slot === 5) return toggleJournal();
     set({ slot });
     sequence([
       [0, 'working'],
@@ -222,6 +245,7 @@ export function mountHud(
     h('div', { class: 'quest-col' }, [views.quest.el, forge.el]),
     companion.el,
     views.trail.el,
+    journal.el,
     hotbar.el,
     banner,
     ...log.els,
@@ -245,6 +269,7 @@ export function mountHud(
   api.onSnapshot((next) => {
     snap = next;
     showNotice(next);
+    void refreshJournal();
     if (shapeKey(next) !== views.key) {
       const old = views;
       views = buildViews(next);
@@ -257,11 +282,12 @@ export function mountHud(
   });
   render();
 
-  // Keys: 1–6 hotbar · F2 cycle orb state (debug) · F3 calm mode.
+  // Keys: 1–6 hotbar · F2 cycle orb state (debug) · F3 calm mode · Esc closes the journal.
   window.addEventListener('keydown', (e) => {
     const target = e.target as HTMLElement;
     if (target.closest('input, textarea, [contenteditable]')) return;
-    const n = Number(e.key);
+    // key for normal typing; code as a fallback (layouts, numpad, synthetic input).
+    const n = Number(e.key) || Number(/^(Digit|Numpad)(\d)$/.exec(e.code)?.[2]);
     if (n >= 1 && n <= SLOTS.length) pickSlot(n - 1);
     else if (e.key === 'F2') {
       sequence([]);
@@ -269,6 +295,7 @@ export function mountHud(
         ai: AI_STATES[(AI_STATES.indexOf(state.ai) + 1) % AI_STATES.length],
       });
     } else if (e.key === 'F3') set({ calm: !state.calm });
+    else if (e.key === 'Escape' && journal.open) toggleJournal(false);
     else return;
     e.preventDefault();
   });

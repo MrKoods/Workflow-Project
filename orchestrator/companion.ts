@@ -17,6 +17,10 @@ import type {
 import { validateDraft } from './forge.ts';
 
 export const MODEL = 'claude-opus-5-5';
+
+/** What the End session button says (shown in the chat as the user's message). */
+export const END_SESSION_MESSAGE =
+  "I'm ending the session. Give me a short debrief and set tomorrow's first quest.";
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 const MAX_TOOL_ROUNDS = 8;
@@ -44,6 +48,8 @@ Creating quests (Quest Forge): when Nick wants a new quest (he may start with "n
 - update_quest: change the title, done-when or objectives of an existing quest. He confirms on screen.
 - set_active_quest: switch to another quest. The current one is paused with a resume note and the new one's bundle opens. Use it when he says to start or switch to a quest.
 - create_folder: create a folder inside his Documents folder, for example for a new quest's bundle. He confirms on screen.
+
+Ending a session: when he ends the session or says he's wrapping up, give a short debrief (what got done, what's left, anything worth carrying into tomorrow), then call end_session with a two-to-four sentence summary and the id of the quest tomorrow should start with: usually the active quest if it's unfinished, otherwise the next in the quest log. Mention which one you picked so he can change it.
 
 You can't send messages, submit forms, delete anything, touch accounts or money, or place trades; those stay with Nick. Market data and analysis are fine, trading orders never.`;
 
@@ -156,6 +162,22 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
     },
     ['path'],
   ),
+  tool(
+    'end_session',
+    "Log the session debrief to the journal and set the quest the next day starts with (it becomes active on tomorrow's first launch if nothing else is).",
+    {
+      summary: {
+        type: 'string',
+        description: 'Two to four sentences: what got done, what is left.',
+      },
+      firstQuestId: {
+        type: 'string',
+        description:
+          'Id of the quest to start tomorrow. Omit if there is none.',
+      },
+    },
+    ['summary'],
+  ),
 ];
 
 /** The per-turn system message: everything the companion should know right now. */
@@ -198,6 +220,12 @@ export function describeState(
       ? `Quest log: ${queue.map((q) => `"${q.title}" (id ${q.id}, ${q.status})`).join(', ')}.`
       : 'Quest log: empty.',
   );
+  const { firstQuest } = host.snapshot();
+  if (firstQuest) {
+    lines.push(
+      `Tomorrow's first quest (set at the last End session): "${firstQuest.title}" (id ${firstQuest.id}).`,
+    );
+  }
   if (draft) {
     lines.push(
       `Draft card on screen, waiting for Accept or Discard: ${JSON.stringify({
@@ -405,6 +433,25 @@ export function createCompanion({
         const id = str(input.id, 200);
         if (!id) return { content: 'id (string) is required.', is_error: true };
         const said = await host.switchQuest(id);
+        emit({ type: 'action', text: said });
+        return { content: said };
+      }
+
+      case 'end_session': {
+        const summary = str(input.summary, 2000);
+        if (!summary)
+          return { content: 'summary (string) is required.', is_error: true };
+        let firstQuestId: string | undefined;
+        if (input.firstQuestId !== undefined && input.firstQuestId !== null) {
+          const id = str(input.firstQuestId, 200);
+          if (!id)
+            return {
+              content: 'firstQuestId must be a quest id.',
+              is_error: true,
+            };
+          firstQuestId = id;
+        }
+        const said = await host.recordSession(summary, firstQuestId);
         emit({ type: 'action', text: said });
         return { content: said };
       }

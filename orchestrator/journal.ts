@@ -8,10 +8,13 @@ export const localDay = (d: Date) =>
     .map((n) => String(n).padStart(2, '0'))
     .join('-');
 
-export function createJournal(dir: string) {
+export function createJournal(
+  dir: string,
+  clock: () => Date = () => new Date(),
+) {
   return {
     async add(entry: Omit<JournalEntry, 'at'>) {
-      const now = new Date();
+      const now = clock();
       const line: JournalEntry = { ...entry, at: now.toISOString() };
       await mkdir(dir, { recursive: true });
       await appendFile(
@@ -21,7 +24,7 @@ export function createJournal(dir: string) {
     },
 
     /** Entries for one local day (today by default); unreadable lines are skipped. */
-    async day(d = new Date()): Promise<JournalEntry[]> {
+    async day(d = clock()): Promise<JournalEntry[]> {
       let text: string;
       try {
         text = await readFile(path.join(dir, `${localDay(d)}.jsonl`), 'utf8');

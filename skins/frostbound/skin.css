@@ -968,3 +968,51 @@
   font-style: italic;
   color: var(--color-ice);
 }
+
+/* ---------- journal panel ---------- */
+.journal-panel {
+  background: linear-gradient(
+    180deg,
+    rgb(from var(--color-ground-glow) r g b / 0.94),
+    rgb(from var(--color-ground) r g b / 0.94)
+  );
+  backdrop-filter: blur(14px);
+  border: 1px solid rgb(from var(--color-ice) r g b / 0.3);
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgb(from var(--color-shadow) r g b / 0.6);
+}
+.journal-eyebrow {
+  color: var(--color-task);
+}
+.journal-list {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(from var(--color-task) r g b / 0.3) transparent;
+}
+.journal-time {
+  font-size: 14px;
+  color: var(--color-muted-dim);
+}
+.journal-kind {
+  font: 600 11px var(--font-body);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-companion-text);
+}
+.journal-entry[data-kind='summary'] .journal-kind,
+.journal-entry[data-kind='finish'] .journal-kind {
+  color: var(--color-task);
+}
+.journal-text {
+  font-size: 16px;
+  font-weight: 300;
+  color: var(--color-text-bright);
+}
+.journal-tomorrow {
+  font-size: 16px;
+  font-style: italic;
+  color: var(--color-ice);
+}
+.journal-empty {
+  font-size: 16px;
+  color: var(--color-muted);
+}

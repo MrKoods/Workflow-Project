@@ -378,3 +378,48 @@ test('createFolder only inside Documents', async () => {
   assert.match(await orch.createFolder('../escape'), /Only folders inside/);
   await assert.rejects(stat(path.join(root, 'escape')));
 });
+
+test('End session: summary journaled; next day starts with the planned quest once', async () => {
+  await setup({
+    'a.md': quest('A', 'active', ['a1']),
+    'b.md': quest('B', 'queued', ['b1']),
+  });
+  assert.match(await orch.recordSession('Good day.', 'nope'), /No open quest/);
+  assert.equal(
+    await orch.recordSession('Good day.', 'b'),
+    'Saved the summary. Tomorrow starts with "B".',
+  );
+  assert.deepEqual(orch.snapshot().firstQuest, {
+    id: 'b',
+    title: 'B',
+    setOn: '2026-10-18',
+  });
+  assert.equal((await orch.journalToday()).at(-1)?.kind, 'summary');
+
+  // Same day restart: nothing changes.
+  await setup();
+  assert.equal(orch.snapshot().current?.id, 'a');
+  assert.ok(orch.snapshot().firstQuest);
+
+  // Next day, but A is still active: the plan is dropped, A stays.
+  clock = new Date(2026, 9, 19, 8, 0);
+  await setup();
+  assert.equal(orch.snapshot().current?.id, 'a');
+  assert.equal(orch.snapshot().firstQuest, null);
+});
+
+test('End session: planned quest becomes active next day when nothing is', async () => {
+  await setup({
+    'a.md': quest('A', 'active', ['a1']),
+    'b.md': quest('B', 'queued', ['b1']),
+  });
+  await orch.pauseQuest('done for today');
+  await orch.recordSession('Paused A.', 'b');
+  opened.length = 0;
+  clock = new Date(2026, 9, 19, 8, 0);
+  await setup();
+  assert.equal(orch.snapshot().current?.id, 'b');
+  assert.equal(orch.snapshot().firstQuest, null);
+  const kinds = (await orch.journalToday()).map((e) => e.kind);
+  assert.deepEqual(kinds, ['start']);
+});

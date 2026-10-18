@@ -15,6 +15,7 @@ import started from 'electron-squirrel-startup';
 import Anthropic from '@anthropic-ai/sdk';
 import {
   CompanionError,
+  END_SESSION_MESSAGE,
   createCompanion,
   type Companion,
   type Effort,
@@ -101,6 +102,18 @@ const createWindow = () => {
 
   win.once('ready-to-show', () => win?.show());
 
+  // Dev: echo renderer console output (incl. uncaught errors) to the terminal.
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    win.webContents.on('console-message', (event) => {
+      const { level, message } = event as unknown as {
+        level: string;
+        message: string;
+      };
+      if (level !== 'debug' && level !== 'info')
+        console.log(`[renderer ${level}] ${message}`);
+    });
+  }
+
   // No menu bar, so wire DevTools to F12 ourselves.
   win.webContents.on('before-input-event', (event, input) => {
     if (input.type === 'keyDown' && input.key === 'F12') {
@@ -141,9 +154,27 @@ const createWindow = () => {
         if (t >= 8 && lastChatEvent === null) return;
       }
     };
+    // In dev, Vite can reload the page once while it optimizes dependencies,
+    // so wait for the HUD to be mounted and no reload for 2.5 s.
+    let lastLoad = Date.now();
+    win.webContents.on('did-finish-load', () => (lastLoad = Date.now()));
     win.webContents.once('did-finish-load', async () => {
-      await wait(2500);
+      for (let t = 0; t < 120; t++) {
+        await wait(500);
+        const mounted = await win?.webContents
+          .executeJavaScript('!!document.querySelector(".hotbar")')
+          .catch(() => false);
+        if (mounted && Date.now() - lastLoad > 2500) break;
+      }
       await press(process.env.COCKPIT_SCREENSHOT_KEYS);
+      // COCKPIT_SCREENSHOT_CLICK=".slot:nth-child(6)" clicks an element.
+      const click = process.env.COCKPIT_SCREENSHOT_CLICK;
+      if (click) {
+        await win?.webContents.executeJavaScript(
+          `document.querySelector(${JSON.stringify(click)})?.click()`,
+        );
+        await wait(800);
+      }
       const say = process.env.COCKPIT_SCREENSHOT_CHAT;
       if (say && companion) {
         void companion.send(say);
@@ -226,6 +257,8 @@ const connectOrchestrator = async () => {
     orchestrator.acceptDraft(draft, start === true),
   );
   ipcMain.handle(IPC.discardDraft, () => orchestrator.discardDraft());
+  ipcMain.handle(IPC.journalToday, () => orchestrator.journalToday());
+  ipcMain.handle(IPC.endSession, () => companion?.send(END_SESSION_MESSAGE));
   orchestrator.onChange((s) => win?.webContents.send(IPC.snapshot, s));
 
   let client: Anthropic | null = null;

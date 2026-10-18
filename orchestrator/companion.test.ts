@@ -87,6 +87,7 @@ function fakeHost() {
       current: quest,
       queue: [],
       draft: null,
+      firstQuest: null,
       notice: null,
     }),
     async completeObjective() {
@@ -118,6 +119,10 @@ function fakeHost() {
     },
     folderInDocuments: (f) =>
       f.startsWith('..') ? null : `C:/Users/nick/Documents/${f}`,
+    async recordSession(summary, id) {
+      log.push('session:' + summary + ':' + (id ?? '-'));
+      return 'Saved the summary.';
+    },
     async createFolder(f) {
       log.push(`mkdir:${f}`);
       return 'Created.';
@@ -184,6 +189,7 @@ test('plain reply: streams text, drives orb states, sends the documented request
       'update_quest',
       'set_active_quest',
       'create_folder',
+      'end_session',
     ],
   );
   assert.deepEqual(
@@ -332,6 +338,7 @@ test('describeState covers no-quest and journal cases', () => {
         current: null,
         queue: [{ id: 'p', title: 'Prep', status: 'queued' }],
         draft: null,
+        firstQuest: null,
         notice: null,
       }),
     },
@@ -393,4 +400,23 @@ test('set_active_quest switches via the orchestrator', async () => {
   ]);
   await companion.send('start pre-market prep now');
   assert.deepEqual(log, ['switch:pre-market-prep']);
+});
+
+test('end_session logs the debrief and sets the first quest', async () => {
+  const { companion, log, calls } = setup([
+    {
+      text: 'Good session.',
+      tools: [
+        {
+          name: 'end_session',
+          input: { summary: 'Research done.', firstQuestId: 'q' },
+        },
+      ],
+    },
+    { tools: [{ name: 'end_session', input: { summary: '' } }] },
+    { text: 'Done.' },
+  ]);
+  await companion.send("I'm ending the session.");
+  assert.deepEqual(log, ['session:Research done.:q']);
+  assert.equal(calls[2].messages.at(-1).content[0].is_error, true);
 });

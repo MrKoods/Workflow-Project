@@ -44,6 +44,8 @@ export interface OrchestratorOptions {
 
 interface LocalState {
   lastBundleOpen?: { questId: string; day: string };
+  /** Set by End session: the quest the next day starts with. */
+  firstQuest?: { questId: string; setOn: string };
 }
 
 export function createOrchestrator({
@@ -55,12 +57,13 @@ export function createOrchestrator({
   warn = console.warn,
   now = () => new Date(),
 }: OrchestratorOptions) {
-  const journal = createJournal(journalDir);
+  const journal = createJournal(journalDir, now);
   const listeners = new Set<(s: CockpitSnapshot) => void>();
   let quests: Quest[] = [];
   let justFinished: string | null = null; // keeps a finished quest on screen until the next starts
   let notice: CockpitSnapshot['notice'] = null;
   let draft: QuestDraft | null = null; // Quest Forge card, in memory until Accept
+  let firstQuest: LocalState['firstQuest'] | null = null; // mirrors state.json
   let watcher: FSWatcher | null = null;
 
   // Mutations run one at a time so two clicks can't race on the same file.
@@ -145,6 +148,15 @@ export function createOrchestrator({
       current,
       queue: [...waiting('paused'), ...waiting('queued')],
       draft,
+      firstQuest: firstQuest
+        ? {
+            id: firstQuest.questId,
+            title:
+              quests.find((q) => q.id === firstQuest!.questId)?.title ??
+              firstQuest.questId,
+            setOn: firstQuest.setOn,
+          }
+        : null,
       notice,
     };
   }
@@ -215,6 +227,22 @@ export function createOrchestrator({
   return {
     async start() {
       await load();
+      firstQuest = (await readState()).firstQuest ?? null;
+
+      // A new day after End session: start with the quest that was set for it,
+      // if nothing else is active. Either way the plan has done its job.
+      const today = localDay(now());
+      if (firstQuest && firstQuest.setOn !== today) {
+        const planned = quests.find(
+          (q) =>
+            q.id === firstQuest!.questId &&
+            (q.status === 'queued' || q.status === 'paused'),
+        );
+        firstQuest = null;
+        const { firstQuest: _done, ...rest } = await readState();
+        await writeState(rest);
+        if (planned && !active()) await serial(() => activate(planned));
+      }
 
       // First launch of the day re-opens the active quest's bundle; later restarts don't.
       const quest = active();
@@ -485,6 +513,45 @@ export function createOrchestrator({
     addJournalNote: (text: string) =>
       serial(async () => {
         await journal.add({ kind: 'note', questId: active()?.id, text });
+        emit(); // the journal panel refreshes on snapshots
+      }),
+
+    /** Today's journal, oldest first (journal panel). */
+    journalToday: () => journal.day(now()),
+
+    /**
+     * Companion tool end_session: log the debrief and set the quest the next
+     * day starts with (it becomes active on the first launch of the next day).
+     */
+    recordSession: (summary: string, firstQuestId?: string) =>
+      serial(async (): Promise<string> => {
+        await load();
+        let planned: Quest | undefined;
+        if (firstQuestId) {
+          planned = quests.find((q) => q.id === firstQuestId);
+          if (!planned || planned.status === 'done') {
+            return `No open quest with id "${firstQuestId}".`;
+          }
+        }
+        await journal.add({
+          kind: 'summary',
+          questId: active()?.id,
+          text: summary,
+        });
+        const { firstQuest: _old, ...rest } = await readState();
+        firstQuest = planned
+          ? { questId: planned.id, setOn: localDay(now()) }
+          : null;
+        await writeState(firstQuest ? { ...rest, firstQuest } : rest);
+        say(
+          planned
+            ? `Session logged. Tomorrow starts with "${planned.title}".`
+            : 'Session logged.',
+        );
+        emit();
+        return planned
+          ? `Saved the summary. Tomorrow starts with "${planned.title}".`
+          : 'Saved the summary. No first quest set for tomorrow.';
       }),
 
     /**

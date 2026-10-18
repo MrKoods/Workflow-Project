@@ -92,8 +92,8 @@
 - [x] Creating a quest while another is active queues it (or swaps with a resume note if you say "start now").
 
 ## Task 6 — Journal + session summary
-- [ ] Journal panel (hotbar slot 6) lists today's entries.
-- [ ] "End session" asks Claude for a short debrief and sets tomorrow's first quest.
+- [x] Journal panel (hotbar slot 6) lists today's entries.
+- [x] "End session" asks Claude for a short debrief and sets tomorrow's first quest.
 
 ## Task 7 — Measure
 - [ ] Log time from "start quest" to "first real work action" each session (simple local log).
