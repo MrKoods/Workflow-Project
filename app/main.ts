@@ -20,7 +20,10 @@ const QUIT_KEY = 'Control+Alt+Q';
 if (started) app.quit();
 
 // One Cockpit at a time; a second launch just brings the first one forward.
-if (!app.requestSingleInstanceLock()) app.quit();
+if (!app.requestSingleInstanceLock()) {
+  console.log('[cockpit] already running; handing off to that instance');
+  app.quit();
+}
 
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -69,6 +72,7 @@ const createWindow = () => {
       const image = await win?.webContents.capturePage();
       if (image) await writeFile(shot, image.toPNG());
       console.log(`[cockpit] screenshot -> ${shot}`);
+      app.quit();
     });
   }
 

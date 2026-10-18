@@ -3,7 +3,7 @@ import type { HudModel } from './types';
 // Static data for the Task 2 HUD. Replaced by the orchestrator's quest files in Task 3.
 export const SAMPLE_HUD: HudModel = {
   quest: {
-    title: 'Launch the Fiverr Gig',
+    title: 'Launch my AI automation gig on Fiverr',
     doneWhen:
       'Complete when the gig is published with packages, copy, images and two portfolio samples.',
     objectives: [
