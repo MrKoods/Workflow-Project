@@ -33,6 +33,11 @@ const QUIT_KEY = 'Control+Alt+Q';
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) app.quit();
 
+// Dev aid: COCKPIT_USER_DATA=<dir> runs a separate profile (own instance
+// lock), so a test run can start while the everyday Cockpit stays open.
+if (process.env.COCKPIT_USER_DATA)
+  app.setPath('userData', process.env.COCKPIT_USER_DATA);
+
 // One Cockpit at a time; a second launch just brings the first one forward.
 const isPrimary = app.requestSingleInstanceLock();
 if (!isPrimary) {
@@ -261,6 +266,18 @@ const createWindow = () => {
         for (const reply of replies.split(',')) {
           await untilWaiting();
           const tag = String(++n).padStart(2, '0');
+          // "key:ArrowLeft" presses a key, "click:<selector>" clicks, instead of typing.
+          const [, kind, arg] = /^(key|click):(.+)$/.exec(reply) ?? [];
+          if (kind) {
+            if (kind === 'key') await press(arg);
+            else
+              await js(
+                `document.querySelector(${JSON.stringify(arg)})?.click()`,
+              );
+            await wait(1800);
+            await capture(`${tag}b`);
+            continue;
+          }
           await js(
             `(() => { const i = document.getElementById('sayOrb'); i.value = ${JSON.stringify(reply)}; i.form.requestSubmit(); })()`,
           );
@@ -406,6 +423,15 @@ const connectOrchestrator = async () => {
     if (orchestrator.focusReply(t)) return;
     orchestrator.focusSay(t);
     return companion?.send(t);
+  });
+  ipcMain.handle(IPC.peekStep, (_e, target: unknown) => {
+    if (
+      target === 'prev' ||
+      target === 'next' ||
+      target === 'current' ||
+      (Number.isInteger(target) && (target as number) >= 0)
+    )
+      orchestrator.peekStep(target as number | 'prev' | 'next' | 'current');
   });
   ipcMain.handle(IPC.itemAction, async (_e, id: unknown) => {
     if (typeof id !== 'string' || !/^[\w.-]{1,100}$/.test(id)) return;

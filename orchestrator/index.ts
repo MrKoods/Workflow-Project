@@ -385,6 +385,8 @@ export function createOrchestrator({
     focusReply: (text: string) => focus.reply(text),
     focusWaiting: () => focus.waiting(),
     voiceNow: () => focus.voiceNow(),
+    peekStep: (target: number | 'prev' | 'next' | 'current') =>
+      focus.peekStep(target),
     /** Show the user's free-text line as the caption (it went to Claude instead). */
     focusSay: (text: string) => focus.say(text),
 

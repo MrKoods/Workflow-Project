@@ -353,3 +353,20 @@ body {
 .orbt .cta {
   margin-top: 14px;
 }
+
+/* ---- swap: planets are clickable; the one being looked at glows ----------- */
+.orbt .pln {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.orbt .pln:hover {
+  border-color: var(--acc);
+}
+.orbt .pln:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 3px;
+}
+.orbt .pln.peek {
+  border-color: var(--acc);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 35%, transparent);
+}

@@ -245,11 +245,34 @@ export function mountOrbit(
     if (key === planetsKey) return;
     planetsKey = key;
     planets.forEach((p) => p.remove());
+    // Swap: click (or Enter on) a planet to look at that step.
     planets = (v?.planets ?? []).map((p) =>
-      h('div', { class: 'pln later', vars: { '--k': String(p.k) } }, [
-        h('span', { class: 'pd', attrs: { 'aria-hidden': 'true' } }),
-        h('span', {}, [h('b', { text: p.label }), h('em')]),
-      ]),
+      h(
+        'div',
+        {
+          class: 'pln later',
+          vars: { '--k': String(p.k) },
+          attrs: {
+            role: 'button',
+            tabindex: '0',
+            'data-k': String(p.k),
+            'aria-label': `Step ${p.k + 1}: ${p.label}`,
+          },
+          on: {
+            click: () => void api.peekStep(p.k),
+            keydown: (e) => {
+              const k = (e as KeyboardEvent).key;
+              if (k !== 'Enter' && k !== ' ') return;
+              e.preventDefault();
+              void api.peekStep(p.k);
+            },
+          },
+        },
+        [
+          h('span', { class: 'pd', attrs: { 'aria-hidden': 'true' } }),
+          h('span', {}, [h('b', { text: p.label }), h('em')]),
+        ],
+      ),
     );
     orbit.append(...planets);
   }
@@ -350,7 +373,8 @@ export function mountOrbit(
       if (!el) return;
       const a = ((k * v.stepAngle + v.orbitDeg) * Math.PI) / 180;
       const back = crowded && Math.sin(a) < -0.25;
-      el.className = `pln ${p.state}${back ? ' back' : ''}`;
+      el.className = `pln ${p.state}${back ? ' back' : ''}${v.peek === k ? ' peek' : ''}`;
+      el.setAttribute('aria-pressed', String(v.peek === k));
       el.title = back ? p.label : '';
       el.querySelector('.pd')!.textContent = p.icon;
       el.querySelector('em')!.textContent = PLANET_LABEL[p.state];
@@ -523,11 +547,26 @@ export function mountOrbit(
         render();
       } else if (!pauseForm.hidden) pauseForm.hidden = true;
       else if (settings.open) settings.toggle(false);
+      else if (view?.peek != null) void api.peekStep('current');
       else return;
       e.preventDefault();
       return;
     }
     if (target.closest('input, textarea, [contenteditable]')) return;
+    // Swap: ← previous step, → next step, Home back to the current one.
+    const swap =
+      e.key === 'ArrowLeft'
+        ? 'prev'
+        : e.key === 'ArrowRight'
+          ? 'next'
+          : e.key === 'Home'
+            ? 'current'
+            : null;
+    if (swap && !e.ctrlKey && !e.altKey && !e.metaKey && snap.current) {
+      e.preventDefault();
+      void api.peekStep(swap);
+      return;
+    }
     const n = Number(e.key) || Number(/^(Digit|Numpad)(\d)$/.exec(e.code)?.[2]);
     if (n === 1) {
       say.value = 'New quest: ';

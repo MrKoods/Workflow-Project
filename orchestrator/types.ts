@@ -105,6 +105,8 @@ export interface FocusView {
   waiting: boolean;
   /** The voice in use right now (auto follows the mode). */
   voice: VoiceNow;
+  /** Swap: the step being looked at, or null for the live step. */
+  peek: number | null;
 }
 
 export interface Bundle {
@@ -236,6 +238,8 @@ export interface CockpitApi {
   onFocus(cb: (view: FocusView | null) => void): () => void;
   /** Companion voice level 0..1 while it "speaks" (feeds Bloom). */
   onVoice(cb: (level: number) => void): () => void;
+  /** Swap to another step on the orbit (view and use; steps finish in order). */
+  peekStep(target: number | 'prev' | 'next' | 'current'): Promise<void>;
   /** Reply chip or Say box: goes to the engine if it's waiting, else to Claude. */
   reply(text: string): Promise<void>;
   /** An item's button (open link / copy draft or tags). */

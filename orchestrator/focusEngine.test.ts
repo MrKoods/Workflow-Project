@@ -5,14 +5,14 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { FocusEngine } from './focusEngine.ts';
-import { voiceFor } from './focus.ts';
+import { BACK_LABEL, createFocus, voiceFor } from './focus.ts';
 import { createOrchestrator } from './index.ts';
 import { parseQuestFile } from './questFile.ts';
 
 const DEMO = readFileSync(
   new URL('../quests/fiverr-profile.md', import.meta.url),
   'utf8',
-);
+).replaceAll('\r\n', '\n'); // checkouts may use CRLF
 
 /** Resolve once `cond()` holds, letting zero-delay engine timers run. */
 async function until(cond: () => boolean, what: string, tries = 5000) {
@@ -264,4 +264,56 @@ test('voice: auto is playful with the companion, steady while a card is up', asy
     "When it offers 2-step verification, turn it on. I'll tick the boxes as you go.",
   );
   assert.match(said[3], /^That's one down/); // back with the companion: playful
+});
+
+test('swap: look at done and upcoming steps, finish in order', async () => {
+  const q = parseQuestFile('fiverr-profile', DEMO);
+  const f = createFocus({ completeStep: async () => {}, pace: 0, typeMs: 0 });
+  f.sync(q, 'auto');
+  const v = () => f.view()!;
+  await until(() => f.waiting(), 'intro');
+  f.reply('yeah');
+  await until(() => v().items.acct === 'hero' && f.waiting(), 'step 1');
+  f.reply('yeah');
+  await until(() => v().replies[0]?.label === "Account's made", 'tick');
+  f.reply('done');
+  await until(() => v().doneSteps === 1 && f.waiting(), 'step 1 done');
+
+  // ← to the done step: its cards come back, checklist fully ticked.
+  f.peekStep('prev');
+  assert.equal(v().peek, 0);
+  assert.equal(v().orbitDeg, 90);
+  assert.equal(v().items.acct, 'hero');
+  assert.equal(v().items.acctck, 'sup1');
+  assert.equal(v().ticks.acctck, 3);
+  assert.match(
+    v().caption.text,
+    /^Step 1: Create your seller account\. Done ✓/,
+  );
+  assert.deepEqual(v().replies, [{ label: BACK_LABEL }]);
+  f.peekStep('prev'); // nothing before step 1
+  assert.equal(v().peek, 0);
+
+  // → twice: past the live step to an upcoming one.
+  f.peekStep('next');
+  assert.equal(v().peek, null); // landed on the live step
+  f.peekStep('next');
+  assert.equal(v().peek, 2);
+  assert.equal(v().items.skills, 'hero');
+  assert.match(v().caption.text, /Coming up/);
+  f.peekStep(9);
+  assert.equal(v().peek, 2); // out of range: ignored
+
+  // The back chip only goes back; the script is where it was.
+  assert.equal(f.reply(BACK_LABEL), true);
+  assert.equal(v().peek, null);
+  assert.equal(v().doneSteps, 1);
+  assert.equal(f.waiting(), true);
+
+  // A real reply while looking ends the swap and still counts.
+  f.peekStep(0);
+  assert.equal(f.reply('show me'), true);
+  assert.equal(v().peek, null);
+  await until(() => v().items.profile === 'hero', 'step 2 opens');
+  f.stop();
 });

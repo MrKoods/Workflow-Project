@@ -45,6 +45,60 @@ export function resumeOpener(
   return [{ say }, { replies: [{ label: "Let's go" }] }];
 }
 
+/** The chip shown while looking at another step. */
+export const BACK_LABEL = 'Back to current step';
+
+/** The items a step puts on screen: its first focus beat (hero + helpers). */
+export function stepItems(step: Quest['steps'][number]) {
+  const b = step.beats.find((x) => x.focus);
+  return b ? { hero: b.focus!, sup: b.support ?? [] } : null;
+}
+
+/**
+ * The view while looking at step `k`: the orbit turns to it, its cards pop
+ * out (done checklists show ticked), and one chip goes back. Everything else
+ * stays as the live script left it.
+ */
+export function peekView(live: FocusView, quest: Quest, k: number): FocusView {
+  const step = quest.steps[k];
+  const shown = stepItems(step);
+  const items: FocusView['items'] = {};
+  for (const [id, state] of Object.entries(live.items)) {
+    items[id] =
+      shown?.hero === id
+        ? 'hero'
+        : shown?.sup[0] === id
+          ? 'sup1'
+          : shown?.sup[1] === id
+            ? 'sup2'
+            : state === 'done'
+              ? 'done'
+              : 'off';
+  }
+  const done = k < live.doneSteps;
+  const ticks = { ...live.ticks };
+  if (done && shown)
+    for (const id of [shown.hero, ...shown.sup]) {
+      const item = quest.items[id];
+      if (item?.type === 'checklist') ticks[id] = item.checks.length;
+    }
+  const text = done
+    ? `Step ${k + 1}: ${step.title}. Done ✓${shown ? ' Everything from it is here if you need it.' : ''}`
+    : `Step ${k + 1}: ${step.title}. Coming up.${shown ? ' Have a look; we finish steps in order.' : ''}`;
+  return {
+    ...live,
+    mode: shown ? 'm-task' : 'm-comp',
+    items,
+    ticks,
+    orbitDeg: 90 - k * live.stepAngle,
+    companion: 'waiting',
+    caption: { who: 'companion', text },
+    replies: [{ label: BACK_LABEL }],
+    waiting: false,
+    peek: k,
+  };
+}
+
 export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
   let engine: FocusEngine | null = null;
   let quest: Quest | null = null;
@@ -54,6 +108,9 @@ export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
   let voiceSetting: Settings['voice'] = 'auto';
   const voiceNow = (): VoiceNow =>
     voiceFor(voiceSetting, quest, engine?.mode() ?? 'm-comp');
+  // Swap (Nick, 2026-10-18): look at another step on the orbit. View and use
+  // only: the script keeps its place and steps still finish in order.
+  let peek: number | null = null;
   const viewListeners = new Set<(v: FocusView | null) => void>();
   const voiceListeners = new Set<(level: number) => void>();
 
@@ -80,7 +137,9 @@ export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
         complete: s.complete,
         waiting: e.waitingForReply(),
         voice: voiceNow(),
+        peek: null,
       };
+      if (peek !== null) view = peekView(view, quest, peek);
     } else view = null;
     for (const fn of viewListeners) fn(view);
   };
@@ -93,6 +152,7 @@ export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
   function begin(q: Quest) {
     stopEngine();
     quest = q;
+    peek = null;
     shape = JSON.stringify([q.intro, q.steps, Object.keys(q.items)]);
     ticks = {};
     const firstOpen = q.objectives.findIndex((o) => !o.done);
@@ -158,6 +218,29 @@ export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
       voiceListeners.add(fn);
       return () => voiceListeners.delete(fn);
     },
+    /**
+     * Swap: 'prev' / 'next' move one step around the orbit, a number jumps to
+     * that step, 'current' goes back. Landing on the live step ends the swap.
+     */
+    peekStep(target: number | 'prev' | 'next' | 'current') {
+      if (!engine || !quest) return;
+      const n = quest.steps.length;
+      const live = engine.frontIndex();
+      const from = peek ?? live;
+      const to =
+        target === 'current'
+          ? live
+          : target === 'prev'
+            ? from - 1
+            : target === 'next'
+              ? from + 1
+              : target;
+      if (!Number.isInteger(to) || to < 0 || to >= n) return;
+      const next = to === live ? null : to;
+      if (next === peek) return;
+      peek = next;
+      publish();
+    },
     /** Engine is waiting for a reply? */
     waiting: () => !!engine?.waitingForReply(),
     /**
@@ -166,6 +249,12 @@ export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
      * (Nick, 2026-10-18), and the chips stay up.
      */
     reply(text: string) {
+      if (peek !== null) {
+        // Any reply ends the swap; the chip itself only goes back.
+        peek = null;
+        publish();
+        if (text === BACK_LABEL) return true;
+      }
       if (!engine?.matches(text)) return false;
       engine.reply(text);
       return true;

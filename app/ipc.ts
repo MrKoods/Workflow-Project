@@ -20,4 +20,5 @@ export const IPC = {
   voice: 'cockpit:voice',
   reply: 'cockpit:reply',
   itemAction: 'cockpit:item-action',
+  peekStep: 'cockpit:peek-step',
 } as const;
