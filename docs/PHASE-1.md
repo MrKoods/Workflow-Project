@@ -15,9 +15,9 @@ Rules from CLAUDE.md still apply. Keys live in `.env` (main process only). Audio
 ---
 
 ## Task 1: Measure the voice loop (pick the provider)
-- [ ] `npm run voice-latency` (scripts/voice-latency.ts): for each provider with a key in `.env`, time (a) end of speech → final transcript (STT), (b) Claude's first sentence (same client and model as the companion), (c) text → first audio byte (TTS). Uses a recording of Nick's voice if given (`--wav`), else a phrase synthesized by the other provider. 5 runs each, median + worst.
-- [ ] Nick listens to one sample sentence from each voice (Playful and Steady candidates) and picks.
-- [ ] Record the numbers, the chosen provider and the target ("release key → first word") in FEATURES §0.
+- [x] `npm run voice-latency` (scripts/voice-latency.ts): for each provider with a key in `.env`, time (a) end of speech → final transcript (STT), (b) Claude's first sentence (same client and model as the companion), (c) text → first audio byte (TTS). Uses a recording of Nick's voice if given (`--wav`), else a phrase synthesized by the other provider. 5 runs each, median + worst.
+- [x] Nick listens to one sample sentence from each voice (Playful and Steady candidates) and picks.
+- [x] Record the numbers, the chosen provider and the target ("release key → first word") in FEATURES §0.
 - **Done when:** a provider is chosen from measured numbers and the target is written down.
 
 ## Task 2: Microphone + push-to-talk
