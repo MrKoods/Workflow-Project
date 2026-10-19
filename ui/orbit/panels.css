@@ -334,3 +334,22 @@ body {
     width: max(180px, calc(50% - 350px));
   }
 }
+
+/* ---- fit the 900px stage ----------------------------------------------------
+   The link card (3 preview rows + CTA) ran ~26px into the reply chips at the
+   900px design height. Tighten its rows and lift it slightly. */
+.orbt .it.hero {
+  top: 308px;
+}
+.orbt .it {
+  padding-bottom: 20px;
+}
+.orbt .pg {
+  gap: 8px;
+}
+.orbt .pf span {
+  padding: 7px 12px;
+}
+.orbt .cta {
+  margin-top: 14px;
+}

@@ -82,6 +82,9 @@ let tray: Tray | null = null;
 let companion: Companion | null = null;
 let lastChatEvent: ChatEvent['type'] | null = null;
 
+/** The design size orbit.css is built for (see fitZoom). */
+const STAGE = { width: 1440, height: 900 };
+
 const createWindow = () => {
   // Dev aid: COCKPIT_WINDOW_SIZE=1100x900 opens a window of that size
   // instead of full screen (narrow-screen layout checks).
@@ -107,7 +110,23 @@ const createWindow = () => {
     );
   }
 
-  win.once('ready-to-show', () => win?.show());
+  // Orbit is laid out in fixed px for a 1440×900 stage (docs/reference). Zoom
+  // the whole page so that stage fills the window: zoom also raises
+  // devicePixelRatio, so text and the Bloom canvas render sharp at any size.
+  // Height decides on 16:9/16:10 screens (2560×1440 → 1.6, a 1600×900 stage);
+  // width decides on narrow ones. Other monitors: revisit when we test them.
+  const fitZoom = () => {
+    if (!win) return;
+    const [w, h] = win.getContentSize();
+    const factor = Math.min(h / STAGE.height, w / STAGE.width);
+    win.webContents.setZoomFactor(Math.max(0.5, Math.min(3, factor)));
+  };
+  win.webContents.on('did-finish-load', fitZoom);
+  win.on('resize', fitZoom);
+  win.once('ready-to-show', () => {
+    fitZoom();
+    win?.show();
+  });
 
   // Dev: echo renderer console output (incl. uncaught errors) to the terminal.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
