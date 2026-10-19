@@ -11,7 +11,19 @@ import {
   openBundle,
   type Opener,
 } from './bundle.ts';
-import { validateDraft, writeNewQuest } from './forge.ts';
+import {
+  slugify,
+  validateDraft,
+  writeNewFile,
+  writeNewQuest,
+} from './forge.ts';
+import {
+  isDue,
+  parseSchedule,
+  questFromTemplate,
+  scheduleOf,
+  templateFromQuest,
+} from './templates.ts';
 import {
   createMeasureLog,
   type SetupEnd,
@@ -44,6 +56,8 @@ export interface OrchestratorOptions {
   stateFile: string;
   /** User settings (default: settings.json next to stateFile). */
   settingsFile?: string;
+  /** Quest templates (default: templates/ next to the quests folder). */
+  templatesDir?: string;
   /** The user's Documents folder: the only place create_folder may write. */
   documentsDir: string;
   opener: Opener;
@@ -62,6 +76,8 @@ interface LocalState {
   lastBundleOpen?: { questId: string; day: string };
   /** Set by End session: the quest the next day starts with. */
   firstQuest?: { questId: string; setOn: string };
+  /** Template id -> the local day a copy was last made (Phase 1 Task 7). */
+  templates?: Record<string, string>;
 }
 
 export function createOrchestrator({
@@ -69,6 +85,7 @@ export function createOrchestrator({
   journalDir,
   stateFile,
   settingsFile = path.join(path.dirname(stateFile), 'settings.json'),
+  templatesDir = path.join(path.dirname(questsDir), 'templates'),
   documentsDir,
   opener,
   warn = console.warn,
@@ -96,6 +113,7 @@ export function createOrchestrator({
   let draft: QuestDraft | null = null; // Quest Forge card, in memory until Accept
   let firstQuest: LocalState['firstQuest'] | null = null; // mirrors state.json
   let watcher: FSWatcher | null = null;
+  let templateTimer: NodeJS.Timeout | undefined;
 
   // Mutations run one at a time so two clicks can't race on the same file.
   let chain: Promise<unknown> = Promise.resolve();
@@ -207,6 +225,67 @@ export function createOrchestrator({
 
   async function reload() {
     await load();
+    emit();
+  }
+
+  /**
+   * Templates due today get a fresh copy in quests/ (once per day; not while
+   * an earlier copy is unfinished). The first new one starts if nothing is active.
+   */
+  async function spawnTemplates() {
+    const names = (await readdir(templatesDir).catch(() => [] as string[]))
+      .filter((n) => n.endsWith('.md') && !n.startsWith('.'))
+      .sort();
+    if (!names.length) return;
+    const today = localDay(now());
+    const made = (await readState()).templates ?? {};
+    let changed = false;
+    const created: string[] = [];
+    for (const name of names) {
+      const id = name.slice(0, -3);
+      if (made[id] === today) continue;
+      let text: string;
+      try {
+        text = await readFile(path.join(templatesDir, name), 'utf8');
+      } catch {
+        continue;
+      }
+      const schedule = scheduleOf(text);
+      const s = schedule ? parseSchedule(schedule) : null;
+      if (!s) {
+        if (schedule)
+          warn(
+            `[orchestrator] templates/${name}: can't read schedule "${schedule}"`,
+          );
+        continue;
+      }
+      if (!isDue(s, now())) continue;
+      made[id] = today;
+      changed = true;
+      if (quests.some((q) => q.template === id && q.status !== 'done'))
+        continue;
+      const questText = questFromTemplate(text, id, now().toISOString());
+      try {
+        parseQuestFile(id, questText);
+      } catch (e) {
+        warn(
+          `[orchestrator] skipped templates/${name}: ${(e as Error).message}`,
+        );
+        continue;
+      }
+      const qid = await writeNewFile(questsDir, `${id}-${today}`, questText);
+      created.push(qid);
+      await journal.add({
+        kind: 'decision',
+        questId: qid,
+        text: `Added today's "${parseQuestFile(qid, questText).title}" from its template (${schedule}).`,
+      });
+    }
+    if (changed) await writeState({ ...(await readState()), templates: made });
+    if (!created.length) return;
+    await load();
+    const first = quests.find((q) => q.id === created[0]);
+    if (first && !active()) await activate(first);
     emit();
   }
 
@@ -324,6 +403,10 @@ export function createOrchestrator({
     async start() {
       await settings.load();
       await load();
+      await serial(spawnTemplates);
+      // A template due later today (e.g. 08:30) appears while Cockpit runs.
+      templateTimer = setInterval(() => void serial(spawnTemplates), 60_000);
+      templateTimer.unref?.();
       firstQuest = (await readState()).firstQuest ?? null;
 
       // A new day after End session: start with the quest that was set for it,
@@ -374,6 +457,7 @@ export function createOrchestrator({
 
     stop() {
       dropTimer();
+      clearInterval(templateTimer);
       focus.stop();
       watcher?.close();
       listeners.clear();
@@ -666,6 +750,31 @@ export function createOrchestrator({
           text: `Created folder ${full}`,
         });
         return `Created ${full}.`;
+      }),
+
+    /** Save a quest as templates/<slug>.md with a schedule (never overwrites). */
+    saveTemplate: (id: string, schedule: string) =>
+      serial(async () => {
+        const quest = quests.find((q) => q.id === id);
+        if (!quest) return `No quest with id "${id}".`;
+        if (!parseSchedule(schedule))
+          return `Can't read the schedule "${schedule}". Use e.g. "weekdays 08:30", "daily" or "mon,thu 09:00".`;
+        const text = templateFromQuest(
+          await readFile(fileOf(id), 'utf8'),
+          schedule,
+        );
+        await mkdir(templatesDir, { recursive: true });
+        const tid = await writeNewFile(
+          templatesDir,
+          slugify(quest.title),
+          text,
+        );
+        await journal.add({
+          kind: 'decision',
+          questId: id,
+          text: `Saved "${quest.title}" as a template (${schedule}): templates/${tid}.md.`,
+        });
+        return `Saved "${quest.title}" as a template, ${schedule}. A fresh copy appears in the quest log on those days.`;
       }),
 
     /** Settings → Color skin etc. Invalid fields are ignored. */

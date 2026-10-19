@@ -558,3 +558,56 @@ test('v2: completing a step ticks its box (written if missing), adds XP + journa
   assert.deepEqual(kinds.filter((k) => k === 'objective').length, 2);
   assert.ok(kinds.includes('finish'));
 });
+
+test('templates: a fresh copy on scheduled days, no pile-up, save as template', async () => {
+  const { mkdir } = await import('node:fs/promises');
+  await mkdir(path.join(root, 'templates'));
+  await writeFile(
+    path.join(root, 'templates', 'prep.md'),
+    '---\ntitle: Prep\nschedule: weekdays 08:30\n---\n- [x] Levels\n- [ ] Plan\n',
+  );
+  clock = new Date(2026, 9, 18, 9, 0); // Sunday: not due
+  await setup();
+  assert.equal(orch.snapshot().current, null);
+
+  clock = new Date(2026, 9, 19, 8, 0); // Monday, before 08:30
+  await setup();
+  assert.equal(orch.snapshot().current, null);
+
+  clock = new Date(2026, 9, 19, 9, 0); // Monday 09:00: due, nothing active -> starts
+  await setup();
+  const q = orch.snapshot().current!;
+  assert.equal(q.id, 'prep-2026-10-19');
+  assert.equal(q.template, 'prep');
+  assert.deepEqual(
+    q.objectives.map((o) => o.done),
+    [false, false],
+  );
+  assert.match(await read('prep-2026-10-19.md'), /template: prep/);
+
+  await setup(); // same day again: no second copy
+  clock = new Date(2026, 9, 20, 9, 0); // Tuesday, Monday's copy unfinished: none
+  await setup();
+  assert.deepEqual(
+    (await readdir(path.join(root, 'quests'))).filter((n) =>
+      n.startsWith('prep'),
+    ),
+    ['prep-2026-10-19.md'],
+  );
+
+  // Saving a quest as a template (the companion's save_as_template).
+  assert.match(
+    await orch.saveTemplate('prep-2026-10-19', 'someday'),
+    /Can't read the schedule/,
+  );
+  assert.match(
+    await orch.saveTemplate('prep-2026-10-19', 'daily'),
+    /Saved "Prep" as a template, daily/,
+  );
+  const saved = await readFile(
+    path.join(root, 'templates', 'prep-2.md'),
+    'utf8',
+  );
+  assert.match(saved, /schedule: daily/);
+  assert.doesNotMatch(saved, /status:|template:/);
+});

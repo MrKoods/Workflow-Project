@@ -120,6 +120,10 @@ function fakeHost() {
       log.push(`update:${id}:${JSON.stringify(changes)}`);
       return 'Updated.';
     },
+    async saveTemplate(id, schedule) {
+      log.push(`template:${id}:${schedule}`);
+      return 'Saved.';
+    },
     async switchQuest(id) {
       log.push(`switch:${id}`);
       return 'Switched.';
@@ -194,6 +198,7 @@ test('plain reply: streams text, drives orb states, sends the documented request
       'open_bundle_item',
       'draft_quest',
       'update_quest',
+      'save_as_template',
       'set_active_quest',
       'create_folder',
       'end_session',

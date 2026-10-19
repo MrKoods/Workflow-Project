@@ -95,6 +95,7 @@ export function parseQuestFile(id: string, text: string): Quest {
     createdAt: optionalString(fm.createdAt),
     pausedAt: optionalString(fm.pausedAt),
     completedAt: optionalString(fm.completedAt),
+    template: optionalString(fm.template),
   };
 }
 

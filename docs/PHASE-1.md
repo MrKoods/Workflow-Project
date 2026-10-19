@@ -52,9 +52,9 @@ Rules from CLAUDE.md still apply. Keys live in `.env` (main process only). Audio
 - **Done when:** saying the wake word starts listening reliably in a quiet room, and a 30-minute session with music on gives no more than one false trigger.
 
 ## Task 7: Quest templates
-- [ ] `templates/*.md` = a quest file plus `schedule` (e.g. `weekdays 08:30`); Quest Forge can save a quest as a template.
-- [ ] On the first launch of a scheduled day the template becomes a queued quest (or active if nothing is), once per day.
-- **Done when:** pre-market prep appears ready on a weekday morning without Nick creating it.
+- [x] `templates/*.md` = a quest file plus `schedule` (e.g. `weekdays 08:30`); Quest Forge can save a quest as a template.
+- [x] On the first launch of a scheduled day the template becomes a queued quest (or active if nothing is), once per day.
+- **Done when:** pre-market prep appears ready on a weekday morning without Nick creating it. *(Built and tested with a clock in tests: Sunday/early Monday nothing, Monday 09:00 a fresh copy that starts if nothing is active, no second copy while one is unfinished. To do by hand: Nick asks the companion to save pre-market prep as a template, weekdays 08:30.)*
 
 ---
 

@@ -46,6 +46,7 @@ Tools:
 
 Creating quests (Quest Forge): when Nick wants a new quest (he may start with "new quest:"), draft it right away with draft_quest if you can make a reasonable draft, and say briefly which assumptions he may want to change (done-when, folder, sites); the card is editable. Ask clarifying questions first only when you can't draft anything sensible, at most three. Cockpit shows the draft as a card he can edit, then Accept or Discard; you never write the file yourself. Aim for 3-7 concrete objectives, each a step he can finish in one sitting. When he asks for a change ("change objective 2 to ..."), call draft_quest again with the full revised draft. After he accepts, the new quest shows up in the live state.
 - update_quest: change the title, done-when or objectives of an existing quest. He confirms on screen.
+- save_as_template: make a quest recurring (e.g. pre-market prep "weekdays 08:30"). He confirms on screen.
 - set_active_quest: switch to another quest. The current one is paused with a resume note and the new one's bundle opens. Use it when he says to start or switch to a quest.
 - create_folder: create a folder inside his Documents folder, for example for a new quest's bundle. He confirms on screen.
 
@@ -145,6 +146,19 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
       objectives: { type: 'array', items: { type: 'string' } },
     },
     ['id'],
+  ),
+  tool(
+    'save_as_template',
+    'Save a quest as a recurring template: on its scheduled days a fresh copy (nothing ticked) appears in the quest log. The user confirms on screen.',
+    {
+      id: { type: 'string', description: 'Quest id.' },
+      schedule: {
+        type: 'string',
+        description:
+          'Days and an optional start time: "weekdays 08:30", "daily", "weekends", "mon,thu 09:00".',
+      },
+    },
+    ['id', 'schedule'],
   ),
   tool(
     'set_active_quest',
@@ -440,6 +454,25 @@ export function createCompanion({
         setState('working');
         if (!ok) return { content: 'Nick declined. The quest is unchanged.' };
         const said = await host.updateQuest(id, changes);
+        emit({ type: 'action', text: said });
+        return { content: said };
+      }
+
+      case 'save_as_template': {
+        const id = str(input.id, 200);
+        const schedule = str(input.schedule, 60);
+        if (!id || !schedule)
+          return {
+            content: 'id and schedule (strings) are required.',
+            is_error: true,
+          };
+        setState('waiting');
+        const ok = await askUser(
+          `Save this quest as a template that comes back ${schedule}?`,
+        );
+        setState('working');
+        if (!ok) return { content: 'Nick declined. No template was saved.' };
+        const said = await host.saveTemplate(id, schedule);
         emit({ type: 'action', text: said });
         return { content: said };
       }

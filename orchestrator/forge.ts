@@ -105,17 +105,28 @@ export async function writeNewQuest(
   status: 'active' | 'queued',
   createdAt: string,
 ): Promise<string> {
-  const base = slugify(draft.title);
-  const text = renderQuestFile(draft, status, createdAt);
+  return writeNewFile(
+    questsDir,
+    slugify(draft.title),
+    renderQuestFile(draft, status, createdAt),
+  );
+}
+
+/** Write <dir>/<base>.md, or -2, -3 … if taken; never overwrites. Returns the id. */
+export async function writeNewFile(
+  dir: string,
+  base: string,
+  text: string,
+): Promise<string> {
   for (let n = 1; n < 100; n++) {
     const id = n === 1 ? base : `${base}-${n}`;
     try {
-      // 'wx' fails if the file exists, so an existing quest is never overwritten.
-      await writeFile(path.join(questsDir, `${id}.md`), text, { flag: 'wx' });
+      // 'wx' fails if the file exists, so an existing file is never overwritten.
+      await writeFile(path.join(dir, `${id}.md`), text, { flag: 'wx' });
       return id;
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
     }
   }
-  throw new Error(`Too many quests named ${base}`);
+  throw new Error(`Too many files named ${base}`);
 }

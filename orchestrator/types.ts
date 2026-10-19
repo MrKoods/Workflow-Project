@@ -144,6 +144,8 @@ export interface Quest {
   createdAt?: string;
   pausedAt?: string;
   completedAt?: string;
+  /** Made from templates/<id>.md (Phase 1 Task 7). */
+  template?: string;
 }
 
 /** A quest the companion drafted (Quest Forge), shown as an editable card. */
@@ -320,6 +322,8 @@ export interface CompanionHost {
   setDraft(draft: QuestDraftInput): void;
   /** Apply validated changes to a quest file. Errors come back as a string. */
   updateQuest(id: string, changes: QuestChanges): Promise<string>;
+  /** Save a quest as a template on a schedule (Phase 1 Task 7). Errors come back as a string. */
+  saveTemplate(id: string, schedule: string): Promise<string>;
   /** Make a quest active, pausing the current one with a resume note. */
   switchQuest(id: string): Promise<string>;
   /** Resolve a folder path if it may be created (inside Documents); null otherwise. */
