@@ -32,3 +32,22 @@ With the wake word on, the mic stays open (Windows shows the mic icon), but the 
 ## License note
 
 The training notebook and openWakeWord's code are Apache-2.0. openWakeWord's own pretrained models (like the "Hey Jarvis" stand-in) are licensed for non-commercial use only; fine for personal use, revisit if Cockpit is ever sold.
+
+## Trained locally instead (2026-10-19, what's installed now)
+
+`wake/hey_echo.onnx` was trained on Nick's PC (RTX 4070 SUPER) with the same notebook's steps, in `C:\Users\user\cockpit-wakeword\` (outside the repo; ~22 GB, Python 3.11 venv). Settings: `target_word` `hey_echo`, **5,000 examples, 20,000 steps**, false-activation penalty 1500. Training run ~25 min.
+
+Result (`npm run wake-eval -- <model> <clips dir>`, Cockpit's own detector, threshold 0.5), on Deepgram voices it never trained on:
+- fires on **13 of 15** "Hey Echo" clips (0.93–0.94); the misses were one clip that sounds like "pay echo" and one with a very slow, drawn-out "heyyy … echo"
+- **0 false fires** on ordinary speech, "echo" mid-sentence, near-misses ("Hey Ellie", "heck") and "Hey Jarvis"
+- trainer's own noisy test set: accuracy 0.76, recall 0.53, 0.62 false positives/hour
+
+Windows fixes the notebook needed (all in the training folder, not in Cockpit):
+1. `piper-phonemize` has no Windows build: a small `piper_phonemize` shim calls piper-tts's bundled espeak-ng.
+2. Training DataLoader: no worker processes on Windows (a generator can't be pickled).
+3. Version pins: pyarrow 14.0.2 (for datasets 2.14.6), numpy 1.26.4, scipy 1.13.1, setuptools < 80; onnxruntime preloaded via `sitecustomize.py` (pyarrow 14's DLLs otherwise break it).
+4. AudioSet moved to Parquet (`data/bal_train/09.parquet`): read directly.
+5. The DeepPhonemizer download (S3) is gone (403): look-alike phrases use "hey echo" with a space so the CMU dictionary covers it.
+6. Windows can't delete a still-mapped file: close the memory maps before trimming.
+
+**To retrain stronger** (if it misses you in real use): edit `my_model.yaml.py` there (e.g. `n_samples` 20000, `steps` 40000), run it, delete `my_custom_model/`, then run the three stages again (`train.py --training_config my_model.yaml --generate_clips`, `--augment_clips`, `--train_model`). About an hour.
