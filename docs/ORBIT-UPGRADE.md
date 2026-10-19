@@ -69,8 +69,8 @@ Rules from CLAUDE.md still apply. Work top to bottom; the app must still start a
 - **Done when:** the five states are visibly different (debug key cycles them) and it holds 60 fps on Nick's Windows machine with a browser open next to it.
 
 ## Task 7: Conversation wiring
-- [ ] Reply chips call `engine.reply(label)`. The Say box sends free text to `engine.reply(text)`; if the engine isn't waiting for a reply, send it to Claude as normal chat (Phase 0 client) and show the answer as a companion caption.
-- [ ] Voice setting: `Settings.voice` = `steady | playful` (default `playful`). Quest files may carry both wordings later; for now the demo quest is Playful.
+- [x] Reply chips call `engine.reply(label)`. The Say box sends free text to `engine.reply(text)`; if the engine isn't waiting for a reply, send it to Claude as normal chat (Phase 0 client) and show the answer as a companion caption.
+- [x] Voice setting: `Settings.voice` = `steady | playful` (default `playful`). Quest files may carry both wordings later; for now the demo quest is Playful.
 - **Done when:** Nick can run the whole demo quest by typing only "yeah" and "done".
 
 ## Task 8: Polish + measure

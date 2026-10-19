@@ -24,7 +24,10 @@ Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
       snapshot,
       focus,
       settings,
-      { onCompanion: (state) => bloom?.setState(state) },
+      {
+        onCompanion: (state) => bloom?.setState(state),
+        onVoice: (level) => bloom?.setVoiceLevel(level),
+      },
     );
     // The panel lives inside the Orbit root so it shares its fonts.
     document.querySelector('.fx')!.append(...settings.els);

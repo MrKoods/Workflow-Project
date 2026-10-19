@@ -37,6 +37,8 @@ const PLANET_LABEL = {
 export interface OrbitHooks {
   /** Bloom (Task 6) mounts its canvas here and follows the companion state. */
   onCompanion?: (state: FocusCompanionState) => void;
+  /** Voice level pulses while Claude's reply streams in (feeds Bloom). */
+  onVoice?: (level: number) => void;
 }
 
 export function mountOrbit(
@@ -50,6 +52,15 @@ export function mountOrbit(
   let snap = initial;
   let view = initialView;
   let debugState: FocusCompanionState | null = null; // F2 cycles (debug)
+  // Claude's reply (free text that wasn't a script reply) shows as the
+  // companion caption until the engine says something new (`under` is the
+  // engine caption it covers). A pending confirmation replaces the chips.
+  let chat: {
+    text: string;
+    state: FocusCompanionState;
+    under: string;
+    confirm?: { id: string };
+  } | null = null;
 
   // ---- static structure ------------------------------------------------
   const title = h('b');
@@ -247,8 +258,31 @@ export function mountOrbit(
   let chipsKey = '';
   function renderChips(v: FocusView | null) {
     const replies = v?.replies ?? [];
-    const key = JSON.stringify(replies);
-    if (key !== chipsKey) {
+    const confirm = chat?.confirm;
+    const key = confirm ? `confirm:${confirm.id}` : JSON.stringify(replies);
+    if (key !== chipsKey && confirm) {
+      chipsKey = key;
+      const answer = (ok: boolean) => () => {
+        chat!.confirm = undefined;
+        void api.answerConfirm(confirm.id, ok);
+        render();
+      };
+      chips.replaceChildren(
+        h('span', { class: 'rl', text: 'Confirm' }),
+        h('button', {
+          class: 'chp',
+          text: 'Confirm',
+          attrs: { type: 'button' },
+          on: { click: answer(true) },
+        }),
+        h('button', {
+          class: 'chp',
+          text: 'Not now',
+          attrs: { type: 'button' },
+          on: { click: answer(false) },
+        }),
+      );
+    } else if (key !== chipsKey) {
       chipsKey = key;
       chips.replaceChildren(
         ...(replies.length ? [h('span', { class: 'rl', text: 'Reply' })] : []),
@@ -284,7 +318,17 @@ export function mountOrbit(
     buildItems(q);
     buildPlanets(v);
 
-    const companion = debugState ?? v?.companion ?? 'waiting';
+    // The chat covers the engine's caption until the engine moves on.
+    if (
+      chat &&
+      !chatBusy &&
+      !chat.confirm &&
+      (v?.caption.text ?? '') !== chat.under
+    )
+      chat = null;
+    const chatOn = !!chat && (v?.caption.text ?? '') === chat.under;
+    const companion =
+      debugState ?? (chatOn ? chat!.state : v?.companion) ?? 'waiting';
     fx.className = [
       'fx orbt',
       v?.mode ?? 'm-comp',
@@ -311,17 +355,20 @@ export function mountOrbit(
       c.setTicks(v?.ticks[c.id] ?? 0);
     }
 
-    // Caption: the engine's line, or a resting line when nothing is running.
-    const cap = v?.caption ?? {
-      who: 'companion' as const,
-      text: q
-        ? q.status === 'done'
-          ? 'Quest complete. Pick the next one when you’re ready.'
-          : ''
-        : snap.queue.length
-          ? 'Nothing active right now. Pick a quest from the quest log.'
-          : 'No quests yet. Tell me what you want to get done ("New quest: …").',
-    };
+    // Caption: Claude's reply, the engine's line, or a resting line.
+    const cap = (chatOn && chat!.text
+      ? { who: 'companion' as const, text: chat!.text }
+      : null) ??
+      v?.caption ?? {
+        who: 'companion' as const,
+        text: q
+          ? q.status === 'done'
+            ? 'Quest complete. Pick the next one when you’re ready.'
+            : ''
+          : snap.queue.length
+            ? 'Nothing active right now. Pick a quest from the quest log.'
+            : 'No quests yet. Tell me what you want to get done ("New quest: …").',
+      };
     const you = cap.who === 'you';
     who.className = you ? 'who3 you' : 'who3';
     who.replaceChildren(
@@ -353,6 +400,14 @@ export function mountOrbit(
     nextBtn.hidden = !(q?.status === 'done' && snap.queue.length);
     log.update(snap.queue, logOpen, canActivate());
     forge.update(snap.draft, active);
+  }
+
+  // A short line in the notice spot (e.g. "Logged a journal note").
+  function toast(text: string) {
+    clearTimeout(noticeTimer);
+    notice.hidden = false;
+    notice.replaceChildren(text);
+    noticeTimer = window.setTimeout(() => (notice.hidden = true), 5000);
   }
 
   // Orchestrator notices ("Opened 2 of 3…"), with an optional action.
@@ -403,6 +458,42 @@ export function mountOrbit(
     if (e.type === 'done' || e.type === 'error') chatBusy = false;
     if (['user', 'done', 'error', 'action'].includes(e.type))
       void refreshJournal();
+    switch (e.type) {
+      case 'user':
+        chat = { text: '', state: 'thinking', under: view?.caption.text ?? '' };
+        break;
+      case 'state':
+        if (chat) chat.state = e.ai;
+        break;
+      case 'delta':
+        if (!chat) break;
+        chat.text += e.text;
+        hooks.onVoice?.(0.45 + Math.random() * 0.55);
+        break;
+      case 'confirm':
+        if (chat) {
+          chat.text = e.text;
+          chat.confirm = { id: e.id };
+          chat.state = 'waiting';
+        }
+        break;
+      case 'confirmed':
+        if (chat) chat.confirm = undefined;
+        break;
+      case 'action':
+        toast(e.text);
+        break;
+      case 'error':
+        if (chat) {
+          chat.text = e.text;
+          chat.state = 'waiting';
+        }
+        break;
+      case 'done':
+        if (chat) chat.state = 'waiting';
+        break;
+    }
+    render();
   });
   if (initial.notice) {
     lastNotice = 0;

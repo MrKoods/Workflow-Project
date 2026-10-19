@@ -1,6 +1,6 @@
 // Settings panel: Color skin swatches (live switch, persisted by the
 // orchestrator). Palette-styled; lives inside the Orbit root.
-import type { CockpitApi, Settings } from '../orchestrator/types';
+import { VOICES, type CockpitApi, type Settings } from '../orchestrator/types';
 import { h } from './panels/dom';
 import { PALETTES, currentPalette, usePalette } from './palette';
 
@@ -24,6 +24,26 @@ export function createSettingsPanel(api: CockpitApi) {
     ),
   );
 
+  // Voice (Task 7): same quest beats, different wording. Separate from the skin.
+  const VOICE_LABEL = { steady: 'Steady', playful: 'Playful' } as const;
+  const voices = VOICES.map((v) =>
+    h('button', {
+      class: 'set-opt',
+      text: VOICE_LABEL[v],
+      attrs: { type: 'button', 'aria-pressed': 'false' },
+      on: {
+        click: async () => {
+          settings = await api.setSettings({ voice: v });
+          markVoice(v);
+        },
+      },
+    }),
+  );
+  const markVoice = (v: Settings['voice']) =>
+    voices.forEach((b, i) =>
+      b.setAttribute('aria-pressed', String(VOICES[i] === v)),
+    );
+
   const panel = h(
     'div',
     {
@@ -43,6 +63,10 @@ export function createSettingsPanel(api: CockpitApi) {
       h('section', { class: 'set-sec' }, [
         h('h3', { text: 'Color skin' }),
         h('div', { class: 'set-swatches' }, swatches),
+      ]),
+      h('section', { class: 'set-sec' }, [
+        h('h3', { text: 'Companion voice' }),
+        h('div', { class: 'set-row' }, voices),
       ]),
     ],
   );
@@ -81,6 +105,7 @@ export function createSettingsPanel(api: CockpitApi) {
       settings = next;
       usePalette(next.palette);
       mark(currentPalette()!.id);
+      markVoice(next.voice);
     },
     /** Debug hotkey Ctrl+Shift+P: next palette. */
     cycle() {
