@@ -205,6 +205,13 @@ export interface JournalEntry {
   at: string; // ISO timestamp
 }
 
+/** Push-to-talk state for the UI (mirrors orchestrator/talk.ts TalkState). */
+export interface TalkStateView {
+  phase: 'idle' | 'connecting' | 'listening' | 'finishing';
+  partial: string;
+  error?: string;
+}
+
 /** What the preload exposes as window.cockpit. */
 export interface CockpitApi {
   getSnapshot(): Promise<CockpitSnapshot>;
@@ -242,6 +249,15 @@ export interface CockpitApi {
   peekStep(target: number | 'prev' | 'next' | 'current'): Promise<void>;
   /** Reply chip or Say box: goes to the engine if it's waiting, else to Claude. */
   reply(text: string): Promise<void>;
+  /** Push-to-talk (Phase 1): open the speech connection / send / drop. */
+  talkStart(): Promise<void>;
+  talkStop(): Promise<void>;
+  talkCancel(): Promise<void>;
+  /** One 16 kHz 16-bit mono PCM frame while talking (fire and forget). */
+  talkAudio(frame: ArrayBuffer): void;
+  onTalkState(cb: (state: TalkStateView) => void): () => void;
+  /** Ctrl+Alt+V from any app: start or stop talking. */
+  onTalkToggle(cb: () => void): () => void;
   /** An item's button (open link / copy draft or tags). */
   itemAction(itemId: string): Promise<void>;
   /** Merge and persist settings (palette, voice, calm); the new snapshot follows. */

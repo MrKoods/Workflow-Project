@@ -6,6 +6,7 @@ import type {
   CockpitApi,
   CockpitSnapshot,
   FocusView,
+  TalkStateView,
 } from '../orchestrator/types';
 import { IPC } from './ipc';
 
@@ -28,6 +29,20 @@ const api: CockpitApi = {
   reply: (text) => ipcRenderer.invoke(IPC.reply, text),
   itemAction: (id) => ipcRenderer.invoke(IPC.itemAction, id),
   peekStep: (target) => ipcRenderer.invoke(IPC.peekStep, target),
+  talkStart: () => ipcRenderer.invoke(IPC.talkStart),
+  talkStop: () => ipcRenderer.invoke(IPC.talkStop),
+  talkCancel: () => ipcRenderer.invoke(IPC.talkCancel),
+  talkAudio: (frame) => ipcRenderer.send(IPC.talkAudio, frame),
+  onTalkState(cb) {
+    const listener = (_e: IpcRendererEvent, s: TalkStateView) => cb(s);
+    ipcRenderer.on(IPC.talkState, listener);
+    return () => ipcRenderer.removeListener(IPC.talkState, listener);
+  },
+  onTalkToggle(cb) {
+    const listener = () => cb();
+    ipcRenderer.on(IPC.talkToggle, listener);
+    return () => ipcRenderer.removeListener(IPC.talkToggle, listener);
+  },
   onFocus(cb) {
     const listener = (_e: IpcRendererEvent, v: FocusView | null) => cb(v);
     ipcRenderer.on(IPC.focus, listener);

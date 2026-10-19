@@ -8,6 +8,7 @@ import { BloomRenderer } from './companion/bloom';
 import { mountOrbit } from './orbit';
 import { onPalette, usePalette } from './palette';
 import { createSettingsPanel } from './settings';
+import { createTalkControl } from './voice/talk';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -18,7 +19,15 @@ Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
     settings.update(snapshot.settings);
 
     let bloom: BloomRenderer | null = null;
-    const { canvas } = mountOrbit(
+    let refresh = () => {};
+    let toast = (message: string) => console.warn('[talk]', message);
+    // Push-to-talk: the mic level drives Bloom while listening.
+    const talk = createTalkControl(window.cockpit, {
+      onLevel: (level) => bloom?.setVoiceLevel(level),
+      onActive: () => refresh(),
+      onError: (message) => toast(message),
+    });
+    const orbit = mountOrbit(
       document.getElementById('app')!,
       window.cockpit,
       snapshot,
@@ -27,8 +36,12 @@ Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
       {
         onCompanion: (state) => bloom?.setState(state),
         onVoice: (level) => bloom?.setVoiceLevel(level),
+        talk,
       },
     );
+    const { canvas } = orbit;
+    refresh = orbit.refresh;
+    toast = orbit.toast;
     // The panel lives inside the Orbit root so it shares its fonts.
     document.querySelector('.fx')!.append(...settings.els);
 

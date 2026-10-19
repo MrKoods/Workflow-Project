@@ -9,7 +9,7 @@ import {
   shell,
   Tray,
 } from 'electron';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as wait } from 'node:timers/promises';
 import started from 'electron-squirrel-startup';
@@ -22,12 +22,15 @@ import {
   type Effort,
 } from '../orchestrator/companion.ts';
 import { createOrchestrator } from '../orchestrator/index.ts';
+import { createTalk, TALK_RATE, type Talk } from '../orchestrator/talk.ts';
 import type { ChatEvent } from '../orchestrator/types.ts';
 import trayIconUrl from './assets/tray.png';
 import { IPC } from './ipc';
 
 // Hotkeys decided 2026-10-17 (docs/FEATURES.md §0).
 const TOGGLE_KEY = 'Control+Alt+C';
+/** Push-to-talk from any app (tap to start, tap to stop; Nick, 2026-10-18). */
+const TALK_KEY = 'Control+Alt+V';
 const QUIT_KEY = 'Control+Alt+Q';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -85,6 +88,7 @@ const orchestrator = createOrchestrator({
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let companion: Companion | null = null;
+let talk: Talk | null = null;
 let lastChatEvent: ChatEvent['type'] | null = null;
 
 /** The design size orbit.css is built for (see fitZoom). */
@@ -104,8 +108,28 @@ const createWindow = () => {
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
+      // Ctrl+Alt+V talks while Cockpit is hidden: keep mic audio flowing.
+      backgroundThrottling: false,
     },
   });
+
+  // Mic only (no camera, no screen), only for Cockpit's own window.
+  const ses = win.webContents.session;
+  const audioOnly = (types?: string[]) =>
+    !!types?.length && types.every((t) => t === 'audio');
+  ses.setPermissionRequestHandler((wc, permission, done, details) =>
+    done(
+      wc === win?.webContents &&
+        permission === 'media' &&
+        audioOnly((details as { mediaTypes?: string[] }).mediaTypes),
+    ),
+  );
+  ses.setPermissionCheckHandler(
+    (wc, permission, _origin, details) =>
+      wc === win?.webContents &&
+      permission === 'media' &&
+      (details as { mediaType?: string }).mediaType !== 'video',
+  );
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     win.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -266,8 +290,28 @@ const createWindow = () => {
         for (const reply of replies.split(',')) {
           await untilWaiting();
           const tag = String(++n).padStart(2, '0');
-          // "key:ArrowLeft" presses a key, "click:<selector>" clicks, instead of typing.
-          const [, kind, arg] = /^(key|click):(.+)$/.exec(reply) ?? [];
+          // "key:ArrowLeft" presses a key, "click:<selector>" clicks, instead of typing;
+          // "wav:<file>" speaks a 16 kHz mono WAV through push-to-talk (real STT).
+          const [, kind, arg] = /^(key|click|wav):(.+)$/.exec(reply) ?? [];
+          if (kind === 'wav' && talk) {
+            const buf = await readFile(arg);
+            const at = buf.indexOf('data');
+            if (buf.readUInt32LE(24) !== TALK_RATE || at < 0)
+              throw new Error(`${arg}: needs a ${TALK_RATE} Hz WAV`);
+            const pcm = buf.subarray(at + 8, at + 8 + buf.readUInt32LE(at + 4));
+            talk.start();
+            for (let i = 0; i < pcm.length; i += 640) {
+              talk.audio(new Uint8Array(pcm.subarray(i, i + 640)));
+              await wait(20);
+            }
+            talk.stop();
+            await wait(600);
+            await capture(`${tag}a`);
+            await untilWaiting();
+            await wait(1200);
+            await capture(`${tag}b`);
+            continue;
+          }
           if (kind) {
             if (kind === 'key') await press(arg);
             else
@@ -337,6 +381,14 @@ const registerHotkeys = () => {
   }
   if (!globalShortcut.register(QUIT_KEY, () => app.quit())) {
     console.warn(`[cockpit] could not register ${QUIT_KEY}`);
+  }
+  // The renderer owns the mic, so it decides start vs. stop.
+  if (
+    !globalShortcut.register(TALK_KEY, () =>
+      win?.webContents.send(IPC.talkToggle),
+    )
+  ) {
+    console.warn(`[cockpit] could not register ${TALK_KEY}`);
   }
 };
 
@@ -416,13 +468,35 @@ const connectOrchestrator = async () => {
     return companion?.send(text.slice(0, 8000));
   });
   // Engine first (reply chips, "yeah"/"done"); anything it isn't waiting
-  // for is normal chat with Claude (ORBIT-UPGRADE Task 7).
-  ipcMain.handle(IPC.reply, (_e, text: unknown) => {
-    if (typeof text !== 'string' || !text.trim()) return;
+  // for is normal chat with Claude (ORBIT-UPGRADE Task 7). Typed and spoken
+  // replies take the same path.
+  const reply = (text: string) => {
     const t = text.slice(0, 8000);
     if (orchestrator.focusReply(t)) return;
     orchestrator.focusSay(t);
     return companion?.send(t);
+  };
+  ipcMain.handle(IPC.reply, (_e, text: unknown) => {
+    if (typeof text !== 'string' || !text.trim()) return;
+    return reply(text);
+  });
+
+  // Push-to-talk (Phase 1 Task 2): speech-to-text runs here, not in the UI.
+  talk = createTalk({
+    apiKey: process.env.DEEPGRAM_API_KEY,
+    onState: (s) => win?.webContents.send(IPC.talkState, s),
+    onFinal: (text) => void reply(text),
+    log: (line) => console.log(line),
+  });
+  ipcMain.handle(IPC.talkStart, () => talk?.start());
+  ipcMain.handle(IPC.talkStop, () => talk?.stop());
+  ipcMain.handle(IPC.talkCancel, () => talk?.cancel());
+  ipcMain.on(IPC.talkAudio, (_e, frame: unknown) => {
+    // 20 ms of 16 kHz 16-bit mono = 640 bytes; anything far bigger is not ours.
+    if (frame instanceof Uint8Array && frame.byteLength <= 16_000)
+      talk?.audio(frame);
+    else if (frame instanceof ArrayBuffer && frame.byteLength <= 16_000)
+      talk?.audio(new Uint8Array(frame));
   });
   ipcMain.handle(IPC.peekStep, (_e, target: unknown) => {
     if (

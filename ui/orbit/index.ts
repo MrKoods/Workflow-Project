@@ -7,6 +7,7 @@ import type {
   CockpitApi,
   CockpitSnapshot,
   FocusCompanionState,
+  TalkStateView,
   FocusView,
   Quest,
 } from '../../orchestrator/types';
@@ -15,6 +16,7 @@ import { createForgeCard } from '../panels/forge';
 import { createJournalPanel } from '../panels/journal';
 import { createQuestLog } from '../panels/questLog';
 import type { SettingsPanel } from '../settings';
+import type { TalkControl } from '../voice/talk';
 import { createItemCard, type ItemCard } from './items';
 
 const STATE_LABEL: Record<FocusCompanionState, string> = {
@@ -39,6 +41,8 @@ export interface OrbitHooks {
   onCompanion?: (state: FocusCompanionState) => void;
   /** Voice level pulses while Claude's reply streams in (feeds Bloom). */
   onVoice?: (level: number) => void;
+  /** Push-to-talk control (the Talk button toggles it). */
+  talk?: TalkControl;
 }
 
 export function mountOrbit(
@@ -93,11 +97,25 @@ export function mountOrbit(
       placeholder: 'Talk to me… (try “yeah” or “done”)',
     },
   });
+  // Push-to-talk: the button toggles; Right Ctrl (hold) and Ctrl+Alt+V do too.
+  const micBtn = h('button', {
+    class: 'mic',
+    text: 'Talk',
+    attrs: {
+      type: 'button',
+      title: 'Hold Right Ctrl to talk, or tap Ctrl+Alt+V from any app',
+      'aria-keyshortcuts': 'Control+Alt+V',
+    },
+    on: { click: () => hooks.talk?.toggle() },
+  });
   const sayForm = h('form', { class: 'sayx' }, [
     h('label', { text: 'Say', attrs: { for: 'sayOrb' } }),
     say,
+    micBtn,
     h('button', { class: 'send', text: 'Send', attrs: { type: 'submit' } }),
   ]);
+  let talkState: TalkStateView = { phase: 'idle', partial: '' };
+  const talking = () => talkState.phase !== 'idle' || !!hooks.talk?.active;
   sayForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const text = say.value.trim();
@@ -351,7 +369,9 @@ export function mountOrbit(
       chat = null;
     const chatOn = !!chat && (v?.caption.text ?? '') === chat.under;
     const companion =
-      debugState ?? (chatOn ? chat!.state : v?.companion) ?? 'waiting';
+      debugState ??
+      (talking() ? 'listening' : chatOn ? chat!.state : v?.companion) ??
+      'waiting';
     fx.className = [
       'fx orbt',
       v?.mode ?? 'm-comp',
@@ -386,9 +406,17 @@ export function mountOrbit(
     }
 
     // Caption: Claude's reply, the engine's line, or a resting line.
-    const cap = (chatOn && chat!.text
-      ? { who: 'companion' as const, text: chat!.text }
+    const cap = (talking()
+      ? {
+          who: 'you' as const,
+          text:
+            talkState.partial ||
+            (talkState.phase === 'finishing' ? '…' : 'Listening…'),
+        }
       : null) ??
+      (chatOn && chat!.text
+        ? { who: 'companion' as const, text: chat!.text }
+        : null) ??
       v?.caption ?? {
         who: 'companion' as const,
         text: q
@@ -412,6 +440,10 @@ export function mountOrbit(
     if (companion === 'speaking' && !you) line.append(caret);
 
     renderChips(v);
+    const on = talking();
+    sayForm.classList.toggle('listening', on);
+    micBtn.textContent = on ? 'Stop' : 'Talk';
+    micBtn.setAttribute('aria-pressed', String(on));
 
     // Top row.
     title.textContent = q?.title ?? 'No active quest';
@@ -479,6 +511,11 @@ export function mountOrbit(
       paintTimer();
       timerTick = window.setInterval(paintTimer, 1000);
     }
+    render();
+  });
+  api.onTalkState((s) => {
+    if (s.error && s.error !== talkState.error) toast(s.error);
+    talkState = s;
     render();
   });
   api.onFocus((v) => {
@@ -589,5 +626,5 @@ export function mountOrbit(
     e.preventDefault();
   });
 
-  return { canvas, el: fx };
+  return { canvas, el: fx, refresh: render, toast };
 }

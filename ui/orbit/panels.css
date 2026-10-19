@@ -370,3 +370,27 @@ body {
   border-color: var(--acc);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 35%, transparent);
 }
+
+/* ---- push-to-talk ---------------------------------------------------------- */
+.sayx .mic {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: calc(var(--br) * 0.8);
+  border: 1px solid var(--edge);
+  background: transparent;
+  color: var(--text);
+  font: 700 13px var(--bf);
+  cursor: pointer;
+}
+.sayx .mic:hover {
+  border-color: var(--acc);
+}
+.sayx.listening {
+  border-color: var(--acc2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc2) 30%, transparent);
+}
+.sayx.listening .mic {
+  background: var(--acc2);
+  border-color: var(--acc2);
+  color: var(--acctext);
+}

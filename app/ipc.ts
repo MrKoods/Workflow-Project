@@ -21,4 +21,10 @@ export const IPC = {
   reply: 'cockpit:reply',
   itemAction: 'cockpit:item-action',
   peekStep: 'cockpit:peek-step',
+  talkStart: 'cockpit:talk-start',
+  talkStop: 'cockpit:talk-stop',
+  talkCancel: 'cockpit:talk-cancel',
+  talkAudio: 'cockpit:talk-audio',
+  talkState: 'cockpit:talk-state',
+  talkToggle: 'cockpit:talk-toggle',
 } as const;

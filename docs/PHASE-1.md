@@ -21,11 +21,11 @@ Rules from CLAUDE.md still apply. Keys live in `.env` (main process only). Audio
 - **Done when:** a provider is chosen from measured numbers and the target is written down.
 
 ## Task 2: Microphone + push-to-talk
-- [ ] Renderer captures the mic (`getUserMedia`, 16 kHz mono PCM via an AudioWorklet) only while talking; Electron's permission handler allows the mic for Cockpit's own page only.
-- [ ] Hold Right Ctrl (in Cockpit) / tap Ctrl+Alt+V (anywhere) → listening; release / tap again → send. Esc cancels. A visible "Listening…" state on the Say box.
-- [ ] Audio frames go to the main process (IPC); the orchestrator owns the STT connection (rule 4). Live partial transcript shows as the "You" caption; the final text goes through the existing reply path (engine first, else Claude).
-- [ ] Bloom: `listening` while the key is held, its level driven by the mic.
-- **Done when:** holding Right Ctrl and saying "yeah" advances the demo quest, from inside Cockpit and from another app with Ctrl+Alt+V.
+- [x] Renderer captures the mic (`getUserMedia`, 16 kHz mono PCM via an AudioWorklet) only while talking; Electron's permission handler allows the mic for Cockpit's own page only.
+- [x] Hold Right Ctrl (in Cockpit) / tap Ctrl+Alt+V (anywhere) → listening; release / tap again → send. Esc cancels. A visible "Listening…" state on the Say box.
+- [x] Audio frames go to the main process (IPC); the orchestrator owns the STT connection (rule 4). Live partial transcript shows as the "You" caption; the final text goes through the existing reply path (engine first, else Claude).
+- [x] Bloom: `listening` while the key is held, its level driven by the mic.
+- **Done when:** holding Right Ctrl and saying "yeah" advances the demo quest, from inside Cockpit and from another app with Ctrl+Alt+V. *(Verified with recorded speech through the real Deepgram path: 4 spoken turns, final transcript 35–107 ms after release. Still to check by hand: Nick's own mic, Right Ctrl and Ctrl+Alt+V on a real keyboard.)*
 
 ## Task 3: The companion speaks
 - [ ] Every companion line (scripted beats and Claude's replies) is spoken via TTS; Claude's reply starts speaking at its first sentence, not when it's done.

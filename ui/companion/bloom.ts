@@ -88,7 +88,10 @@ export class BloomRenderer {
       ai === 'speaking'
         ? this.voice
         : ai === 'listening'
-          ? 0.22 + 0.18 * Math.sin(t * 5) * Math.sin(t * 2.3)
+          ? // port (Phase 1): follow the real mic level when there is one
+            this.voice > 0.02
+            ? 0.12 + this.voice * 0.8
+            : 0.22 + 0.18 * Math.sin(t * 5) * Math.sin(t * 2.3)
           : ai === 'thinking'
             ? 0.12
             : 0.03;
