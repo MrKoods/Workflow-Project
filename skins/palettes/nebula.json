@@ -1,0 +1,21 @@
+{
+  "id": "nebula",
+  "name": "Nebula",
+  "ground": {
+    "center": "#180A2A",
+    "mid": "#06030C",
+    "edge": "#000000"
+  },
+  "accent": "#C79BFF",
+  "reply": "#7EF2D4",
+  "third": "#FF7AC8",
+  "card": "11,6,18",
+  "text": "#E9F3FA",
+  "muted": "#7A8796",
+  "onAccent": "#06080A",
+  "companion": {
+    "core": "#C79BFF",
+    "filamentsA": "#FF7AC8",
+    "filamentsB": "#7EF2D4"
+  }
+}

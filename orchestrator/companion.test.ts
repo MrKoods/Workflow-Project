@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import Anthropic from '@anthropic-ai/sdk';
+import { DEFAULT_SETTINGS } from './settings.ts';
 import {
   CompanionError,
   createCompanion,
@@ -89,6 +90,7 @@ function fakeHost() {
       draft: null,
       firstQuest: null,
       setupTimer: null,
+      settings: DEFAULT_SETTINGS,
       notice: null,
     }),
     async completeObjective() {
@@ -341,6 +343,7 @@ test('describeState covers no-quest and journal cases', () => {
         draft: null,
         firstQuest: null,
         setupTimer: null,
+        settings: DEFAULT_SETTINGS,
         notice: null,
       }),
     },

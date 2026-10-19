@@ -18,6 +18,7 @@ import {
   type SetupTrigger,
 } from './measure.ts';
 import { createJournal, localDay } from './journal.ts';
+import { createSettingsStore } from './settings.ts';
 import {
   parseQuestFile,
   setFrontmatter,
@@ -40,6 +41,8 @@ export interface OrchestratorOptions {
   journalDir: string;
   /** Small JSON file for app state that isn't quest content (e.g. last bundle open). */
   stateFile: string;
+  /** User settings (default: settings.json next to stateFile). */
+  settingsFile?: string;
   /** The user's Documents folder: the only place create_folder may write. */
   documentsDir: string;
   opener: Opener;
@@ -59,6 +62,7 @@ export function createOrchestrator({
   questsDir,
   journalDir,
   stateFile,
+  settingsFile = path.join(path.dirname(stateFile), 'settings.json'),
   documentsDir,
   opener,
   warn = console.warn,
@@ -67,6 +71,7 @@ export function createOrchestrator({
 }: OrchestratorOptions) {
   const journal = createJournal(journalDir, now);
   const measure = createMeasureLog(journalDir);
+  const settings = createSettingsStore(settingsFile);
   const listeners = new Set<(s: CockpitSnapshot) => void>();
   let quests: Quest[] = [];
   let justFinished: string | null = null; // keeps a finished quest on screen until the next starts
@@ -172,6 +177,7 @@ export function createOrchestrator({
             setOn: firstQuest.setOn,
           }
         : null,
+      settings: settings.get(),
       notice,
     };
   }
@@ -297,6 +303,7 @@ export function createOrchestrator({
 
   return {
     async start() {
+      await settings.load();
       await load();
       firstQuest = (await readState()).firstQuest ?? null;
 
@@ -581,6 +588,14 @@ export function createOrchestrator({
           text: `Created folder ${full}`,
         });
         return `Created ${full}.`;
+      }),
+
+    /** Settings → Color skin etc. Invalid fields are ignored. */
+    setSettings: (patch: unknown) =>
+      serial(async () => {
+        const next = await settings.set(patch);
+        emit();
+        return next;
       }),
 
     /** Task 7: the user tapped "I'm working": log the setup time. */

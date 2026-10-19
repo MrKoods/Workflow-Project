@@ -3,6 +3,16 @@
 export const QUEST_STATUSES = ['active', 'paused', 'queued', 'done'] as const;
 export type QuestStatus = (typeof QUEST_STATUSES)[number];
 
+export const VOICES = ['steady', 'playful'] as const;
+
+/** Persisted user settings (FEATURES §4). */
+export interface Settings {
+  /** Color skin id = file name in skins/palettes/ (default aqua). */
+  palette: string;
+  voice: (typeof VOICES)[number];
+  calm: boolean;
+}
+
 export interface Objective {
   title: string;
   done: boolean;
@@ -63,6 +73,7 @@ export interface CockpitSnapshot {
   setupTimer: { questId: string; startedAt: string } | null;
   /** Set by End session: the quest the next day starts with. */
   firstQuest: { id: string; title: string; setOn: string } | null;
+  settings: Settings;
   /** Latest one-line message for the companion (e.g. what the bundle opened). New seq = new message. */
   notice: {
     seq: number;
@@ -123,6 +134,8 @@ export interface CockpitApi {
   endSession(): Promise<void>;
   /** Task 7: stop the setup timer ("I'm working"). */
   markWorking(): Promise<void>;
+  /** Merge and persist settings (palette, voice, calm); the new snapshot follows. */
+  setSettings(patch: Partial<Settings>): Promise<Settings>;
 }
 
 /** Changes the companion can make to an existing quest (after the user confirms). */

@@ -1,0 +1,21 @@
+{
+  "id": "eclipse",
+  "name": "Eclipse",
+  "ground": {
+    "center": "#151517",
+    "mid": "#050506",
+    "edge": "#000000"
+  },
+  "accent": "#F2EFEA",
+  "reply": "#F4C77B",
+  "third": "#8E8EA0",
+  "card": "10,10,11",
+  "text": "#E9F3FA",
+  "muted": "#7A8796",
+  "onAccent": "#06080A",
+  "companion": {
+    "core": "#F2EFEA",
+    "filamentsA": "#8E8EA0",
+    "filamentsB": "#F4C77B"
+  }
+}

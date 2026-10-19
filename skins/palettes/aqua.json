@@ -1,0 +1,21 @@
+{
+  "id": "aqua",
+  "name": "Aqua",
+  "ground": {
+    "center": "#07101C",
+    "mid": "#020409",
+    "edge": "#000000"
+  },
+  "accent": "#7DE3FF",
+  "reply": "#C6FF8A",
+  "third": "#B18CFF",
+  "card": "4,8,14",
+  "text": "#E9F3FA",
+  "muted": "#7A8796",
+  "onAccent": "#06080A",
+  "companion": {
+    "core": "#7DE3FF",
+    "filamentsA": "#B18CFF",
+    "filamentsB": "#C6FF8A"
+  }
+}

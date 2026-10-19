@@ -22,6 +22,7 @@ const api: CockpitApi = {
   getJournal: () => ipcRenderer.invoke(IPC.journalToday),
   endSession: () => ipcRenderer.invoke(IPC.endSession),
   markWorking: () => ipcRenderer.invoke(IPC.markWorking),
+  setSettings: (patch) => ipcRenderer.invoke(IPC.setSettings, patch),
   sendChat: (text) => ipcRenderer.invoke(IPC.chatSend, text),
   answerConfirm: (id, ok) => ipcRenderer.invoke(IPC.chatAnswer, id, ok),
   onChat(cb) {

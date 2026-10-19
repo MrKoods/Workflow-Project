@@ -491,3 +491,22 @@ test('Setup timer: times out unconfirmed', async () => {
   );
   assert.equal(orch.snapshot().setupTimer, null);
 });
+
+test('settings default to aqua/playful, persist, and ignore invalid fields', async () => {
+  await setup();
+  assert.deepEqual(orch.snapshot().settings, {
+    palette: 'aqua',
+    voice: 'playful',
+    calm: false,
+  });
+  await orch.setSettings({ palette: 'ember', voice: 'loud', calm: 'yes' });
+  await orch.setSettings({ palette: '../../evil' });
+  assert.equal(orch.snapshot().settings.palette, 'ember');
+  assert.equal(orch.snapshot().settings.voice, 'playful');
+
+  await setup(); // restart: read back from settings.json
+  assert.equal(orch.snapshot().settings.palette, 'ember');
+  await writeFile(path.join(root, 'settings.json'), '{not json');
+  await setup();
+  assert.equal(orch.snapshot().settings.palette, 'aqua');
+});

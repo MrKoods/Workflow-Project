@@ -15,4 +15,5 @@ export const IPC = {
   journalToday: 'cockpit:journal-today',
   endSession: 'cockpit:end-session',
   markWorking: 'cockpit:mark-working',
+  setSettings: 'cockpit:set-settings',
 } as const;

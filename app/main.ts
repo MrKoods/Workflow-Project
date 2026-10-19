@@ -259,6 +259,10 @@ const connectOrchestrator = async () => {
   ipcMain.handle(IPC.discardDraft, () => orchestrator.discardDraft());
   ipcMain.handle(IPC.journalToday, () => orchestrator.journalToday());
   ipcMain.handle(IPC.markWorking, () => orchestrator.markWorking());
+  // Validated field by field in orchestrator/settings.ts.
+  ipcMain.handle(IPC.setSettings, (_e, patch: unknown) =>
+    orchestrator.setSettings(patch),
+  );
   ipcMain.handle(IPC.endSession, () => companion?.send(END_SESSION_MESSAGE));
   orchestrator.onChange((s) => win?.webContents.send(IPC.snapshot, s));
 

@@ -28,10 +28,10 @@ Rules from CLAUDE.md still apply. Work top to bottom; the app must still start a
 - [x] Ask Nick if anything in the notes looks wrong before Task 2.
 
 ## Task 2: Palette tokens + live switch
-- [ ] Add `skins/palettes/` with the 7 JSON files from `reference/palettes/`.
-- [ ] Add `ui/palette.ts` from `reference/palette.ts`. Load the saved palette at startup (default `aqua`) and apply it to the root element.
-- [ ] Settings → **Color skin**: 7 swatch buttons (gradient accent→reply), live switch, persisted in `Settings.palette`. Debug hotkey `Ctrl+Shift+P` cycles palettes.
-- [ ] Remove the old Frostbound tokens/styles once nothing references them (keep the files in git history only).
+- [x] Add `skins/palettes/` with the 7 JSON files from `reference/palettes/`.
+- [x] Add `ui/palette.ts` from `reference/palette.ts`. Load the saved palette at startup (default `aqua`) and apply it to the root element.
+- [x] Settings → **Color skin**: 7 swatch buttons (gradient accent→reply), live switch, persisted in `Settings.palette`. Debug hotkey `Ctrl+Shift+P` cycles palettes.
+- [ ] Remove the old Frostbound tokens/styles once nothing references them (keep the files in git history only). *(Deferred to Task 5: the legacy HUD still uses Frostbound fonts/shapes; its colors already come from the palette via `ui/hud/legacyPalette.ts`.)*
 - **Done when:** switching palettes recolors the whole screen instantly, survives a restart, and `grep` finds no hue hex colors in `ui/` outside `skins/palettes/`.
 
 ## Task 3: Quest file v2 (backward compatible)

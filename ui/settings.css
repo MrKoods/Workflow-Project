@@ -1,0 +1,118 @@
+/* Settings panel. Palette variables only (SKINS.md): no colors of its own. */
+.settings-btn {
+  position: fixed;
+  top: 22px;
+  right: 28px;
+  z-index: 40;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  background: var(--chipbg);
+  color: var(--text);
+  font: 600 12px var(--bf, system-ui);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.settings-btn:hover {
+  border-color: var(--acc);
+}
+.settings-panel {
+  position: fixed;
+  top: 66px;
+  right: 28px;
+  z-index: 41;
+  width: 340px;
+  padding: 18px 20px 20px;
+  border-radius: 20px;
+  border: 1px solid var(--edge);
+  background: rgba(var(--card), 0.96);
+  color: var(--text);
+  font: 400 14px var(--bf, system-ui);
+  box-shadow: 0 30px 80px -30px black;
+}
+.settings-panel[hidden] {
+  display: none;
+}
+.set-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.set-head b {
+  font: 700 16px var(--tf, system-ui);
+}
+.set-close {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font: 600 12px var(--bf, system-ui);
+  cursor: pointer;
+}
+.set-sec h3 {
+  margin: 0 0 10px;
+  font: 700 10px var(--lf, system-ui);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.set-sec + .set-sec {
+  margin-top: 18px;
+}
+.set-swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.sw-pal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  background: none;
+  border: 0;
+  border-radius: 12px;
+  color: var(--muted);
+  font: 600 11px var(--bf, system-ui);
+  cursor: pointer;
+}
+.sw-pal i {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--sa), var(--sb));
+  outline: 2px solid transparent;
+  outline-offset: 3px;
+  transition: outline-color 0.2s;
+}
+.sw-pal[aria-pressed='true'] {
+  color: var(--text);
+}
+.sw-pal[aria-pressed='true'] i {
+  outline-color: var(--acc);
+}
+.settings-panel button:focus-visible,
+.settings-btn:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 2px;
+}
+.set-row {
+  display: flex;
+  gap: 8px;
+}
+.set-opt {
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  background: none;
+  color: var(--muted);
+  font: 600 12px var(--bf, system-ui);
+  cursor: pointer;
+}
+.set-opt[aria-pressed='true'] {
+  border-color: var(--acc);
+  color: var(--text);
+}
