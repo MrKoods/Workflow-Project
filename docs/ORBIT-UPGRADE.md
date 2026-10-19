@@ -21,11 +21,11 @@ Rules from CLAUDE.md still apply. Work top to bottom; the app must still start a
 ---
 
 ## Task 1: Map the existing code (no code changes)
-- [ ] Read the Phase 0 code. Write `docs/MIGRATION-NOTES.md` (1 page) answering:
+- [x] Read the Phase 0 code. Write `docs/MIGRATION-NOTES.md` (1 page) answering:
   - Which framework (Electron or Tauri), and is the UI React or plain TS?
   - Where are the quest loader, chat/Claude client, HUD components, skin tokens, settings?
   - Which Phase 0 pieces we **keep** (orchestrator, quest files, Claude client, journal, bundle opening, permission gate, Quest Forge), **replace** (HUD layout, Frostbound skin, old orb), or **adapt** (chat → reply chips + Say box).
-- [ ] Ask Nick if anything in the notes looks wrong before Task 2.
+- [x] Ask Nick if anything in the notes looks wrong before Task 2.
 
 ## Task 2: Palette tokens + live switch
 - [ ] Add `skins/palettes/` with the 7 JSON files from `reference/palettes/`.
