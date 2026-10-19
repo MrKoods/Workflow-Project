@@ -13,7 +13,7 @@ import { parseQuestFile } from './questFile.ts';
 
 const quest = parseQuestFile(
   'fiverr-profile',
-  readFileSync(new URL('../quests/fiverr-profile.md', import.meta.url), 'utf8'),
+  readFileSync(new URL('./fixtures/demo-quest.md', import.meta.url), 'utf8'),
 );
 
 test('focus tools: defined, not enabled, complete_step confirms', () => {

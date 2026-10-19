@@ -10,7 +10,7 @@ import { createOrchestrator } from './index.ts';
 import { parseQuestFile } from './questFile.ts';
 
 const DEMO = readFileSync(
-  new URL('../quests/fiverr-profile.md', import.meta.url),
+  new URL('./fixtures/demo-quest.md', import.meta.url),
   'utf8',
 ).replaceAll('\r\n', '\n'); // checkouts may use CRLF
 

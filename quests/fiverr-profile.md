@@ -8,10 +8,10 @@ status: active
 voice: auto               # auto | steady | playful. auto: playful with the companion, steady while a card is up
 
 items:
-  acct:    { type: link,      title: "Fiverr · Join as a seller", url: "https://www.fiverr.com", cta: "Open sign-up page",
+  acct:    { type: link,      title: "Fiverr · Join as a seller", url: "https://www.fiverr.com/join", cta: "Open sign-up page",
              preview: [["Email", "nick@…"], ["Username", "nick_automates"], ["Password", "••••••••••"]] }
   acctck:  { type: checklist, title: "Account setup", checks: ["Sign up with your work email", "Pick a username", "Turn on 2-step verification"] }
-  profile: { type: link,      title: "Your profile editor", url: "https://www.fiverr.com", cta: "Open profile editor",
+  profile: { type: link,      title: "Your seller profile", url: "https://www.fiverr.com/start_selling", cta: "Open seller setup",
              preview: [["Display name", "Nick · AI Automation"], ["Photo", "Upload a real photo"], ["Description", "Paste your bio"]] }
   bio:     { type: draft,     title: "Your bio", cta: "Copy bio",
              text: "I build automations for gyms and studios. Every new lead gets a reply in minutes, follow-ups run on their own, and trials get booked while you coach." }
@@ -39,7 +39,7 @@ steps:
     short: Profile
     icon: "✎"
     beats:
-      - { say: "Your profile, waiting for a face and a story. The story's on the right. Copy it in.", steady: "Open your profile editor. Copy the bio on the right into Description.", focus: profile, support: [bio] }
+      - { say: "Your profile, waiting for a face and a story. The story's on the right. Copy it in.", steady: "Open seller setup and fill in your profile. Copy the bio on the right into Description.", focus: profile, support: [bio] }
       - replies: [{ label: "Copied it" }, { label: "Make it punchier", answer: "Tightened it. Two lines, zero fluff." }]
       - { say: "One thing: real photo, real smile. People buy from people.", steady: "Use a real photo of yourself, then save the profile." }
       - replies: [{ label: "Profile's saved" }]

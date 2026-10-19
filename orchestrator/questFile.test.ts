@@ -105,9 +105,13 @@ test('setFrontmatter keeps comments and body, preserves CRLF', () => {
 
 const repoQuest = (name: string) =>
   readFileSync(new URL(`../quests/${name}`, import.meta.url), 'utf8');
+// Fixed copies, so ticking steps in the real quests/ while testing the app
+// can't break these tests.
+const fixture = (name: string) =>
+  readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
 
 test('v2: the demo quest loads items, intro and steps', () => {
-  const q = parseQuestFile('fiverr-profile', repoQuest('fiverr-profile.md'));
+  const q = parseQuestFile('fiverr-profile', fixture('demo-quest.md'));
   assert.equal(q.format, 2);
   assert.equal(q.voice, 'auto');
   assert.deepEqual(Object.keys(q.items), [
@@ -159,7 +163,7 @@ test('v1: the Phase 0 quests still load, with one generic step per objective', (
     assert.deepEqual(q.items, {});
     assert.deepEqual(q.intro, []);
   }
-  const q = parseQuestFile('p', repoQuest('pre-market-prep.md'));
+  const q = parseQuestFile('p', fixture('pre-market-prep.md'));
   assert.deepEqual(q.steps[0], {
     id: 'objective-1',
     title: 'Review overnight moves',
@@ -222,7 +226,7 @@ test('v2: bad items and beats are rejected with the field path', () => {
 });
 
 test('v2: frontmatter edits keep the steps parseable', () => {
-  const text = repoQuest('fiverr-profile.md');
+  const text = fixture('demo-quest.md');
   const edited = setFrontmatter(text, {
     status: 'paused',
     resumeNote: 'Back soon',
