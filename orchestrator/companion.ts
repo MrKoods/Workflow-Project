@@ -312,7 +312,13 @@ export function createCompanion({
     switch (block.name) {
       case 'get_current_quest': {
         const { current, queue } = host.snapshot();
-        return { content: JSON.stringify({ quest: current, queue }) };
+        // Items and step titles help; the scripted beats are UI detail.
+        const quest = current && {
+          ...current,
+          intro: undefined,
+          steps: current.steps.map(({ beats: _b, ...s }) => s),
+        };
+        return { content: JSON.stringify({ quest, queue }) };
       }
 
       case 'complete_objective': {

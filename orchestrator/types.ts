@@ -18,6 +18,44 @@ export interface Objective {
   done: boolean;
 }
 
+// ---- Quest file v2 (Orbit): items + scripted beats (docs/reference/demo-quest.md) ----
+
+export type ItemType = 'link' | 'checklist' | 'draft' | 'tags';
+export type QuestItem =
+  | {
+      type: 'link';
+      title: string;
+      url: string;
+      cta: string;
+      preview: [string, string][];
+    }
+  | { type: 'checklist'; title: string; checks: string[] }
+  | { type: 'draft'; title: string; cta: string; text: string }
+  | { type: 'tags'; title: string; cta: string; tags: string[] };
+
+/** A reply chip. With `answer` the companion answers and the step stays; without, it advances. */
+export interface Reply {
+  label: string;
+  answer?: string;
+}
+/** One scripted moment in a quest (see orchestrator/focusEngine.ts). */
+export interface Beat {
+  say?: string;
+  focus?: string;
+  support?: string[];
+  tick?: string;
+  stepDone?: boolean;
+  end?: boolean;
+  replies?: Reply[];
+}
+export interface Step {
+  id: string;
+  title: string;
+  short: string;
+  icon: string;
+  beats: Beat[];
+}
+
 export interface Bundle {
   folders: string[];
   urls: string[];
@@ -30,7 +68,15 @@ export interface Quest {
   doneWhen: string;
   status: QuestStatus;
   bundle: Bundle;
+  /** One per step, from the body's checkboxes (step progress for v1 and v2). */
   objectives: Objective[];
+  /** 1 = Phase 0 file (steps generated from objectives), 2 = Orbit file with items/intro/steps. */
+  format: 1 | 2;
+  items: Record<string, QuestItem>;
+  intro: Beat[];
+  steps: Step[];
+  /** Per-quest voice override (steady | playful). */
+  voice?: (typeof VOICES)[number];
   resumeNote?: string;
   createdAt?: string;
   pausedAt?: string;

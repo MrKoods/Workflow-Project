@@ -35,11 +35,11 @@ Rules from CLAUDE.md still apply. Work top to bottom; the app must still start a
 - **Done when:** switching palettes recolors the whole screen instantly, survives a restart, and `grep` finds no hue hex colors in `ui/` outside `skins/palettes/`.
 
 ## Task 3: Quest file v2 (backward compatible)
-- [ ] Extend the quest loader to read `items`, `intro`, `steps[].beats` (see `reference/demo-quest.md`). Item types: `link`, `checklist`, `draft`, `tags`.
-- [ ] v1 files still load: each `- [ ]` objective becomes a step with `short` = objective text (trimmed to ~16 chars), `icon` = "•", and beats:
+- [x] Extend the quest loader to read `items`, `intro`, `steps[].beats` (see `reference/demo-quest.md`). Item types: `link`, `checklist`, `draft`, `tags`.
+- [x] v1 files still load: each `- [ ]` objective becomes a step with `short` = objective text (trimmed to ~16 chars), `icon` = "•", and beats:
   `say: "Step N: <objective>. Say done when it's finished."` → `replies: [{label: "Done"}]` → `stepDone`.
-- [ ] Completing a step still checks the box in the file, adds XP and writes the journal entry (Phase 0 behavior, unchanged).
-- [ ] Copy `demo-quest.md` into `quests/fiverr-profile.md`.
+- [x] Completing a step still checks the box in the file, adds XP and writes the journal entry (Phase 0 behavior, unchanged).
+- [x] Copy `demo-quest.md` into `quests/fiverr-profile.md`. *(The Phase 0 seller-profile quest moved to `quests/fiverr-profile-v1.md`, queued.)*
 - **Done when:** both the old Phase 0 quest and the new demo quest load without errors; a unit test covers both formats.
 
 ## Task 4: Focus engine in the orchestrator

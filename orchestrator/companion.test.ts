@@ -77,6 +77,10 @@ function fakeHost() {
       urls: ['https://www.fiverr.com'],
       apps: [],
     },
+    format: 1,
+    items: {},
+    intro: [],
+    steps: [],
     objectives: [
       { title: 'Research what sells', done: false },
       { title: 'Write gig copy', done: false },

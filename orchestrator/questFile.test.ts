@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import {
   parseQuestFile,
   QuestFileError,
@@ -98,4 +99,135 @@ test('setFrontmatter keeps comments and body, preserves CRLF', () => {
   );
   assert.ok(!/[^\r]\n/.test(out), 'no bare LF introduced');
   assert.equal(parseQuestFile('x', out).objectives[1].done, true);
+});
+
+// ---- Quest file v2 (ORBIT-UPGRADE Task 3) ----------------------------------
+
+const repoQuest = (name: string) =>
+  readFileSync(new URL(`../quests/${name}`, import.meta.url), 'utf8');
+
+test('v2: the demo quest loads items, intro and steps', () => {
+  const q = parseQuestFile('fiverr-profile', repoQuest('fiverr-profile.md'));
+  assert.equal(q.format, 2);
+  assert.equal(q.voice, 'playful');
+  assert.deepEqual(Object.keys(q.items), [
+    'acct',
+    'acctck',
+    'profile',
+    'bio',
+    'skills',
+    'verify',
+  ]);
+  assert.deepEqual(
+    Object.values(q.items).map((i) => i.type),
+    ['link', 'checklist', 'link', 'draft', 'tags', 'checklist'],
+  );
+  assert.equal(q.intro.length, 2);
+  assert.deepEqual(
+    q.steps.map((s) => s.id),
+    ['account', 'profile', 'skills', 'verify'],
+  );
+  assert.deepEqual(
+    q.steps.map((s) => s.short),
+    ['Seller account', 'Profile', 'Skills', 'Verify'],
+  );
+  assert.deepEqual(q.steps[0].beats[0], {
+    say: "Here's the door. Click through and claim your seller account. I'll keep watch from here.",
+    focus: 'acct',
+    support: ['acctck'],
+  });
+  assert.equal(q.steps[3].beats.at(-2)?.end, true);
+  // Objectives mirror the steps; progress comes from the body's checkboxes.
+  assert.deepEqual(
+    q.objectives.map((o) => o.title),
+    q.steps.map((s) => s.title),
+  );
+  assert.ok(q.objectives.every((o) => !o.done));
+});
+
+test('v1: the Phase 0 quests still load, with one generic step per objective', () => {
+  for (const name of [
+    'fiverr-profile-v1.md',
+    'fiverr-gig.md',
+    'pre-market-prep.md',
+  ]) {
+    const q = parseQuestFile(name, repoQuest(name));
+    assert.equal(q.format, 1, name);
+    assert.equal(q.steps.length, q.objectives.length, name);
+    assert.deepEqual(q.items, {});
+    assert.deepEqual(q.intro, []);
+  }
+  const q = parseQuestFile('p', repoQuest('pre-market-prep.md'));
+  assert.deepEqual(q.steps[0], {
+    id: 'objective-1',
+    title: 'Review overnight moves',
+    short: 'Review overnight…',
+    icon: '•',
+    beats: [
+      { say: "Step 1: Review overnight moves. Say done when it's finished." },
+      { replies: [{ label: 'Done' }] },
+      { stepDone: true },
+    ],
+  });
+  assert.deepEqual(q.steps.at(-1)!.beats.at(-1), { stepDone: true, end: true });
+  assert.ok(q.steps.every((s) => s.short.length <= 17));
+});
+
+test('v2: v2 files without checkboxes count every step as not done', () => {
+  const q = parseQuestFile(
+    'x',
+    '---\ntitle: X\nsteps:\n  - { title: One, beats: [{ say: hi }] }\n  - { title: Two, beats: [{ say: yo }] }\n---\nJust notes.\n',
+  );
+  assert.deepEqual(q.objectives, [
+    { title: 'One', done: false },
+    { title: 'Two', done: false },
+  ]);
+  assert.deepEqual(
+    q.steps.map((s) => [s.id, s.icon]),
+    [
+      ['step-1', '•'],
+      ['step-2', '•'],
+    ],
+  );
+});
+
+test('v2: bad items and beats are rejected with the field path', () => {
+  const bad = (fm: string) => () =>
+    parseQuestFile('x', `---\ntitle: X\n${fm}\n---\n`);
+  assert.throws(bad('steps: []'), /steps must be a non-empty list/);
+  assert.throws(
+    bad('steps:\n  - { title: A, beats: [{ focus: nope }] }'),
+    /steps\[0\]\.beats\[0\]\.focus: no item "nope"/,
+  );
+  assert.throws(
+    bad(
+      'items:\n  a: { type: video, title: A }\nsteps:\n  - { title: A, beats: [{ say: x }] }',
+    ),
+    /items\.a\.type/,
+  );
+  assert.throws(
+    bad(
+      'items:\n  a: { type: link, title: A, url: "file:///c:/x" }\nsteps:\n  - { title: A, beats: [{ say: x }] }',
+    ),
+    /items\.a\.url must be http/,
+  );
+  assert.throws(
+    bad(
+      'items:\n  a: { type: draft, title: A, text: T }\nsteps:\n  - { title: A, beats: [{ tick: a }] }',
+    ),
+    /tick must name a checklist/,
+  );
+});
+
+test('v2: frontmatter edits keep the steps parseable', () => {
+  const text = repoQuest('fiverr-profile.md');
+  const edited = setFrontmatter(text, {
+    status: 'paused',
+    resumeNote: 'Back soon',
+  });
+  const q = parseQuestFile('f', edited);
+  assert.equal(q.status, 'paused');
+  assert.equal(q.steps.length, 4);
+  assert.deepEqual(q.items, parseQuestFile('f', text).items);
+  assert.match(edited, /# Cockpit quest file, v2/); // comments survive
 });

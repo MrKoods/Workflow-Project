@@ -373,7 +373,18 @@ export function createOrchestrator({
         if (!quest || index < 0) return null;
 
         const objective = quest.objectives[index].title;
-        await edit(quest.id, (t) => setObjectiveDone(t, index, true));
+        // v2: write the whole step checklist, so a file without boxes gets them.
+        await edit(quest.id, (t) =>
+          quest.format === 2
+            ? setObjectives(
+                t,
+                quest.objectives.map((o, i) => ({
+                  title: o.title,
+                  done: o.done || i === index,
+                })),
+              )
+            : setObjectiveDone(t, index, true),
+        );
         // Finishing an objective means work started; time unknown, so unconfirmed.
         if (setupTimer?.quest.id === quest.id) await endTimer('objective');
         await journal.add({
@@ -505,6 +516,8 @@ export function createOrchestrator({
         await load();
         const quest = quests.find((q) => q.id === id);
         if (!quest) return `No quest with id "${id}".`;
+        if (changes.objectives && quest.format === 2)
+          return 'This quest has scripted steps (quest file v2); its steps can only be changed in the file.';
         const patch: Record<string, string> = {};
         if (changes.title !== undefined) patch.title = changes.title;
         if (changes.doneWhen !== undefined) patch.doneWhen = changes.doneWhen;

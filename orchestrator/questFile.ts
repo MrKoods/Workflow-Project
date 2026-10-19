@@ -3,7 +3,14 @@
 // notes, comments and line endings survive.
 import { parseDocument } from 'yaml';
 import {
+  QuestFileError,
+  isV2,
+  parseV2,
+  stepsFromObjectives,
+} from './questSteps.ts';
+import {
   QUEST_STATUSES,
+  VOICES,
   type Bundle,
   type Quest,
   type QuestStatus,
@@ -12,7 +19,7 @@ import {
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n?---[ \t]*(\r?\n|$)/;
 const CHECKBOX = /^(\s*[-*] \[)([ xX])(\]\s+)(.*\S)\s*$/;
 
-export class QuestFileError extends Error {}
+export { QuestFileError };
 
 const eolOf = (text: string) => (text.includes('\r\n') ? '\r\n' : '\n');
 
@@ -54,11 +61,23 @@ export function parseQuestFile(id: string, text: string): Quest {
     apps: strings(b.apps, 'bundle.apps'),
   };
 
-  const objectives = body
+  const boxes = body
     .split(/\r?\n/)
     .map((line) => CHECKBOX.exec(line))
     .filter((m): m is RegExpExecArray => m !== null)
     .map((m) => ({ title: m[4], done: m[2] !== ' ' }));
+
+  // v2: steps come from the frontmatter; the body's checkboxes record which
+  // are done (in step order), so completion stays the Phase 0 path. Missing
+  // boxes count as not done and are written on the first completion.
+  const v2 = isV2(fm) ? parseV2(fm) : null;
+  const objectives = v2
+    ? v2.steps.map((s, k) => ({
+        title: s.title,
+        done: boxes[k]?.done ?? false,
+      }))
+    : boxes;
+  const voice = VOICES.find((v) => v === fm.voice);
 
   return {
     id,
@@ -67,6 +86,11 @@ export function parseQuestFile(id: string, text: string): Quest {
     status,
     bundle,
     objectives,
+    format: v2 ? 2 : 1,
+    items: v2?.items ?? {},
+    intro: v2?.intro ?? [],
+    steps: v2?.steps ?? stepsFromObjectives(boxes.map((o) => o.title)),
+    ...(voice ? { voice } : {}),
     resumeNote: optionalString(fm.resumeNote),
     createdAt: optionalString(fm.createdAt),
     pausedAt: optionalString(fm.pausedAt),

@@ -510,3 +510,26 @@ test('settings default to aqua/playful, persist, and ignore invalid fields', asy
   await setup();
   assert.equal(orch.snapshot().settings.palette, 'aqua');
 });
+
+test('v2: completing a step ticks its box (written if missing), adds XP + journal', async () => {
+  await setup({
+    'v2.md': `---\ntitle: V2\nstatus: active\nsteps:\n  - { title: One, beats: [{ say: hi }] }\n  - { title: Two, beats: [{ say: yo }] }\n---\nNotes.\n`,
+  });
+  const r = await orch.completeObjective();
+  assert.deepEqual(r, { objective: 'One', questComplete: false });
+  assert.match(await read('v2.md'), /Notes\.\n- \[x\] One\n- \[ \] Two\n$/);
+  assert.equal(
+    orch.snapshot().current?.objectives.filter((o) => o.done).length,
+    1,
+  );
+  assert.equal(
+    await orch.updateQuest('v2', { objectives: ['A'] }),
+    'This quest has scripted steps (quest file v2); its steps can only be changed in the file.',
+  );
+  const r2 = await orch.completeObjective();
+  assert.equal(r2?.questComplete, true);
+  assert.match(await read('v2.md'), /status: done/);
+  const kinds = (await journal()).map((e) => e.kind);
+  assert.deepEqual(kinds.filter((k) => k === 'objective').length, 2);
+  assert.ok(kinds.includes('finish'));
+});
