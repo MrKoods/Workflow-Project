@@ -63,9 +63,9 @@ Rules from CLAUDE.md still apply. Work top to bottom; the app must still start a
 - **Done when:** the demo quest looks like the "Orbit" board on the canvas: planets turn to the front in order, the current step's card pops out from the front of the orbit, done steps show ✓, and nothing jumps or re-mounts.
 
 ## Task 6: Bloom companion
-- [ ] Add `ui/companion/bloom.ts` from `reference/bloom.ts`. One instance, canvas inside `.comp`.
-- [ ] Feed it: companion state from the engine; palette colors on every palette change (`setPalette(accent, reply, third)`); voice level from the engine's `onVoiceLevel` hook (typed captions, for now).
-- [ ] Calm mode / reduced motion → `setCalm(true)` and CSS transitions shortened (`.calm` rule already in `orbit.css`).
+- [x] Add `ui/companion/bloom.ts` from `reference/bloom.ts`. One instance, canvas inside `.comp`.
+- [x] Feed it: companion state from the engine; palette colors on every palette change (`setPalette(accent, reply, third)`); voice level from the engine's `onVoiceLevel` hook (typed captions, for now).
+- [x] Calm mode / reduced motion → `setCalm(true)` and CSS transitions shortened (`.calm` rule already in `orbit.css`).
 - **Done when:** the five states are visibly different (debug key cycles them) and it holds 60 fps on Nick's Windows machine with a browser open next to it.
 
 ## Task 7: Conversation wiring

@@ -186,6 +186,21 @@ const createWindow = () => {
           await settleChat();
         }
       }
+      // COCKPIT_FPS=1 logs the frame rate over 5 s (Bloom + orbit animating).
+      if (process.env.COCKPIT_FPS) {
+        const fps = await win?.webContents
+          .executeJavaScript(`new Promise((done) => {
+          const times = [];
+          const tick = (t) => { times.push(t); if (t - times[0] < 5000) requestAnimationFrame(tick); else {
+            const gaps = times.slice(1).map((x, i) => x - times[i]).sort((a, b) => a - b);
+            done({ fps: +((times.length - 1) / ((t - times[0]) / 1000)).toFixed(1),
+                   p95ms: +gaps[Math.floor(gaps.length * 0.95)].toFixed(1),
+                   worstMs: +gaps.at(-1).toFixed(1) });
+          } };
+          requestAnimationFrame(tick);
+        })`);
+        console.log(`[cockpit] frame rate: ${JSON.stringify(fps)}`);
+      }
       // COCKPIT_SCREENSHOT_REPLIES="yeah,done,…" types each reply into the
       // Say box when the focus engine waits for one; captures <shot>-NNa.png
       // mid-motion (600 ms) and <shot>-NNb.png once settled. It also checks
