@@ -183,7 +183,17 @@ export class FocusEngine {
 
   /** Live mode: push a beat decided by Claude (via orchestrator tools). */
   run(beat: Beat) {
-    this.apply(beat, () => {});
+    // port: apply() only knows support with a focus, and replies only inside
+    // the script. Live: helpers alone swap the helpers; live chips just show
+    // (a chip that isn't a script reply goes to Claude as the user's answer).
+    if (beat.support && !beat.focus) this.set({ sup: beat.support });
+    if (beat.replies && !beat.say) {
+      this.set({ replies: beat.replies, companion: 'waiting' });
+      return;
+    }
+    this.apply(beat, () => {
+      if (beat.replies) this.set({ replies: beat.replies });
+    });
   }
 
   // derived values for the UI

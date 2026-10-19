@@ -79,8 +79,8 @@ Rules from CLAUDE.md still apply. Work top to bottom; the app must still start a
 - [ ] Keep Phase 0's metric: time from "start quest" to first real action. Compare Orbit vs. the Phase 0 HUD over 5 sessions. *(Instrumented: sessions are tagged `layout: orbit`; `npm run measure` prints Orbit vs HUD and counts toward 5. Needs 5 real sessions by Nick. No HUD sessions were ever recorded, so the comparison falls back to the manual baseline.)*
 
 ## Task 9 (groundwork only): let Claude drive the sequence
-- [ ] Define orchestrator tools for later (don't enable them yet): `focus_item(itemId)`, `support_items(ids[])`, `complete_step()`, `offer_replies(labels[])`, `say(text)`. Each call becomes `engine.run(beat)`.
-- [ ] Permission gate: these are UI-only (Read tier); anything that opens, sends or submits still goes through the existing tiers.
+- [x] Define orchestrator tools for later (don't enable them yet): `focus_item(itemId)`, `support_items(ids[])`, `complete_step()`, `offer_replies(labels[])`, `say(text)`. Each call becomes `engine.run(beat)`.
+- [x] Permission gate: these are UI-only (Read tier); anything that opens, sends or submits still goes through the existing tiers.
 
 ---
 
