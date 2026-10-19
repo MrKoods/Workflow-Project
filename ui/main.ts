@@ -7,6 +7,7 @@ import './settings.css';
 import { BloomRenderer } from './companion/bloom';
 import { mountOrbit } from './orbit';
 import { onPalette, usePalette } from './palette';
+import { setHotkeys } from './keys';
 import { createSettingsPanel } from './settings';
 import { createSpeechPlayer } from './voice/player';
 import { createTalkControl } from './voice/talk';
@@ -16,6 +17,7 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
   ([snapshot, focus]) => {
     usePalette(snapshot.settings.palette);
+    setHotkeys(snapshot.settings.hotkeys);
     const settings = createSettingsPanel(window.cockpit);
     settings.update(snapshot.settings);
 
@@ -72,14 +74,7 @@ Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
       calm = s.settings.calm;
       applyCalm();
       player.setVolume(s.settings.volume);
-    });
-
-    // Debug: Ctrl+Shift+P cycles palettes (persisted like a Settings click).
-    window.addEventListener('keydown', (e) => {
-      if (e.ctrlKey && e.shiftKey && (e.key === 'P' || e.code === 'KeyP')) {
-        e.preventDefault();
-        settings.cycle();
-      }
+      setHotkeys(s.settings.hotkeys);
     });
   },
 );

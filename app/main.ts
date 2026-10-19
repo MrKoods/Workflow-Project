@@ -29,15 +29,17 @@ import {
   type Speech,
 } from '../orchestrator/speech.ts';
 import { VOICE_ID } from '../orchestrator/settings.ts';
+import {
+  effectiveHotkeys,
+  toAccelerator,
+  type HotkeyAction,
+} from '../orchestrator/keymap.ts';
 import type { ChatEvent } from '../orchestrator/types.ts';
 import trayIconUrl from './assets/tray.png';
 import { IPC } from './ipc';
 
-// Hotkeys decided 2026-10-17 (docs/FEATURES.md §0).
-const TOGGLE_KEY = 'Control+Alt+C';
-/** Push-to-talk from any app (tap to start, tap to stop; Nick, 2026-10-18). */
-const TALK_KEY = 'Control+Alt+V';
-const QUIT_KEY = 'Control+Alt+Q';
+// Global hotkeys come from Settings → Keys (defaults in orchestrator/keymap.ts:
+// Ctrl+Alt+C show/hide, Ctrl+Alt+Q quit, Ctrl+Alt+V talk from any app).
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) app.quit();
@@ -377,35 +379,59 @@ const toggleWindow = () => {
   else showWindow();
 };
 
+/** Tray menu, labelled with the current keys (Settings → Keys can change them). */
+const updateTrayMenu = () => {
+  if (!tray) return;
+  const keys = effectiveHotkeys(orchestrator.snapshot().settings.hotkeys);
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: `Show / hide   ${keys.toggleWindow}`, click: toggleWindow },
+      { type: 'separator' },
+      { label: `Quit   ${keys.quit}`, click: () => app.quit() },
+    ]),
+  );
+};
+
 const createTray = () => {
   tray = new Tray(nativeImage.createFromDataURL(trayIconUrl));
   tray.setToolTip('Cockpit');
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      { label: 'Show / hide   Ctrl+Alt+C', click: toggleWindow },
-      { type: 'separator' },
-      { label: 'Quit   Ctrl+Alt+Q', click: () => app.quit() },
-    ]),
-  );
+  updateTrayMenu();
   tray.on('click', toggleWindow);
 };
 
-const registerHotkeys = () => {
-  // register() can return true yet still lose to another app (see Electron
-  // globalShortcut docs), so this only catches the obvious failure.
-  if (!globalShortcut.register(TOGGLE_KEY, toggleWindow)) {
-    console.warn(`[cockpit] could not register ${TOGGLE_KEY}`);
-  }
-  if (!globalShortcut.register(QUIT_KEY, () => app.quit())) {
-    console.warn(`[cockpit] could not register ${QUIT_KEY}`);
-  }
+const GLOBAL_ACTIONS: Partial<Record<HotkeyAction, () => void>> = {
+  toggleWindow: () => toggleWindow(),
+  quit: () => app.quit(),
   // The renderer owns the mic, so it decides start vs. stop.
-  if (
-    !globalShortcut.register(TALK_KEY, () =>
-      win?.webContents.send(IPC.talkToggle),
-    )
-  ) {
-    console.warn(`[cockpit] could not register ${TALK_KEY}`);
+  talkToggle: () => win?.webContents.send(IPC.talkToggle),
+};
+let registered: Partial<Record<HotkeyAction, string>> = {};
+/** Combos another app owns (Settings shows these). */
+const hotkeyTrouble: Partial<Record<HotkeyAction, string>> = {};
+
+const registerHotkeys = () => {
+  const keys = effectiveHotkeys(orchestrator.snapshot().settings.hotkeys);
+  for (const [action, run] of Object.entries(GLOBAL_ACTIONS) as [
+    HotkeyAction,
+    () => void,
+  ][]) {
+    const combo = keys[action];
+    if (registered[action] === combo) continue;
+    const old = registered[action];
+    if (old) globalShortcut.unregister(toAccelerator(old));
+    // register() can return true yet still lose to another app (see Electron
+    // globalShortcut docs), so this only catches the obvious failure.
+    if (globalShortcut.register(toAccelerator(combo), run)) {
+      registered[action] = combo;
+      delete hotkeyTrouble[action];
+    } else {
+      console.warn(`[cockpit] could not register ${combo}`);
+      hotkeyTrouble[action] = combo;
+      // Keep the key that worked before rather than having none.
+      if (old && globalShortcut.register(toAccelerator(old), run))
+        registered[action] = old;
+      else delete registered[action];
+    }
   }
 };
 
@@ -522,7 +548,8 @@ const connectOrchestrator = async () => {
   });
   ipcMain.on(IPC.speechPlayed, (_e, id: unknown) => {
     if (typeof id !== 'number') return;
-    if (process.env.COCKPIT_SCREENSHOT) console.log(`[speech] line ${id} heard`);
+    if (process.env.COCKPIT_SCREENSHOT)
+      console.log(`[speech] line ${id} heard`);
     speech?.played(id);
   });
   ipcMain.handle(IPC.speechPreview, (_e, voice: unknown) => {
@@ -534,10 +561,15 @@ const connectOrchestrator = async () => {
       true,
     );
   });
-  // Muting stops the companion mid-sentence.
+  // Muting stops the companion mid-sentence; changed global keys take effect now.
   orchestrator.onChange((s) => {
     if (!s.settings.speech && speech?.busy()) speech.stopAll();
+    if (app.isReady() && win) {
+      registerHotkeys();
+      updateTrayMenu();
+    }
   });
+  ipcMain.handle(IPC.hotkeyTrouble, () => ({ ...hotkeyTrouble }));
 
   // Push-to-talk (Phase 1 Task 2): speech-to-text runs here, not in the UI.
   talk = createTalk({
@@ -589,7 +621,7 @@ app.whenReady().then(async () => {
 
 // Hiding the window is normal; Cockpit lives in the tray until you quit.
 app.on('window-all-closed', () => {
-  // Intentionally empty: quitting happens via tray or Ctrl+Alt+Q.
+  // Intentionally empty: quitting happens via the tray or the quit hotkey.
 });
 
 app.on('will-quit', () => {

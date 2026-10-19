@@ -1,127 +1,623 @@
-// Settings panel: Color skin swatches (live switch, persisted by the
-// orchestrator). Palette-styled; lives inside the Orbit root.
-import { VOICES, type CockpitApi, type Settings } from '../orchestrator/types';
+// Settings → the "Control Deck": one glass panel over the orbit with three
+// sections. Look (color skins as live mini scenes, calm mode), Voice (speech,
+// volume, style, a voice for Playful and one for Steady, with previews) and
+// Keys (every hotkey as keycaps; click Change and press new keys). Every
+// change saves at once through the orchestrator. Palette variables only.
+import {
+  HOTKEYS,
+  comboOf,
+  comboProblem,
+  effectiveHotkeys,
+  hotkeyDef,
+  type HotkeyAction,
+} from '../orchestrator/keymap';
+import type { CockpitApi, Settings } from '../orchestrator/types';
+import { hotkey } from './keys';
 import { h } from './panels/dom';
-import { PALETTES, currentPalette, usePalette } from './palette';
+import { PALETTES, currentPalette, usePalette, type Palette } from './palette';
+import { VOICE_OPTIONS } from './voice/voices';
+
+type Tab = 'look' | 'voice' | 'keys';
+
+// A word for each skin's mood (SKINS.md "Feel"); new skins just show none.
+const FEEL: Record<string, string> = {
+  aqua: 'Cool, crisp',
+  ember: 'Warm fire',
+  nebula: 'Cosmic violet',
+  aurora: 'Northern lights',
+  frost: 'Ice',
+  crimson: 'Intense',
+  eclipse: 'Monochrome + gold',
+};
+
+const STYLE_TEXT: Record<Settings['voice'], string> = {
+  auto: 'Playful while you talk between steps, steady and focused while a step is open.',
+  steady: 'Calm and to the point, all the time.',
+  playful: 'Warm and a little funny, all the time.',
+};
+
+const keycaps = (combo: string) =>
+  h(
+    'span',
+    { class: 'caps' },
+    combo.split(/\+(?!$)/).map((k) => h('kbd', { text: k })),
+  );
+
+const toggle = (
+  label: string,
+  hint: string,
+  onChange: (on: boolean) => void,
+) => {
+  const input = h('input', { attrs: { type: 'checkbox', role: 'switch' } });
+  input.addEventListener('change', () => onChange(input.checked));
+  const el = h('label', { class: 'cd-toggle' }, [
+    h('span', { class: 'cd-tg-text' }, [
+      h('b', { text: label }),
+      h('small', { text: hint }),
+    ]),
+    input,
+    h('i', { attrs: { 'aria-hidden': 'true' } }),
+  ]);
+  return { el, set: (on: boolean) => (input.checked = on) };
+};
 
 export function createSettingsPanel(api: CockpitApi) {
   let settings: Settings | null = null;
+  let tab: Tab = 'look';
+  const save = async (patch: Partial<Settings>) => {
+    settings = await api.setSettings(patch);
+    paint();
+  };
 
-  const swatches = PALETTES.map((p) =>
+  // ---- Look ----------------------------------------------------------------
+  const skinCard = (p: Palette) =>
     h(
       'button',
       {
-        class: 'sw-pal',
-        // Swatch = gradient accent → reply, straight from the palette file.
-        vars: { '--sa': p.accent, '--sb': p.reply },
-        attrs: { type: 'button', 'aria-pressed': 'false', title: p.name },
-        on: { click: () => void choose(p.id) },
+        class: 'cd-skin',
+        attrs: { type: 'button', 'aria-pressed': 'false', 'data-id': p.id },
+        // The card is a tiny Orbit scene drawn from the palette file itself.
+        vars: {
+          '--g1': p.ground.center,
+          '--g2': p.ground.mid,
+          '--g3': p.ground.edge,
+          '--pa': p.accent,
+          '--pr': p.reply,
+          '--pt': p.third,
+        },
+        on: { click: () => void chooseSkin(p.id) },
       },
       [
-        h('i', { attrs: { 'aria-hidden': 'true' } }),
-        h('span', { text: p.name }),
+        h('span', { class: 'cd-scene', attrs: { 'aria-hidden': 'true' } }, [
+          h('i', { class: 'cd-ring' }),
+          h('i', { class: 'cd-core' }),
+          h('i', { class: 'cd-moon' }),
+          h('i', { class: 'cd-chip' }),
+        ]),
+        h('span', { class: 'cd-skin-name' }, [
+          h('b', { text: p.name }),
+          h('small', { text: FEEL[p.id] ?? '' }),
+        ]),
+        h('em', { class: 'cd-active', text: 'Active' }),
       ],
-    ),
-  );
-
-  // Voice: same quest beats, different wording. Separate from the skin.
-  // Auto = playful with the companion, steady (focus) while working a step.
-  const VOICE_LABEL = {
-    auto: 'Auto',
-    steady: 'Steady',
-    playful: 'Playful',
-  } as const;
-  const voices = VOICES.map((v) =>
-    h('button', {
-      class: 'set-opt',
-      text: VOICE_LABEL[v],
-      attrs: {
-        type: 'button',
-        'aria-pressed': 'false',
-        ...(v === 'auto'
-          ? { title: 'Playful with me, steady while you work a step' }
-          : {}),
-      },
-      on: {
-        click: async () => {
-          settings = await api.setSettings({ voice: v });
-          markVoice(v);
-        },
-      },
-    }),
-  );
-  const markVoice = (v: Settings['voice']) =>
-    voices.forEach((b, i) =>
-      b.setAttribute('aria-pressed', String(VOICES[i] === v)),
     );
-
-  const panel = h(
-    'div',
-    {
-      class: 'settings-panel',
-      attrs: { role: 'dialog', 'aria-label': 'Settings', hidden: '' },
-    },
+  const skins = PALETTES.map(skinCard);
+  async function chooseSkin(id: string) {
+    usePalette(id); // instant; the save follows
+    await save({ palette: id });
+  }
+  const calm = toggle(
+    'Calm mode',
+    'Slower, quieter motion. Windows “reduce motion” does the same.',
+    (on) => void save({ calm: on }),
+  );
+  const lookPane = h(
+    'section',
+    { class: 'cd-pane', attrs: { 'data-tab': 'look' } },
     [
-      h('div', { class: 'set-head' }, [
-        h('b', { text: 'Settings' }),
-        h('button', {
-          class: 'set-close',
-          text: 'Close',
-          attrs: { type: 'button' },
-          on: { click: () => toggle(false) },
+      h('header', { class: 'cd-pane-head' }, [
+        h('h3', { text: 'Color skin' }),
+        h('p', {
+          text: 'Each skin recolors everything at once. Pick one and watch the orbit behind change.',
         }),
       ]),
-      h('section', { class: 'set-sec' }, [
-        h('h3', { text: 'Color skin' }),
-        h('div', { class: 'set-swatches' }, swatches),
-      ]),
-      h('section', { class: 'set-sec' }, [
-        h('h3', { text: 'Companion voice' }),
-        h('div', { class: 'set-row' }, voices),
-      ]),
+      h('div', { class: 'cd-skins' }, skins),
+      calm.el,
     ],
   );
 
-  const button = h('button', {
-    class: 'settings-btn',
-    text: 'Settings',
-    attrs: { type: 'button', 'aria-haspopup': 'dialog' },
-    on: { click: () => toggle() },
+  // ---- Voice -----------------------------------------------------------------
+  const speak = toggle(
+    'Companion speaks out loud',
+    'Off = captions only. Push-to-talk keeps working.',
+    (on) => void save({ speech: on }),
+  );
+  const volume = h('input', {
+    class: 'cd-range',
+    attrs: {
+      type: 'range',
+      min: '0',
+      max: '100',
+      step: '5',
+      'aria-label': 'Speech volume',
+    },
+  });
+  const volumeOut = h('output', { class: 'cd-range-val' });
+  volume.addEventListener(
+    'input',
+    () => (volumeOut.textContent = `${volume.value}%`),
+  );
+  volume.addEventListener(
+    'change',
+    () => void save({ volume: Number(volume.value) / 100 }),
+  );
+
+  const styleBtns = (['auto', 'steady', 'playful'] as const).map((v) =>
+    h('button', {
+      class: 'cd-seg-btn',
+      text: v === 'auto' ? 'Auto' : v === 'steady' ? 'Steady' : 'Playful',
+      attrs: { type: 'button', 'aria-pressed': 'false', 'data-v': v },
+      on: { click: () => void save({ voice: v }) },
+    }),
+  );
+  const styleText = h('p', { class: 'cd-note' });
+
+  const slot = (
+    key: 'voicePlayful' | 'voiceSteady',
+    title: string,
+    hint: string,
+  ) => {
+    const cards = VOICE_OPTIONS.map((o) => {
+      const play = h('button', {
+        class: 'cd-play',
+        text: '▶',
+        attrs: { type: 'button', 'aria-label': `Hear ${o.name}` },
+        on: {
+          click: (e) => {
+            e.stopPropagation();
+            play.classList.add('on');
+            void api
+              .speechPreview(o.id)
+              .finally(() => play.classList.remove('on'));
+          },
+        },
+      });
+      const pick = () => void save({ [key]: o.id });
+      return h(
+        'div',
+        {
+          class: 'cd-voice',
+          attrs: {
+            role: 'button',
+            tabindex: '0',
+            'aria-pressed': 'false',
+            'data-id': o.id,
+          },
+          on: {
+            click: pick,
+            keydown: (e) => {
+              const k = (e as KeyboardEvent).key;
+              if (k === 'Enter' || k === ' ') {
+                e.preventDefault();
+                pick();
+              }
+            },
+          },
+        },
+        [
+          h('span', { class: 'cd-wave', attrs: { 'aria-hidden': 'true' } }, [
+            h('i'),
+            h('i'),
+            h('i'),
+            h('i'),
+            h('i'),
+          ]),
+          h('span', { class: 'cd-voice-text' }, [
+            h('b', { text: o.name }),
+            h('small', { text: `${o.kind} · ${o.traits}` }),
+          ]),
+          play,
+        ],
+      );
+    });
+    const el = h('div', { class: 'cd-slot' }, [
+      h('div', { class: 'cd-slot-head' }, [
+        h('b', { text: title }),
+        h('small', { text: hint }),
+      ]),
+      h('div', { class: 'cd-voices' }, cards),
+    ]);
+    return {
+      el,
+      paint: (id: string) =>
+        cards.forEach((c) =>
+          c.setAttribute('aria-pressed', String(c.dataset.id === id)),
+        ),
+    };
+  };
+  const playfulSlot = slot(
+    'voicePlayful',
+    'Playful voice',
+    'Intro, between steps, wrap-up',
+  );
+  const steadySlot = slot(
+    'voiceSteady',
+    'Steady voice',
+    'While a step’s card is open',
+  );
+
+  const voicePane = h(
+    'section',
+    { class: 'cd-pane', attrs: { 'data-tab': 'voice' } },
+    [
+      h('header', { class: 'cd-pane-head' }, [
+        h('h3', { text: 'Your companion’s voice' }),
+        h('p', {
+          text: 'Press ▶ to hear a voice. Speech runs on Deepgram; nothing is sent unless you hold the talk key.',
+        }),
+      ]),
+      speak.el,
+      h('div', { class: 'cd-row' }, [
+        h('span', { class: 'cd-row-label' }, [h('b', { text: 'Volume' })]),
+        volume,
+        volumeOut,
+      ]),
+      h('div', { class: 'cd-row cd-row-col' }, [
+        h('span', { class: 'cd-row-label' }, [h('b', { text: 'Style' })]),
+        h(
+          'div',
+          {
+            class: 'cd-seg',
+            attrs: { role: 'group', 'aria-label': 'Voice style' },
+          },
+          styleBtns,
+        ),
+        styleText,
+      ]),
+      playfulSlot.el,
+      steadySlot.el,
+    ],
+  );
+
+  // ---- Keys ------------------------------------------------------------------
+  let capturing: HotkeyAction | null = null;
+  const keyMsg = h('p', {
+    class: 'cd-key-msg',
+    attrs: { 'aria-live': 'polite' },
+  });
+  const say = (text: string, bad = false) => {
+    keyMsg.textContent = text;
+    keyMsg.classList.toggle('bad', bad);
+  };
+  const rows = new Map<
+    HotkeyAction,
+    {
+      caps: HTMLElement;
+      change: HTMLButtonElement;
+      reset: HTMLButtonElement;
+      row: HTMLElement;
+    }
+  >();
+  const groups = [...new Set(HOTKEYS.map((k) => k.group))];
+  const keyList = h(
+    'div',
+    { class: 'cd-keys' },
+    groups.map((g) =>
+      h('div', { class: 'cd-key-group' }, [
+        h('h4', { text: g === 'Anywhere' ? 'Anywhere in Windows' : g }),
+        ...HOTKEYS.filter((k) => k.group === g).map((k) => {
+          const caps = h('span', { class: 'cd-caps' });
+          const change = h('button', {
+            class: 'cd-mini',
+            text: 'Change',
+            attrs: { type: 'button' },
+            on: { click: () => startCapture(k.action) },
+          });
+          const reset = h('button', {
+            class: 'cd-mini cd-ghost',
+            text: 'Reset',
+            attrs: { type: 'button' },
+            on: { click: () => void setKey(k.action, k.default) },
+          });
+          const row = h('div', { class: 'cd-key' }, [
+            h('span', { class: 'cd-key-label' }, [
+              h('b', { text: k.label }),
+              k.scope === 'global'
+                ? h('em', { class: 'cd-badge', text: 'global' })
+                : null,
+              k.hold ? h('em', { class: 'cd-badge', text: 'hold' }) : null,
+            ]),
+            caps,
+            h('span', { class: 'cd-key-btns' }, [change, reset]),
+          ]);
+          rows.set(k.action, { caps, change, reset, row });
+          return row;
+        }),
+      ]),
+    ),
+  );
+  const resetAll = h('button', {
+    class: 'cd-mini cd-ghost',
+    text: 'Reset all keys',
+    attrs: { type: 'button' },
+    on: {
+      click: () =>
+        void save({ hotkeys: {} }).then(() =>
+          say('All keys are back to their defaults.'),
+        ),
+    },
+  });
+  const keysPane = h(
+    'section',
+    { class: 'cd-pane', attrs: { 'data-tab': 'keys' } },
+    [
+      h('header', { class: 'cd-pane-head cd-pane-head-row' }, [
+        h('span', {}, [
+          h('h3', { text: 'Hotkeys' }),
+          h('p', {
+            text: 'Click Change, then press the new keys. Esc cancels, and always means cancel / close.',
+          }),
+        ]),
+        resetAll,
+      ]),
+      keyMsg,
+      keyList,
+    ],
+  );
+
+  function startCapture(action: HotkeyAction) {
+    capturing = action;
+    say(`Press the new keys for “${hotkeyDef(action).label}”…`);
+    paintKeys();
+  }
+
+  async function setKey(
+    action: HotkeyAction,
+    combo: string,
+    swapWith?: HotkeyAction,
+  ) {
+    const overrides = { ...settings?.hotkeys };
+    const before = effectiveHotkeys(overrides);
+    if (swapWith) overrides[swapWith] = before[action];
+    overrides[action] = combo;
+    for (const a of [action, swapWith])
+      if (a && overrides[a] === hotkeyDef(a).default) delete overrides[a];
+    await save({ hotkeys: overrides });
+    if (effectiveHotkeys(settings?.hotkeys)[action] !== combo) {
+      say('That key couldn’t be saved.', true);
+      return;
+    }
+    // Global keys: Windows may refuse one another app already owns.
+    if (hotkeyDef(action).scope === 'global') {
+      const trouble = await api.hotkeyTrouble();
+      if (trouble[action]) {
+        const back = { ...settings?.hotkeys };
+        if (before[action] === hotkeyDef(action).default) delete back[action];
+        else back[action] = before[action];
+        await save({ hotkeys: back });
+        say(`Another app already uses ${combo}. Kept ${before[action]}.`, true);
+        return;
+      }
+    }
+    say(
+      swapWith
+        ? `Swapped: “${hotkeyDef(swapWith).label}” is now ${before[action]}.`
+        : `${hotkeyDef(action).label}: ${combo}`,
+    );
+  }
+
+  // Capture before anything else (talk keys, Orbit keys, Esc closing the deck).
+  window.addEventListener(
+    'keydown',
+    (e) => {
+      if (!capturing) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (e.code === 'Escape') {
+        capturing = null;
+        say('');
+        paintKeys();
+        return;
+      }
+      const combo = comboOf(e);
+      if (!combo) return; // still holding modifiers
+      const action = capturing;
+      const problem = comboProblem(action, combo);
+      if (problem) {
+        say(`${combo}: ${problem}`, true);
+        return;
+      }
+      const keys = effectiveHotkeys(settings?.hotkeys);
+      const clash = (Object.keys(keys) as HotkeyAction[]).find(
+        (a) => a !== action && keys[a] === combo,
+      );
+      capturing = null;
+      if (clash) {
+        // Offer a swap rather than refusing (when the old key suits the other action).
+        if (comboProblem(clash, keys[action])) {
+          say(
+            `${combo} is used by “${hotkeyDef(clash).label}”. Change that one first.`,
+            true,
+          );
+        } else {
+          say(`${combo} is used by “${hotkeyDef(clash).label}”. `, true);
+          keyMsg.append(
+            h('button', {
+              class: 'cd-mini',
+              text: 'Swap them',
+              attrs: { type: 'button' },
+              on: { click: () => void setKey(action, combo, clash) },
+            }),
+          );
+        }
+        paintKeys();
+        return;
+      }
+      void setKey(action, combo);
+    },
+    true,
+  );
+
+  function paintKeys() {
+    const keys = effectiveHotkeys(settings?.hotkeys);
+    for (const [action, r] of rows) {
+      const live = capturing === action;
+      r.row.classList.toggle('capturing', live);
+      r.caps.replaceChildren(
+        live
+          ? h('span', { class: 'cd-press', text: 'Press keys…' })
+          : keycaps(keys[action]),
+      );
+      r.change.textContent = live ? 'Listening' : 'Change';
+      r.reset.hidden = keys[action] === hotkeyDef(action).default;
+    }
+  }
+
+  // ---- shell -----------------------------------------------------------------
+  const tabs: { id: Tab; icon: string; title: string; sub: string }[] = [
+    { id: 'look', icon: '◐', title: 'Look', sub: 'Color skins & motion' },
+    {
+      id: 'voice',
+      icon: '◉',
+      title: 'Voice',
+      sub: 'How your companion sounds',
+    },
+    {
+      id: 'keys',
+      icon: '⌘',
+      title: 'Keys',
+      sub: 'Every hotkey, yours to change',
+    },
+  ];
+  const tabBtns = tabs.map((t) =>
+    h(
+      'button',
+      {
+        class: 'cd-tab',
+        attrs: {
+          type: 'button',
+          role: 'tab',
+          'data-tab': t.id,
+          'aria-selected': 'false',
+        },
+        on: {
+          click: () => {
+            tab = t.id;
+            capturing = null;
+            say('');
+            paint();
+          },
+        },
+      },
+      [
+        h('span', {
+          class: 'cd-tab-ic',
+          text: t.icon,
+          attrs: { 'aria-hidden': 'true' },
+        }),
+        h('span', {}, [h('b', { text: t.title }), h('small', { text: t.sub })]),
+      ],
+    ),
+  );
+  const status = h('div', { class: 'cd-status' });
+  const panes = [lookPane, voicePane, keysPane];
+  const closeBtn = h('button', {
+    class: 'cd-close',
+    text: '✕',
+    attrs: { type: 'button', 'aria-label': 'Close settings' },
+    on: { click: () => setOpen(false) },
+  });
+  const deck = h(
+    'div',
+    {
+      class: 'cd-deck',
+      attrs: {
+        role: 'dialog',
+        'aria-modal': 'true',
+        'aria-label': 'Settings',
+        tabindex: '-1',
+      },
+    },
+    [
+      h(
+        'nav',
+        {
+          class: 'cd-rail',
+          attrs: { role: 'tablist', 'aria-label': 'Settings sections' },
+        },
+        [
+          h('div', { class: 'cd-brand' }, [
+            h('b', { text: 'Control deck' }),
+            h('small', { text: 'Changes save instantly' }),
+          ]),
+          ...tabBtns,
+          status,
+        ],
+      ),
+      h('div', { class: 'cd-body' }, [closeBtn, ...panes]),
+    ],
+  );
+  const overlay = h('div', { class: 'cd-overlay', attrs: { hidden: '' } }, [
+    deck,
+  ]);
+  overlay.addEventListener('mousedown', (e) => {
+    if (e.target === overlay) setOpen(false);
   });
 
-  const toggle = (open = panel.hidden) => {
-    panel.hidden = !open;
-    if (open) swatches.find((s) => s.ariaPressed === 'true')?.focus();
-  };
-
-  const mark = (id: string) =>
-    swatches.forEach((s, i) =>
-      s.setAttribute('aria-pressed', String(PALETTES[i].id === id)),
+  function paint() {
+    if (!settings) return;
+    const s = settings;
+    tabBtns.forEach((b) =>
+      b.setAttribute('aria-selected', String(b.dataset.tab === tab)),
     );
+    panes.forEach((p) => (p.hidden = p.dataset.tab !== tab));
+    const pal = currentPalette()?.id ?? s.palette;
+    skins.forEach((c) =>
+      c.setAttribute('aria-pressed', String(c.dataset.id === pal)),
+    );
+    calm.set(s.calm);
+    speak.set(s.speech);
+    volume.value = String(Math.round(s.volume * 100));
+    volumeOut.textContent = `${volume.value}%`;
+    styleBtns.forEach((b) =>
+      b.setAttribute('aria-pressed', String(b.dataset.v === s.voice)),
+    );
+    styleText.textContent = STYLE_TEXT[s.voice];
+    playfulSlot.paint(s.voicePlayful);
+    steadySlot.paint(s.voiceSteady);
+    status.replaceChildren(
+      h('span', {}, ['Talk ', keycaps(hotkey('pushToTalk'))]),
+      h('span', {}, ['Settings ', keycaps(hotkey('settings'))]),
+    );
+    paintKeys();
+  }
 
-  async function choose(id: string) {
-    usePalette(id); // instant; the save follows
-    mark(id);
-    settings = await api.setSettings({ palette: id });
+  function setOpen(open: boolean) {
+    overlay.hidden = !open;
+    capturing = null;
+    say('');
+    if (open) {
+      paint();
+      deck.focus(); // the deck, so no tab shows a stray focus ring
+    }
   }
 
   return {
-    els: [button, panel],
+    els: [overlay],
     get open() {
-      return !panel.hidden;
+      return !overlay.hidden;
     },
-    toggle,
+    toggle: (open: boolean = overlay.hidden === true) => setOpen(open),
     /** Apply settings from a snapshot (startup, or changed elsewhere). */
     update(next: Settings) {
       settings = next;
       usePalette(next.palette);
-      mark(currentPalette()!.id);
-      markVoice(next.voice);
+      if (!overlay.hidden) paint();
     },
-    /** Debug hotkey Ctrl+Shift+P: next palette. */
+    /** Hotkey: next color skin. */
     cycle() {
       const i = PALETTES.findIndex((p) => p.id === currentPalette()?.id);
-      void choose(PALETTES[(i + 1) % PALETTES.length].id);
+      void chooseSkin(PALETTES[(i + 1) % PALETTES.length].id);
     },
     get settings() {
       return settings;

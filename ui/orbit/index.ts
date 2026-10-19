@@ -16,6 +16,7 @@ import { createForgeCard } from '../panels/forge';
 import { createJournalPanel } from '../panels/journal';
 import { createQuestLog } from '../panels/questLog';
 import type { SettingsPanel } from '../settings';
+import { pressed } from '../keys';
 import type { TalkControl } from '../voice/talk';
 import { createItemCard, type ItemCard } from './items';
 
@@ -584,7 +585,6 @@ export function mountOrbit(
 
   // Keys: 1 new quest · 6 journal · W I'm working · F2 companion state (debug) · F3 calm · Esc closes.
   window.addEventListener('keydown', (e) => {
-    const target = e.target as HTMLElement;
     if (e.key === 'Escape') {
       if (journal.open) toggleJournal(false);
       else if (logOpen) {
@@ -597,39 +597,36 @@ export function mountOrbit(
       e.preventDefault();
       return;
     }
-    if (target.closest('input, textarea, [contenteditable]')) return;
-    // Swap: ← previous step, → next step, Home back to the current one.
-    const swap =
-      e.key === 'ArrowLeft'
-        ? 'prev'
-        : e.key === 'ArrowRight'
-          ? 'next'
-          : e.key === 'Home'
-            ? 'current'
-            : null;
-    if (swap && !e.ctrlKey && !e.altKey && !e.metaKey && snap.current) {
+    // Keys from Settings → Keys (ui/keys.ts); defaults in orchestrator/keymap.ts.
+    const swap = pressed(e, 'stepPrev')
+      ? 'prev'
+      : pressed(e, 'stepNext')
+        ? 'next'
+        : pressed(e, 'stepCurrent')
+          ? 'current'
+          : null;
+    if (swap && snap.current) {
       e.preventDefault();
       void api.peekStep(swap);
       return;
     }
-    const n = Number(e.key) || Number(/^(Digit|Numpad)(\d)$/.exec(e.code)?.[2]);
-    if (n === 1) {
+    if (pressed(e, 'newQuest')) {
       say.value = 'New quest: ';
       say.focus();
       say.setSelectionRange(say.value.length, say.value.length);
-    } else if (n === 6) toggleJournal();
-    else if (e.key === 'F2') {
+    } else if (pressed(e, 'journal')) toggleJournal();
+    else if (pressed(e, 'debugCompanion')) {
       const i = COMPANION_STATES.indexOf(debugState ?? 'waiting');
       debugState =
         i === COMPANION_STATES.length - 1 ? null : COMPANION_STATES[i + 1];
       render();
-    } else if (e.key === 'F3')
+    } else if (pressed(e, 'calm'))
       void api.setSettings({ calm: !snap.settings.calm });
-    else if (
-      (e.key === 'w' || e.key === 'W' || e.code === 'KeyW') &&
-      snap.setupTimer
-    )
-      void api.markWorking();
+    else if (pressed(e, 'mute'))
+      void api.setSettings({ speech: !snap.settings.speech });
+    else if (pressed(e, 'nextSkin')) settings.cycle();
+    else if (pressed(e, 'settings')) settings.toggle();
+    else if (pressed(e, 'working') && snap.setupTimer) void api.markWorking();
     else return;
     e.preventDefault();
   });

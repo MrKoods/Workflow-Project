@@ -46,6 +46,7 @@ const api: CockpitApi = {
   },
   speechPlayed: (id) => ipcRenderer.send(IPC.speechPlayed, id),
   speechPreview: (voiceId) => ipcRenderer.invoke(IPC.speechPreview, voiceId),
+  hotkeyTrouble: () => ipcRenderer.invoke(IPC.hotkeyTrouble),
   onTalkToggle(cb) {
     const listener = () => cb();
     ipcRenderer.on(IPC.talkToggle, listener);

@@ -3,6 +3,7 @@
 // tap Ctrl+Alt+V anywhere (sent over IPC as a toggle), or click the mic
 // button. Esc cancels. Right Ctrl + another key is a shortcut, so it cancels.
 import type { CockpitApi } from '../../orchestrator/types';
+import { pressed, released } from '../keys';
 
 const MIC_IDLE_CLOSE_MS = 30_000; // keep the mic warm briefly between presses
 
@@ -100,7 +101,8 @@ export function createTalkControl(api: CockpitApi, hooks: TalkHooks) {
   window.addEventListener(
     'keydown',
     (e) => {
-      if (e.code === 'ControlRight') {
+      if (pressed(e, 'pushToTalk')) {
+        e.preventDefault();
         if (!e.repeat && !active) control.start(true);
         return;
       }
@@ -110,13 +112,13 @@ export function createTalkControl(api: CockpitApi, hooks: TalkHooks) {
         end(false);
         return;
       }
-      // Right Ctrl + C etc. is a shortcut, not talking.
-      if (held && e.ctrlKey) end(false);
+      // Push-to-talk key + another key (Right Ctrl + C…) is a shortcut, not talking.
+      if (held) end(false);
     },
     true,
   );
   window.addEventListener('keyup', (e) => {
-    if (e.code === 'ControlRight' && held) end(true);
+    if (held && released(e, 'pushToTalk')) end(true);
   });
   // Alt+Tab while holding would lose the key-up: send what we have.
   window.addEventListener('blur', () => {

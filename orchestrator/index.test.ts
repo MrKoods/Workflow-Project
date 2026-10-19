@@ -502,7 +502,10 @@ test('settings default to aqua/auto, persist, and ignore invalid fields', async 
     volume: 0.8,
     voicePlayful: 'aura-2-thalia-en',
     voiceSteady: 'aura-2-thalia-en',
+    hotkeys: {},
   });
+  await orch.setSettings({ hotkeys: { journal: 'J', talkToggle: 'V' } });
+  assert.deepEqual(orch.snapshot().settings.hotkeys, { journal: 'J' }); // invalid global dropped
   await orch.setSettings({
     voicePlayful: 'aura-2-apollo-en',
     voiceSteady: '../x',

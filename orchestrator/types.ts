@@ -1,4 +1,5 @@
 // Shared between the orchestrator (main process) and the UI (type-only imports there).
+import type { HotkeyAction } from './keymap.ts';
 
 export const QUEST_STATUSES = ['active', 'paused', 'queued', 'done'] as const;
 export type QuestStatus = (typeof QUEST_STATUSES)[number];
@@ -25,6 +26,8 @@ export interface Settings {
   /** Deepgram voice for the Playful and the Steady voice (aura-2-<name>-en). */
   voicePlayful: string;
   voiceSteady: string;
+  /** Hotkey overrides by action (defaults in orchestrator/keymap.ts). */
+  hotkeys: Partial<Record<HotkeyAction, string>>;
 }
 
 export interface Objective {
@@ -272,6 +275,8 @@ export interface CockpitApi {
   /** Companion speech audio (Phase 1 Task 3): play it, then report played(id). */
   onSpeech(cb: (msg: SpeechMessageView) => void): () => void;
   speechPlayed(id: number): void;
+  /** Global hotkeys Windows wouldn't give us (another app owns them). */
+  hotkeyTrouble(): Promise<Partial<Record<HotkeyAction, string>>>;
   /** Settings: hear a voice say a sample line. */
   speechPreview(voiceId: string): Promise<void>;
   /** Ctrl+Alt+V from any app: start or stop talking. */

@@ -58,13 +58,6 @@ body {
   color: var(--acc2);
   margin-right: 6px;
 }
-/* The Settings panel's own floating button is replaced by the control row. */
-.settings-btn {
-  display: none;
-}
-.settings-panel {
-  font-family: var(--bf);
-}
 
 /* ---- "I'm working" chip --------------------------------------------------- */
 .chp.working {

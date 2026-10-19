@@ -2,6 +2,7 @@
 // Unknown or malformed values fall back to defaults, so a bad edit can't break startup.
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { cleanHotkeys } from './keymap.ts';
 import { VOICES, type Settings } from './types.ts';
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -13,6 +14,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // Nick's pick (2026-10-18): Thalia for both until he chooses otherwise.
   voicePlayful: 'aura-2-thalia-en',
   voiceSteady: 'aura-2-thalia-en',
+  hotkeys: {},
 };
 
 /** A Deepgram Aura-2 English voice id. */
@@ -38,6 +40,8 @@ export function cleanSettings(input: unknown): Partial<Settings> {
     out.voicePlayful = v.voicePlayful;
   if (typeof v.voiceSteady === 'string' && VOICE_ID.test(v.voiceSteady))
     out.voiceSteady = v.voiceSteady;
+  // The whole override map is sent each time; invalid entries are dropped.
+  if (v.hotkeys !== undefined) out.hotkeys = cleanHotkeys(v.hotkeys);
   return out;
 }
 

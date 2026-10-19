@@ -31,12 +31,16 @@ Rules from CLAUDE.md still apply. Keys live in `.env` (main process only). Audio
 - [x] Every companion line (scripted beats and Claude's replies) is spoken via TTS; Claude's reply starts speaking at its first sentence, not when it's done.
 - [x] Bloom's voice level comes from the real audio (RMS ~30×/s) instead of the typewriter.
 - [x] Barge-in: pressing the talk key stops the companion mid-sentence.
-- [ ] Mute toggle (Settings + key M) and volume; calm mode keeps speech on but quieter visuals.
+- [x] Mute toggle (Settings + key M) and volume; calm mode keeps speech on but quieter visuals.
 - **Done when:** the demo quest is spoken end to end, and talking over the companion stops it.
 
 ## Task 4: Two voices
-- [ ] Map Playful and Steady to voice settings (voice, speed, style) of the chosen provider; Auto switches with the context, as the text voice does today.
+- [x] Map Playful and Steady to voice settings (voice, speed, style) of the chosen provider; Auto switches with the context, as the text voice does today.
 - **Done when:** Nick hears the switch when a card opens and when a step finishes.
+
+## Added (Nick, 2026-10-18): Settings → Control Deck
+- [x] One settings screen (Settings button or Ctrl+,): **Look** (color skins as live mini scenes, calm mode), **Voice** (speech on/off, volume, Auto/Steady/Playful, a voice for Playful and for Steady with ▶ previews), **Keys** (every hotkey as keycaps; Change → press new keys; clashes offer a swap; global keys another app owns are reported and the old key kept; reset per key / all).
+- [x] All hotkeys are named actions with saved overrides (`orchestrator/keymap.ts`); global ones re-register live; the tray menu shows the current keys.
 
 ## Task 5: Measure in the app
 - [ ] Log each spoken turn: key release → transcript → first Claude text → first audio. `npm run measure -- voice` prints medians.
