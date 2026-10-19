@@ -31,4 +31,7 @@ export const IPC = {
   speechPlayed: 'cockpit:speech-played',
   speechPreview: 'cockpit:speech-preview',
   hotkeyTrouble: 'cockpit:hotkey-trouble',
+  wakeAudio: 'cockpit:wake-audio',
+  wakeStatus: 'cockpit:wake-status',
+  talkAuto: 'cockpit:talk-auto',
 } as const;

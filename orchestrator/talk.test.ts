@@ -137,3 +137,28 @@ test('talk: no key or a dropped connection reports an error and goes idle', () =
   assert.equal(talk.state().phase, 'idle');
   assert.match(talk.state().error ?? '', /speech service/);
 });
+
+test('talk (wake word): sends after a pause, cancels if nothing is said', async () => {
+  const { talk, sockets, finals } = setup();
+  talk.start({ auto: true });
+  assert.equal(talk.state().auto, true);
+  sockets[0].open();
+  sockets[0].result('hey can you', { is_final: false });
+  sockets[0].result('Hey, can you open the bio?', {
+    is_final: true,
+    speech_final: true,
+  });
+  assert.equal(talk.state().phase, 'finishing'); // stopped by itself
+  assert.deepEqual(sockets[0].controls(), ['{"type":"Finalize"}']);
+  sockets[0].result('', { is_final: true, from_finalize: true });
+  assert.deepEqual(finals, ['Hey, can you open the bio?']);
+  assert.equal(talk.state().auto, false);
+
+  // A pause before any words doesn't end it; key presses never end on pauses.
+  talk.start();
+  sockets[1].open();
+  sockets[1].result('', { is_final: true, speech_final: true });
+  sockets[1].result('still talking', { is_final: true, speech_final: true });
+  assert.equal(talk.state().phase, 'listening');
+  talk.cancel();
+});

@@ -11,7 +11,11 @@ import {
   hotkeyDef,
   type HotkeyAction,
 } from '../orchestrator/keymap';
-import type { CockpitApi, Settings } from '../orchestrator/types';
+import type {
+  CockpitApi,
+  Settings,
+  WakeStatusView,
+} from '../orchestrator/types';
 import { hotkey } from './keys';
 import { h } from './panels/dom';
 import { PALETTES, currentPalette, usePalette, type Palette } from './palette';
@@ -132,6 +136,31 @@ export function createSettingsPanel(api: CockpitApi) {
     'Off = captions only. Push-to-talk keeps working.',
     (on) => void save({ speech: on }),
   );
+  const wake = toggle(
+    'Wake word',
+    'Say it and start talking, no key needed. The mic stays open on this PC; nothing is sent until the word is heard.',
+    (on) => void save({ wakeWord: on }),
+  );
+  const wakeNote = h('p', { class: 'cd-note cd-wake-note' });
+  let wakeStatus: WakeStatusView = { state: 'off' };
+  const paintWake = () => {
+    const s = wakeStatus;
+    const on = settings?.wakeWord;
+    wakeNote.textContent =
+      s.state === 'missing'
+        ? 'No wake model yet. Train “Hey Echo” (docs/WAKE-WORD.md) and put the file in the wake/ folder.'
+        : s.state === 'error'
+          ? `The wake model didn't load: ${s.error}`
+          : s.state === 'loading'
+            ? 'Loading the wake model…'
+            : s.standIn
+              ? `Using the stand-in “${s.word}” until your “Hey Echo” model is in wake/ (docs/WAKE-WORD.md).`
+              : on
+                ? `Listening for “${s.word}”.`
+                : s.word
+                  ? `Ready: “${s.word}”.`
+                  : '';
+  };
   const volume = h('input', {
     class: 'cd-range',
     attrs: {
@@ -257,6 +286,8 @@ export function createSettingsPanel(api: CockpitApi) {
         }),
       ]),
       speak.el,
+      wake.el,
+      wakeNote,
       h('div', { class: 'cd-row' }, [
         h('span', { class: 'cd-row-label' }, [h('b', { text: 'Volume' })]),
         volume,
@@ -577,6 +608,8 @@ export function createSettingsPanel(api: CockpitApi) {
     );
     calm.set(s.calm);
     speak.set(s.speech);
+    wake.set(s.wakeWord);
+    paintWake();
     volume.value = String(Math.round(s.volume * 100));
     volumeOut.textContent = `${volume.value}%`;
     styleBtns.forEach((b) =>
@@ -613,6 +646,11 @@ export function createSettingsPanel(api: CockpitApi) {
       settings = next;
       usePalette(next.palette);
       if (!overlay.hidden) paint();
+    },
+    /** The wake word's state from the orchestrator (model loaded, stand-in…). */
+    setWakeStatus(s: WakeStatusView) {
+      wakeStatus = s;
+      paintWake();
     },
     /** Hotkey: next color skin. */
     cycle() {

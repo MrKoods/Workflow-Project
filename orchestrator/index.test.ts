@@ -502,6 +502,7 @@ test('settings default to aqua/auto, persist, and ignore invalid fields', async 
     volume: 0.8,
     voicePlayful: 'aura-2-thalia-en',
     voiceSteady: 'aura-2-thalia-en',
+    wakeWord: false,
     hotkeys: {},
   });
   await orch.setSettings({ hotkeys: { journal: 'J', talkToggle: 'V' } });

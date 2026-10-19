@@ -29,3 +29,6 @@ Thumbs.db
 *.log
 *.tsbuildinfo
 .oxlintcache
+
+# Wake word models (Phase 1 Task 6): downloaded / trained, not committed
+wake/*.onnx

@@ -13,11 +13,15 @@ export interface TalkHooks {
   /** Talking started / ended on this side (before the server answers). */
   onActive(active: boolean): void;
   onError(message: string): void;
+  /** The wake word fired (play the chime). */
+  onWake?(): void;
 }
 
 export function createTalkControl(api: CockpitApi, hooks: TalkHooks) {
   let active = false;
-  let held = false; // started by Right Ctrl (vs. toggle / button)
+  let held = false; // started by the push-to-talk key (vs. toggle / button)
+  let auto = false; // started by the wake word; the orchestrator ends it
+  let wakeOn = false; // wake word listening: mic stays open, frames to the detector
   let ctx: AudioContext | null = null;
   let stream: MediaStream | null = null;
   let opening: Promise<void> | null = null;
@@ -41,9 +45,10 @@ export function createTalkControl(api: CockpitApi, hooks: TalkHooks) {
     node.port.onmessage = (
       e: MessageEvent<{ pcm: ArrayBuffer; rms: number }>,
     ) => {
-      if (!active) return;
-      api.talkAudio(e.data.pcm);
-      hooks.onLevel(Math.min(1, e.data.rms * 6));
+      if (active) {
+        api.talkAudio(e.data.pcm);
+        hooks.onLevel(Math.min(1, e.data.rms * 6));
+      } else if (wakeOn) api.wakeAudio(e.data.pcm); // local detection only
     };
     ctx.createMediaStreamSource(stream).connect(node);
   }
@@ -60,12 +65,42 @@ export function createTalkControl(api: CockpitApi, hooks: TalkHooks) {
     if (!active) return;
     active = false;
     held = false;
+    auto = false;
     hooks.onActive(false);
     hooks.onLevel(0);
     void (send ? api.talkStop() : api.talkCancel());
-    clearTimeout(closeTimer);
-    closeTimer = window.setTimeout(closeMic, MIC_IDLE_CLOSE_MS);
+    scheduleClose();
   }
+  function scheduleClose() {
+    clearTimeout(closeTimer);
+    if (!wakeOn) closeTimer = window.setTimeout(closeMic, MIC_IDLE_CLOSE_MS);
+  }
+  function openForWake() {
+    opening ??= openMic().catch((err: Error) => {
+      closeMic();
+      hooks.onError(`Microphone unavailable for the wake word: ${err.message}`);
+    });
+  }
+
+  // Hands-free: the orchestrator started talking after the wake word, and
+  // ends it when you stop speaking (its state goes back to idle).
+  api.onTalkAuto(() => {
+    if (active) return;
+    active = true;
+    auto = true;
+    held = false;
+    hooks.onActive(true);
+    hooks.onWake?.();
+  });
+  api.onTalkState((s) => {
+    if (auto && active && s.phase === 'idle') {
+      active = false;
+      auto = false;
+      hooks.onActive(false);
+      hooks.onLevel(0);
+      scheduleClose();
+    }
+  });
 
   const control = {
     get active() {
@@ -94,6 +129,15 @@ export function createTalkControl(api: CockpitApi, hooks: TalkHooks) {
     toggle() {
       if (active) end(true);
       else control.start(false);
+    },
+    /** Wake word on (model loaded) / off: keeps the mic open while on. */
+    setWake(on: boolean) {
+      if (on === wakeOn) return;
+      wakeOn = on;
+      if (on) {
+        clearTimeout(closeTimer);
+        openForWake();
+      } else if (!active) scheduleClose();
     },
   };
 

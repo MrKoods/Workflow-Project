@@ -10,10 +10,14 @@
 export const TALK_RATE = 16000; // Hz, mono, 16-bit PCM from the renderer
 const MAX_TALK_MS = 60_000; // a held key can't stream forever
 const FINAL_TIMEOUT_MS = 3000; // after release, wait this long for the last words
+/** Hands-free (after the wake word): give up if nothing is said this soon. */
+const AUTO_SILENCE_MS = 6000;
 
 export type TalkPhase = 'idle' | 'connecting' | 'listening' | 'finishing';
 export interface TalkState {
   phase: TalkPhase;
+  /** Hands-free: started by the wake word; ends when you stop speaking. */
+  auto?: boolean;
   /** What has been heard so far (final words + the current guess). */
   partial: string;
   error?: string;
@@ -68,6 +72,8 @@ export function createTalk({
   let interim = '';
   let releasedAt = 0;
   let maxTimer: ReturnType<typeof setTimeout> | undefined;
+  let silenceTimer: ReturnType<typeof setTimeout> | undefined;
+  let auto = false;
   let finalTimer: ReturnType<typeof setTimeout> | undefined;
 
   const set = (patch: Partial<TalkState>) => {
@@ -90,13 +96,15 @@ export function createTalk({
 
   function reset(error?: string) {
     clearTimeout(maxTimer);
+    clearTimeout(silenceTimer);
+    auto = false;
     clearTimeout(finalTimer);
     close(ws);
     ws = null;
     pending = [];
     finals = [];
     interim = '';
-    set({ phase: 'idle', partial: '', error });
+    set({ phase: 'idle', partial: '', error, auto: false });
   }
 
   function finish() {
@@ -113,9 +121,14 @@ export function createTalk({
   const talk = {
     state: () => state,
 
-    /** Talk key pressed: open the connection; audio is buffered until it's up. */
-    start() {
+    /**
+     * Talk key pressed: open the connection; audio is buffered until it's up.
+     * auto (wake word): no key to release, so it sends when you stop
+     * speaking (Deepgram's end of speech) and cancels if you say nothing.
+     */
+    start(opts: { auto?: boolean } = {}) {
       if (state.phase !== 'idle') return;
+      auto = !!opts.auto;
       if (!apiKey) {
         set({
           phase: 'idle',
@@ -126,7 +139,7 @@ export function createTalk({
         return;
       }
       releasedAt = 0;
-      set({ phase: 'connecting', partial: '', error: undefined });
+      set({ phase: 'connecting', partial: '', error: undefined, auto });
       const socket = connect(LISTEN_URL, apiKey);
       ws = socket;
       socket.binaryType = 'arraybuffer';
@@ -144,6 +157,7 @@ export function createTalk({
         let m: {
           type?: string;
           is_final?: boolean;
+          speech_final?: boolean;
           from_finalize?: boolean;
           channel?: { alternatives?: { transcript?: string }[] };
           description?: string;
@@ -161,6 +175,11 @@ export function createTalk({
           } else interim = text;
           set({ partial: heard() });
           if (state.phase === 'finishing' && m.from_finalize) finish();
+          // Hands-free: a pause after some words is the end of the turn.
+          else if (auto && m.speech_final && heard()) {
+            clearTimeout(silenceTimer);
+            talk.stop();
+          }
         } else if (m.type === 'Error') {
           reset(`Speech error: ${m.description ?? 'unknown'}`);
         }
@@ -176,6 +195,12 @@ export function createTalk({
       };
       maxTimer = setTimeout(() => talk.stop(), MAX_TALK_MS);
       maxTimer.unref?.(); // never keeps the process alive on its own
+      if (auto) {
+        silenceTimer = setTimeout(() => {
+          if (!heard()) talk.cancel();
+        }, AUTO_SILENCE_MS);
+        silenceTimer.unref?.();
+      }
     },
 
     /** One 16 kHz 16-bit mono PCM frame from the mic. */

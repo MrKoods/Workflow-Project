@@ -23,6 +23,10 @@ import {
 } from '../orchestrator/companion.ts';
 import { createOrchestrator } from '../orchestrator/index.ts';
 import { createMeasureLog } from '../orchestrator/measure.ts';
+import {
+  createWakeListener,
+  type WakeListener,
+} from '../orchestrator/wakeListener.ts';
 import { createTalk, TALK_RATE, type Talk } from '../orchestrator/talk.ts';
 import {
   createSpeech,
@@ -101,6 +105,7 @@ let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let companion: Companion | null = null;
 let talk: Talk | null = null;
+let wake: WakeListener | null = null;
 let speech: Speech | null = null;
 /** The Deepgram voice for the voice in use (Settings: Playful / Steady). */
 const voiceId = (voice: 'steady' | 'playful') => {
@@ -313,6 +318,29 @@ const createWindow = () => {
           // "key:ArrowLeft" presses a key, "click:<selector>" clicks, instead of typing;
           // "wav:<file>" speaks a 16 kHz mono WAV through push-to-talk (real STT).
           const [, kind, arg] = /^(key|click|wav):(.+)$/.exec(reply) ?? [];
+          // "wakewav:<file>": the wake detector hears it; after the word fires
+          // the rest goes to hands-free talk (as the window routes the mic).
+          if (reply.startsWith('wakewav:') && talk && wake) {
+            const file = reply.slice('wakewav:'.length);
+            const buf = await readFile(file);
+            const at = buf.indexOf('data');
+            const pcm = buf.subarray(at + 8, at + 8 + buf.readUInt32LE(at + 4));
+            await wake.enable();
+            for (let i = 0; i < pcm.length; i += 640) {
+              const frame = new Uint8Array(pcm.subarray(i, i + 640));
+              if (talk.state().phase === 'idle') wake.feed(frame);
+              else talk.audio(frame);
+              await wait(20);
+            }
+            for (let t = 0; t < 100 && talk.state().phase !== 'idle'; t++)
+              await wait(100);
+            await wait(600);
+            await capture(`${tag}a`);
+            await untilWaiting();
+            await wait(1200);
+            await capture(`${tag}b`);
+            continue;
+          }
           if (kind === 'wav' && talk) {
             const buf = await readFile(arg);
             const at = buf.indexOf('data');
@@ -613,6 +641,37 @@ const connectOrchestrator = async () => {
   });
   ipcMain.handle(IPC.talkStop, () => talk?.stop());
   ipcMain.handle(IPC.talkCancel, () => talk?.cancel());
+  // Wake word (Phase 1 Task 6): local detection; on a hit, talk hands-free.
+  const w = createWakeListener({
+    dir: path.join(app.getAppPath(), 'wake'),
+    onStatus: (s) => win?.webContents.send(IPC.wakeStatus, s),
+    onWake: () => {
+      if (talk?.state().phase !== 'idle') return;
+      speech?.stopAll();
+      talk?.start({ auto: true });
+      win?.webContents.send(IPC.talkAuto);
+    },
+    log: (line) => console.log(line),
+  });
+  wake = w;
+  const syncWake = (on: boolean) => {
+    if (on) void w.enable();
+    else w.disable();
+  };
+  syncWake(orchestrator.snapshot().settings.wakeWord);
+  orchestrator.onChange((s) => {
+    const on = s.settings.wakeWord;
+    if (on !== (w.status().state === 'ready' || w.status().state === 'loading'))
+      syncWake(on);
+  });
+  ipcMain.handle(IPC.wakeStatus, () => w.status());
+  ipcMain.on(IPC.wakeAudio, (_e, frame: unknown) => {
+    if (frame instanceof Uint8Array && frame.byteLength <= 16_000)
+      w.feed(frame);
+    else if (frame instanceof ArrayBuffer && frame.byteLength <= 16_000)
+      w.feed(new Uint8Array(frame));
+  });
+
   ipcMain.on(IPC.talkAudio, (_e, frame: unknown) => {
     // 20 ms of 16 kHz 16-bit mono = 640 bytes; anything far bigger is not ours.
     if (frame instanceof Uint8Array && frame.byteLength <= 16_000)

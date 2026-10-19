@@ -47,9 +47,9 @@ Rules from CLAUDE.md still apply. Keys live in `.env` (main process only). Audio
 - **Done when:** the median is under the Task 1 target over a real session. *(Recorded speech, 5 scripted turns: **540 ms** (target 600) after cutting the engine's acted 900 + 450 ms reply pause to 100 + 50 ms. Claude turns: **2.07 s** (target 2.2 s) after spoken questions moved to effort low (Nick). Real-session check by Nick still to do.)*
 
 ## Task 6: Wake word
-- [ ] Pick the engine after checking current docs and licensing (Porcupine Web SDK vs openWakeWord on ONNX Runtime). Detection runs locally; nothing is sent until it fires.
-- [ ] Settings: wake word on/off (default off until it's reliable). Push-to-talk keeps working.
-- **Done when:** saying the wake word starts listening reliably in a quiet room, and a 30-minute session with music on gives no more than one false trigger.
+- [x] Pick the engine after checking current docs and licensing (Porcupine Web SDK vs openWakeWord on ONNX Runtime). Detection runs locally; nothing is sent until it fires.
+- [x] Settings: wake word on/off (default off until it's reliable). Push-to-talk keeps working.
+- **Done when:** saying the wake word starts listening reliably in a quiet room, and a 30-minute session with music on gives no more than one false trigger. *(Engine: openWakeWord pipeline re-implemented on onnxruntime-web in the main process; word **"Hey Echo"** (Nick), trained by Nick in Colab per docs/WAKE-WORD.md. Verified with the "Hey Jarvis" stand-in: 0.999 on the phrase in two voices, 0.000 on ordinary speech, and end to end in the app (wake → hands-free question → spoken answer, 1.9 s). Still to do: Nick trains Hey Echo, then the quiet-room and 30-min music checks.)*
 
 ## Task 7: Quest templates
 - [x] `templates/*.md` = a quest file plus `schedule` (e.g. `weekdays 08:30`); Quest Forge can save a quest as a template.

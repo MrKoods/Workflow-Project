@@ -26,6 +26,8 @@ export interface Settings {
   /** Deepgram voice for the Playful and the Steady voice (aura-2-<name>-en). */
   voicePlayful: string;
   voiceSteady: string;
+  /** Listen for the wake word (Phase 1 Task 6). Keeps the mic open on this PC. */
+  wakeWord: boolean;
   /** Hotkey overrides by action (defaults in orchestrator/keymap.ts). */
   hotkeys: Partial<Record<HotkeyAction, string>>;
 }
@@ -223,8 +225,17 @@ export type SpeechMessageView =
   | { type: 'end'; id: number }
   | { type: 'stop' };
 
+/** Wake word status (mirrors orchestrator/wakeListener.ts WakeStatus). */
+export interface WakeStatusView {
+  state: 'off' | 'loading' | 'ready' | 'missing' | 'error';
+  word?: string;
+  standIn?: boolean;
+  error?: string;
+}
+
 /** Push-to-talk state for the UI (mirrors orchestrator/talk.ts TalkState). */
 export interface TalkStateView {
+  auto?: boolean;
   phase: 'idle' | 'connecting' | 'listening' | 'finishing';
   partial: string;
   error?: string;
@@ -277,6 +288,12 @@ export interface CockpitApi {
   /** Companion speech audio (Phase 1 Task 3): play it, then report played(id). */
   onSpeech(cb: (msg: SpeechMessageView) => void): () => void;
   speechPlayed(id: number): void;
+  /** Wake word: mic frames to the local detector (fire and forget). */
+  wakeAudio(frame: ArrayBuffer): void;
+  getWakeStatus(): Promise<WakeStatusView>;
+  onWakeStatus(cb: (s: WakeStatusView) => void): () => void;
+  /** The wake word fired: talking has started hands-free. */
+  onTalkAuto(cb: () => void): () => void;
   /** Global hotkeys Windows wouldn't give us (another app owns them). */
   hotkeyTrouble(): Promise<Partial<Record<HotkeyAction, string>>>;
   /** Settings: hear a voice say a sample line. */

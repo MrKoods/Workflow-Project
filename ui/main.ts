@@ -10,6 +10,7 @@ import { onPalette, usePalette } from './palette';
 import { setHotkeys } from './keys';
 import { createSettingsPanel } from './settings';
 import { createSpeechPlayer } from './voice/player';
+import { chime } from './voice/chime';
 import { createTalkControl } from './voice/talk';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -39,6 +40,22 @@ Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
       onLevel: (level) => bloom?.setVoiceLevel(level),
       onActive: () => refresh(),
       onError: (message) => toast(message),
+      onWake: () => chime(volume),
+    });
+    // Wake word: listen only while it's switched on AND its model is loaded.
+    let volume = snapshot.settings.volume;
+    let wakeWanted = snapshot.settings.wakeWord;
+    let wakeReady = false;
+    const syncWake = () => talk.setWake(wakeWanted && wakeReady);
+    window.cockpit.onWakeStatus((s) => {
+      wakeReady = s.state === 'ready';
+      syncWake();
+      settings.setWakeStatus(s);
+    });
+    void window.cockpit.getWakeStatus().then((s) => {
+      wakeReady = s.state === 'ready';
+      syncWake();
+      settings.setWakeStatus(s);
     });
     const orbit = mountOrbit(
       document.getElementById('app')!,
@@ -74,6 +91,9 @@ Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
       calm = s.settings.calm;
       applyCalm();
       player.setVolume(s.settings.volume);
+      volume = s.settings.volume;
+      wakeWanted = s.settings.wakeWord;
+      syncWake();
       setHotkeys(s.settings.hotkeys);
     });
   },
