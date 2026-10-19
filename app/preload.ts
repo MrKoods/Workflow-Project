@@ -5,6 +5,7 @@ import type {
   ChatEvent,
   CockpitApi,
   CockpitSnapshot,
+  FocusView,
 } from '../orchestrator/types';
 import { IPC } from './ipc';
 
@@ -23,6 +24,18 @@ const api: CockpitApi = {
   endSession: () => ipcRenderer.invoke(IPC.endSession),
   markWorking: () => ipcRenderer.invoke(IPC.markWorking),
   setSettings: (patch) => ipcRenderer.invoke(IPC.setSettings, patch),
+  getFocus: () => ipcRenderer.invoke(IPC.focus),
+  reply: (text) => ipcRenderer.invoke(IPC.reply, text),
+  onFocus(cb) {
+    const listener = (_e: IpcRendererEvent, v: FocusView | null) => cb(v);
+    ipcRenderer.on(IPC.focus, listener);
+    return () => ipcRenderer.removeListener(IPC.focus, listener);
+  },
+  onVoice(cb) {
+    const listener = (_e: IpcRendererEvent, level: number) => cb(level);
+    ipcRenderer.on(IPC.voice, listener);
+    return () => ipcRenderer.removeListener(IPC.voice, listener);
+  },
   sendChat: (text) => ipcRenderer.invoke(IPC.chatSend, text),
   answerConfirm: (id, ok) => ipcRenderer.invoke(IPC.chatAnswer, id, ok),
   onChat(cb) {

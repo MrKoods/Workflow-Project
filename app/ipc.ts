@@ -16,4 +16,7 @@ export const IPC = {
   endSession: 'cockpit:end-session',
   markWorking: 'cockpit:mark-working',
   setSettings: 'cockpit:set-settings',
+  focus: 'cockpit:focus',
+  voice: 'cockpit:voice',
+  reply: 'cockpit:reply',
 } as const;

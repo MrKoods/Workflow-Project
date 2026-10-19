@@ -56,6 +56,46 @@ export interface Step {
   beats: Beat[];
 }
 
+// ---- Focus engine view (what the Orbit UI renders; orchestrator/focusEngine.ts) ----
+
+export type ItemState = 'hero' | 'sup1' | 'sup2' | 'done' | 'off';
+export type FocusMode = 'm-comp' | 'm-task';
+export type FocusCompanionState =
+  | 'waiting'
+  | 'listening'
+  | 'thinking'
+  | 'speaking'
+  | 'working';
+export interface PlanetView {
+  k: number;
+  label: string;
+  icon: string;
+  state: 'later' | 'upnext' | 'pulled' | 'done';
+}
+
+/** Everything the Orbit screen needs, pushed on every engine change. */
+export interface FocusView {
+  /** The quest this engine runs; items/steps come from the snapshot's quest. */
+  questId: string;
+  mode: FocusMode;
+  items: Record<string, ItemState>;
+  planets: PlanetView[];
+  orbitDeg: number;
+  /** 360 / number of steps. */
+  stepAngle: number;
+  companion: FocusCompanionState;
+  caption: { who: 'companion' | 'you'; text: string };
+  log: { who: string; text: string }[];
+  replies: Reply[];
+  /** Checklist item id -> boxes ticked so far. */
+  ticks: Record<string, number>;
+  stepIndex: number;
+  doneSteps: number;
+  complete: boolean;
+  /** True while a reply moves the script on (else free text goes to Claude). */
+  waiting: boolean;
+}
+
 export interface Bundle {
   folders: string[];
   urls: string[];
@@ -180,6 +220,13 @@ export interface CockpitApi {
   endSession(): Promise<void>;
   /** Task 7: stop the setup timer ("I'm working"). */
   markWorking(): Promise<void>;
+  /** Orbit: the focus engine's current view (null when no quest is on screen). */
+  getFocus(): Promise<FocusView | null>;
+  onFocus(cb: (view: FocusView | null) => void): () => void;
+  /** Companion voice level 0..1 while it "speaks" (feeds Bloom). */
+  onVoice(cb: (level: number) => void): () => void;
+  /** Reply chip or Say box: goes to the engine if it's waiting, else to Claude. */
+  reply(text: string): Promise<void>;
   /** Merge and persist settings (palette, voice, calm); the new snapshot follows. */
   setSettings(patch: Partial<Settings>): Promise<Settings>;
 }

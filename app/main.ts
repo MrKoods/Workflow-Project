@@ -265,6 +265,10 @@ const connectOrchestrator = async () => {
   );
   ipcMain.handle(IPC.endSession, () => companion?.send(END_SESSION_MESSAGE));
   orchestrator.onChange((s) => win?.webContents.send(IPC.snapshot, s));
+  // Orbit: engine view on every change; voice level on every typewriter tick.
+  ipcMain.handle(IPC.focus, () => orchestrator.focusView());
+  orchestrator.onFocus((v) => win?.webContents.send(IPC.focus, v));
+  orchestrator.onVoice((level) => win?.webContents.send(IPC.voice, level));
 
   let client: Anthropic | null = null;
   let turn: { start: number; firstText: number } | null = null;
@@ -303,6 +307,15 @@ const connectOrchestrator = async () => {
   ipcMain.handle(IPC.chatSend, (_e, text: unknown) => {
     if (typeof text !== 'string') return;
     return companion?.send(text.slice(0, 8000));
+  });
+  // Engine first (reply chips, "yeah"/"done"); anything it isn't waiting
+  // for is normal chat with Claude (ORBIT-UPGRADE Task 7).
+  ipcMain.handle(IPC.reply, (_e, text: unknown) => {
+    if (typeof text !== 'string' || !text.trim()) return;
+    const t = text.slice(0, 8000);
+    if (orchestrator.focusReply(t)) return;
+    orchestrator.focusSay(t);
+    return companion?.send(t);
   });
   ipcMain.handle(IPC.chatAnswer, (_e, id: unknown, ok: unknown) => {
     if (typeof id === 'string') companion?.answer(id, ok === true);

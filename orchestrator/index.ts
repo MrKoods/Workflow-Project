@@ -19,6 +19,7 @@ import {
 } from './measure.ts';
 import { createJournal, localDay } from './journal.ts';
 import { createSettingsStore } from './settings.ts';
+import { createFocus } from './focus.ts';
 import {
   parseQuestFile,
   setFrontmatter,
@@ -50,6 +51,9 @@ export interface OrchestratorOptions {
   now?: () => Date;
   /** Task 7: stop an unconfirmed setup timer after this long (default 10 min). */
   setupTimeoutMs?: number;
+  /** Focus engine timing: delay multiplier and typewriter ms (tests speed these up). */
+  focusPace?: number;
+  focusTypeMs?: number;
 }
 
 interface LocalState {
@@ -68,10 +72,19 @@ export function createOrchestrator({
   warn = console.warn,
   now = () => new Date(),
   setupTimeoutMs = 10 * 60 * 1000,
+  focusPace,
+  focusTypeMs,
 }: OrchestratorOptions) {
   const journal = createJournal(journalDir, now);
   const measure = createMeasureLog(journalDir);
   const settings = createSettingsStore(settingsFile);
+  // The focus engine for the quest on screen; a finished step runs the
+  // Phase 0 complete-objective path (checkbox + XP + journal).
+  const focus = createFocus({
+    completeStep: () => orchestrator.completeObjective(),
+    pace: focusPace,
+    typeMs: focusTypeMs,
+  });
   const listeners = new Set<(s: CockpitSnapshot) => void>();
   let quests: Quest[] = [];
   let justFinished: string | null = null; // keeps a finished quest on screen until the next starts
@@ -185,6 +198,7 @@ export function createOrchestrator({
   const emit = () => {
     const s = snapshot();
     for (const fn of listeners) fn(s);
+    focus.sync(s.current, settings.get().voice);
   };
 
   async function reload() {
@@ -301,7 +315,7 @@ export function createOrchestrator({
     return resumeNote;
   }
 
-  return {
+  const orchestrator = {
     async start() {
       await settings.load();
       await load();
@@ -332,6 +346,8 @@ export function createOrchestrator({
         await serial(() => openAndTell(quest, 'launch'));
       }
 
+      focus.sync(snapshot().current, settings.get().voice);
+
       // Quest files are plain markdown: edits from VS Code or Claude Code show up live.
       let timer: NodeJS.Timeout | undefined;
       try {
@@ -353,11 +369,22 @@ export function createOrchestrator({
 
     stop() {
       dropTimer();
+      focus.stop();
       watcher?.close();
       listeners.clear();
     },
 
     snapshot,
+
+    // ---- Focus engine (Orbit) -------------------------------------------
+    focusView: () => focus.view(),
+    onFocus: focus.onView,
+    onVoice: focus.onVoice,
+    /** A reply chip or typed reply; false when the engine isn't waiting for one. */
+    focusReply: (text: string) => focus.reply(text),
+    focusWaiting: () => focus.waiting(),
+    /** Show the user's free-text line as the caption (it went to Claude instead). */
+    focusSay: (text: string) => focus.say(text),
 
     onChange(fn: (s: CockpitSnapshot) => void) {
       listeners.add(fn);
@@ -716,6 +743,7 @@ export function createOrchestrator({
         emit();
       }),
   };
+  return orchestrator;
 }
 
 export type Orchestrator = ReturnType<typeof createOrchestrator>;

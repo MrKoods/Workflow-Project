@@ -43,11 +43,11 @@ Rules from CLAUDE.md still apply. Work top to bottom; the app must still start a
 - **Done when:** both the old Phase 0 quest and the new demo quest load without errors; a unit test covers both formats.
 
 ## Task 4: Focus engine in the orchestrator
-- [ ] Add `orchestrator/focusEngine.ts` from `reference/focusEngine.ts`. The orchestrator owns it (CLAUDE.md rule 4); the UI only receives its state.
-- [ ] Wire: active quest → `new FocusEngine(quest.intro, quest.steps, hooks)`; `start()` when the quest opens.
-- [ ] Expose to the UI: `mode()`, `itemState(id)`, `planets()`, `orbitDeg()`, caption, log, replies, companion state.
-- [ ] `stepDone` beats call the existing "complete objective" path (XP + journal + file checkbox).
-- [ ] Pause/resume keeps the current step index (Phase 0 resume note still works).
+- [x] Add `orchestrator/focusEngine.ts` from `reference/focusEngine.ts`. The orchestrator owns it (CLAUDE.md rule 4); the UI only receives its state.
+- [x] Wire: active quest → `new FocusEngine(quest.intro, quest.steps, hooks)`; `start()` when the quest opens.
+- [x] Expose to the UI: `mode()`, `itemState(id)`, `planets()`, `orbitDeg()`, caption, log, replies, companion state.
+- [x] `stepDone` beats call the existing "complete objective" path (XP + journal + file checkbox).
+- [x] Pause/resume keeps the current step index (Phase 0 resume note still works).
 - **Done when:** a headless test plays the demo quest by sending replies ("yeah", "done"…) and asserts the sequence of `hero` items: acct → profile → skills → verify → companion, with `doneSteps` = 4 and `complete` = true.
 
 ## Task 5: Orbit layout UI
