@@ -9,7 +9,8 @@ Full specs live in `docs/`:
 - `docs/CONTEXT.md` — original idea, problem, thesis, tests
 - `docs/FEATURES.md` — features, core loop, data model, architecture, build phases (**main spec**)
 - `docs/SKINS.md` — visual system: Orbit layout + 7 color palettes (Aqua default)
-- `docs/ORBIT-UPGRADE.md` — **current build task list** (Phase 0 is done)
+- `docs/PHASE-1.md` — **current build task list** (Phase 1: voice + templates)
+- `docs/ORBIT-UPGRADE.md` — Orbit upgrade task list (done, history)
 - `docs/reference/` — prototype code to port: orbit.css, palettes/*.json, palette.ts, bloom.ts, focusEngine.ts, demo-quest.md, markup-snapshot.html
 - `docs/CONNECTORS.md` — which apps connect and when; first workflow (Fiverr gig)
 - `docs/PHASE-0.md` — Phase 0 task list (complete, history)
@@ -33,7 +34,7 @@ Full specs live in `docs/`:
 8. **XP counts completed objectives only.**
 
 ## How to work in this repo
-- Work from `docs/ORBIT-UPGRADE.md` top to bottom (PHASE-0.md is complete, kept for history). Finish and check off one task before starting the next.
+- Work from `docs/PHASE-1.md` top to bottom (PHASE-0.md and ORBIT-UPGRADE.md are complete, kept for history). Finish and check off one task before starting the next.
 - Keep changes small and runnable. After each task, the app must still start.
 - When a decision isn't covered by the docs, ask Nick instead of guessing; record the answer in `docs/FEATURES.md` §0 Decisions log.
 - Before using any library or API, check its current docs — don't rely on memory for versions or setup steps.

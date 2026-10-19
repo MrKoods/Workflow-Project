@@ -21,7 +21,8 @@
     "lint:fix": "oxlint --fix && oxfmt --write",
     "typecheck": "tsc --noEmit",
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"orchestrator/**/*.test.ts\"",
-    "measure": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/measure.ts"
+    "measure": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/measure.ts",
+    "voice-latency": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/voice-latency.ts"
   },
   "devDependencies": {
     "@electron-forge/cli": "^8.0.1",
