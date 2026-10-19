@@ -4,7 +4,23 @@
 // its first open step, and a step completed some other way (e.g. the chat's
 // complete_objective) moves the engine on.
 import { FocusEngine, type Beat } from './focusEngine.ts';
-import type { FocusView, Quest, Settings } from './types.ts';
+import type {
+  FocusMode,
+  FocusView,
+  Quest,
+  Settings,
+  VoiceNow,
+} from './types.ts';
+
+/** Settings choice wins unless it is auto; then the quest's voice; auto follows the mode. */
+export function voiceFor(
+  setting: Settings['voice'],
+  quest: Quest | null,
+  mode: FocusMode,
+): VoiceNow {
+  const v = setting !== 'auto' ? setting : (quest?.voice ?? 'auto');
+  return v === 'auto' ? (mode === 'm-task' ? 'steady' : 'playful') : v;
+}
 
 export interface FocusOptions {
   /** The step finished: run the Phase 0 complete-objective path. */
@@ -17,7 +33,7 @@ export interface FocusOptions {
 export function resumeOpener(
   quest: Quest,
   at: number,
-  voice: Settings['voice'],
+  voice: VoiceNow,
 ): Beat[] {
   const step = quest.steps[at];
   if (!step) return [];
@@ -35,6 +51,9 @@ export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
   let shape = '';
   let ticks: Record<string, number> = {};
   let view: FocusView | null = null;
+  let voiceSetting: Settings['voice'] = 'auto';
+  const voiceNow = (): VoiceNow =>
+    voiceFor(voiceSetting, quest, engine?.mode() ?? 'm-comp');
   const viewListeners = new Set<(v: FocusView | null) => void>();
   const voiceListeners = new Set<(level: number) => void>();
 
@@ -60,6 +79,7 @@ export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
         doneSteps: s.doneSteps,
         complete: s.complete,
         waiting: e.waitingForReply(),
+        voice: voiceNow(),
       };
     } else view = null;
     for (const fn of viewListeners) fn(view);
@@ -70,7 +90,7 @@ export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
     engine = null;
   };
 
-  function begin(q: Quest, voice: Settings['voice']) {
+  function begin(q: Quest) {
     stopEngine();
     quest = q;
     shape = JSON.stringify([q.intro, q.steps, Object.keys(q.items)]);
@@ -88,12 +108,15 @@ export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
         publish();
       },
       onStepDone: () => void completeStep(),
+      voice: (mode) => voiceFor(voiceSetting, q, mode),
     });
     engine = e;
     e.subscribe(() => {
       if (engine === e) publish();
     });
-    if (at > 0) e.start(at, resumeOpener(q, at, voice));
+    // The opener is spoken with the companion in focus.
+    if (at > 0)
+      e.start(at, resumeOpener(q, at, voiceFor(voiceSetting, q, 'm-comp')));
     else e.start();
   }
 
@@ -103,6 +126,8 @@ export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
      * steps: keep playing (move on if steps were completed elsewhere).
      */
     sync(q: Quest | null, voice: Settings['voice']) {
+      const voiceChanged = voice !== voiceSetting;
+      voiceSetting = voice;
       if (!q) {
         if (engine) {
           stopEngine();
@@ -118,10 +143,11 @@ export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
       if (sameQuest) {
         quest = q; // fresher resume note etc.
         const done = q.objectives.filter((o) => o.done).length;
-        if (done > engine!.state().doneSteps) begin(q, q.voice ?? voice);
+        if (done > engine!.state().doneSteps) begin(q);
+        else if (voiceChanged) publish();
         return;
       }
-      begin(q, q.voice ?? voice);
+      begin(q);
     },
     view: () => view,
     onView(fn: (v: FocusView | null) => void) {
@@ -149,9 +175,12 @@ export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
       engine?.echo(text);
     },
     /** One short companion line, only if it isn't mid-sentence (e.g. "Copied."). */
-    note(line: string) {
-      if (engine?.state().companion === 'waiting') engine.run({ say: line });
+    note(playful: string, steady = playful) {
+      if (engine?.state().companion === 'waiting')
+        engine.run({ say: voiceNow() === 'steady' ? steady : playful });
     },
+    /** The voice in use right now. */
+    voiceNow,
     /** Live mode (Task 9): run one beat decided outside the script. */
     run(beat: Beat) {
       engine?.run(beat);

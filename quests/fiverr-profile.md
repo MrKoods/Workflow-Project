@@ -5,7 +5,7 @@
 title: Get your Fiverr seller profile live
 doneWhen: Seller account created, profile filled in, skills added, phone verified
 status: active
-voice: playful            # steady | playful (a Settings default; a quest may override)
+voice: auto               # auto | steady | playful. auto: playful with the companion, steady while a card is up
 
 items:
   acct:    { type: link,      title: "Fiverr · Join as a seller", url: "https://www.fiverr.com", cta: "Open sign-up page",
@@ -28,9 +28,9 @@ steps:
     short: Seller account
     icon: "↗"
     beats:
-      - { say: "Here's the door. Click through and claim your seller account. I'll keep watch from here.", focus: acct, support: [acctck] }
+      - { say: "Here's the door. Click through and claim your seller account. I'll keep watch from here.", steady: "Open the sign-up page and create your seller account with your work email.", focus: acct, support: [acctck] }
       - replies: [{ label: "I'm in" }, { label: "Which email?", answer: "Your work one. Keeps buyer pings out of your personal life." }]
-      - { say: "Love it. When it offers 2-step verification, say yes. I'll tick the boxes as you go.", tick: acctck }
+      - { say: "Love it. When it offers 2-step verification, say yes. I'll tick the boxes as you go.", steady: "When it offers 2-step verification, turn it on. I'll tick the boxes as you go.", tick: acctck }
       - replies: [{ label: "Account's made" }]
       - { say: "That's one down. Next, we make you look like the obvious hire. Your bio's already written. Want to see it?", stepDone: true }
       - replies: [{ label: "Show me" }]
@@ -39,9 +39,9 @@ steps:
     short: Profile
     icon: "✎"
     beats:
-      - { say: "Your profile, waiting for a face and a story. The story's on the right. Copy it in.", focus: profile, support: [bio] }
+      - { say: "Your profile, waiting for a face and a story. The story's on the right. Copy it in.", steady: "Open your profile editor. Copy the bio on the right into Description.", focus: profile, support: [bio] }
       - replies: [{ label: "Copied it" }, { label: "Make it punchier", answer: "Tightened it. Two lines, zero fluff." }]
-      - { say: "One thing: real photo, real smile. People buy from people." }
+      - { say: "One thing: real photo, real smile. People buy from people.", steady: "Use a real photo of yourself, then save the profile." }
       - replies: [{ label: "Profile's saved" }]
       - { say: "You're looking hireable. Next: skills, so buyers can actually find you. Half a minute. Go?", stepDone: true }
       - replies: [{ label: "Go" }]
@@ -50,7 +50,7 @@ steps:
     short: Skills
     icon: "◆"
     beats:
-      - { say: "Five skills, pulled from what buyers really search. Drop them in.", focus: skills, support: [bio] }
+      - { say: "Five skills, pulled from what buyers really search. Drop them in.", steady: "Add these five skills. Copy all, then paste them in.", focus: skills, support: [bio] }
       - replies: [{ label: "Added them" }, { label: "Why these?", answer: "They're the exact words people type. Match them, show up more." }]
       - { say: "Last stretch: lock it down, then you're officially open for business. Ready?", stepDone: true }
       - replies: [{ label: "Let's finish" }]
@@ -59,8 +59,8 @@ steps:
     short: Verify
     icon: "☑"
     beats:
-      - { say: "Phone check and 2-step. This one has your name on it. I can't do it for you.", focus: verify, support: [profile] }
-      - { say: "No rush. I'll check things off as you confirm.", tick: verify }
+      - { say: "Phone check and 2-step. This one has your name on it. I can't do it for you.", steady: "Verify your phone and turn on 2-step verification. This part is yours.", focus: verify, support: [profile] }
+      - { say: "No rush. I'll check things off as you confirm.", steady: "I'll check each one off as you confirm.", tick: verify }
       - replies: [{ label: "Verified" }]
       - { say: "And that's the quest. Your seller profile is live. I lined up the next one: your first gig. Ride the momentum, or take a breather?", stepDone: true, end: true }
       - replies: [{ label: "Take a breather", answer: "Earned it. I'll be right here." }, { label: "Ride it", answer: "That's the spirit. The gig editor will be waiting." }]

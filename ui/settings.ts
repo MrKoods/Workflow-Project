@@ -24,13 +24,24 @@ export function createSettingsPanel(api: CockpitApi) {
     ),
   );
 
-  // Voice (Task 7): same quest beats, different wording. Separate from the skin.
-  const VOICE_LABEL = { steady: 'Steady', playful: 'Playful' } as const;
+  // Voice: same quest beats, different wording. Separate from the skin.
+  // Auto = playful with the companion, steady (focus) while working a step.
+  const VOICE_LABEL = {
+    auto: 'Auto',
+    steady: 'Steady',
+    playful: 'Playful',
+  } as const;
   const voices = VOICES.map((v) =>
     h('button', {
       class: 'set-opt',
       text: VOICE_LABEL[v],
-      attrs: { type: 'button', 'aria-pressed': 'false' },
+      attrs: {
+        type: 'button',
+        'aria-pressed': 'false',
+        ...(v === 'auto'
+          ? { title: 'Playful with me, steady while you work a step' }
+          : {}),
+      },
       on: {
         click: async () => {
           settings = await api.setSettings({ voice: v });

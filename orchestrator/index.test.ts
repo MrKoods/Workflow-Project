@@ -492,20 +492,30 @@ test('Setup timer: times out unconfirmed', async () => {
   assert.equal(orch.snapshot().setupTimer, null);
 });
 
-test('settings default to aqua/playful, persist, and ignore invalid fields', async () => {
+test('settings default to aqua/auto, persist, and ignore invalid fields', async () => {
   await setup();
   assert.deepEqual(orch.snapshot().settings, {
     palette: 'aqua',
-    voice: 'playful',
+    voice: 'auto',
     calm: false,
   });
   await orch.setSettings({ palette: 'ember', voice: 'loud', calm: 'yes' });
   await orch.setSettings({ palette: '../../evil' });
   assert.equal(orch.snapshot().settings.palette, 'ember');
-  assert.equal(orch.snapshot().settings.voice, 'playful');
+  assert.equal(orch.snapshot().settings.voice, 'auto');
+  await orch.setSettings({ voice: 'steady' });
 
   await setup(); // restart: read back from settings.json
   assert.equal(orch.snapshot().settings.palette, 'ember');
+  assert.equal(orch.snapshot().settings.voice, 'steady');
+  // A file from before Auto existed (no version) moves to auto once.
+  await writeFile(
+    path.join(root, 'settings.json'),
+    JSON.stringify({ palette: 'frost', voice: 'playful', calm: false }),
+  );
+  await setup();
+  assert.equal(orch.snapshot().settings.palette, 'frost');
+  assert.equal(orch.snapshot().settings.voice, 'auto');
   await writeFile(path.join(root, 'settings.json'), '{not json');
   await setup();
   assert.equal(orch.snapshot().settings.palette, 'aqua');

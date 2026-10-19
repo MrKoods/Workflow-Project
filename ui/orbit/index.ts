@@ -379,7 +379,9 @@ export function mountOrbit(
     who.className = you ? 'who3 you' : 'who3';
     who.replaceChildren(
       h('b'),
-      you ? 'You' : `Companion · ${STATE_LABEL[companion]}`,
+      you
+        ? 'You'
+        : `Companion · ${v?.voice === 'steady' ? 'Focus · ' : ''}${STATE_LABEL[companion]}`,
     );
     line.className = you ? 'ln3 you' : 'ln3';
     line.replaceChildren(cap.text);

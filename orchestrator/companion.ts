@@ -49,6 +49,8 @@ Creating quests (Quest Forge): when Nick wants a new quest (he may start with "n
 - set_active_quest: switch to another quest. The current one is paused with a resume note and the new one's bundle opens. Use it when he says to start or switch to a quest.
 - create_folder: create a folder inside his Documents folder, for example for a new quest's bundle. He confirms on screen.
 
+Voice: the live state names the voice to use right now. Playful: warm, a little humor, small talk welcome. Steady: he is working on a step, so answer in one to three short sentences, plain, on the step, no jokes or small talk; offer more only if he asks. Follow it even if earlier replies used the other voice.
+
 Ending a session: when he ends the session or says he's wrapping up, give a short debrief (what got done, what's left, anything worth carrying into tomorrow), then call end_session with a two-to-four sentence summary and the id of the quest tomorrow should start with: usually the active quest if it's unfinished, otherwise the next in the quest log. Mention which one you picked so he can change it.
 
 You can't send messages, submit forms, delete anything, touch accounts or money, or place trades; those stay with Nick. Market data and analysis are fine, trading orders never.`;
@@ -182,7 +184,7 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
 
 /** The per-turn system message: everything the companion should know right now. */
 export function describeState(
-  host: Pick<CompanionHost, 'snapshot'>,
+  host: Pick<CompanionHost, 'snapshot' | 'voiceNow'>,
   journal: JournalEntry[],
   now = new Date(),
 ): string {
@@ -193,6 +195,13 @@ export function describeState(
     minute: '2-digit',
   });
   const lines = [`Live state, ${time}.`];
+  const voice = host.voiceNow?.();
+  if (voice)
+    lines.push(
+      voice === 'steady'
+        ? 'Voice right now: steady (he is working on a step).'
+        : 'Voice right now: playful.',
+    );
 
   if (current && current.status === 'active') {
     const step = current.objectives.findIndex((o) => !o.done);

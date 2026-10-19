@@ -384,6 +384,7 @@ export function createOrchestrator({
     /** A reply chip or typed reply; false when the engine isn't waiting for one. */
     focusReply: (text: string) => focus.reply(text),
     focusWaiting: () => focus.waiting(),
+    voiceNow: () => focus.voiceNow(),
     /** Show the user's free-text line as the caption (it went to Claude instead). */
     focusSay: (text: string) => focus.say(text),
 
@@ -400,11 +401,14 @@ export function createOrchestrator({
         if (item.type === 'link') {
           if (!/^https?:\/\//i.test(item.url)) return null;
           await opener.openExternal(item.url);
-          focus.note("Opened it in your browser. I'm right here.");
+          focus.note(
+            "Opened it in your browser. I'm right here.",
+            'Opened in your browser.',
+          );
           return {};
         }
         if (item.type === 'draft') {
-          focus.note('Copied. Paste it in.');
+          focus.note('Copied. Paste it in.', 'Copied.');
           return { copy: item.text };
         }
         if (item.type === 'tags') {

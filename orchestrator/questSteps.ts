@@ -96,6 +96,10 @@ function beat(v: unknown, at: string, items: Record<string, QuestItem>): Beat {
   };
   const b: Beat = {};
   if (v.say != null) b.say = str(v.say, `${at}.say`);
+  if (v.steady != null) {
+    if (!b.say) throw new QuestFileError(`${at}.steady needs a say`);
+    b.steady = str(v.steady, `${at}.steady`);
+  }
   if (v.focus != null) b.focus = ref(v.focus, 'focus');
   if (v.support != null) {
     if (!Array.isArray(v.support) || v.support.length > 2)

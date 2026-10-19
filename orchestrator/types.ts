@@ -3,7 +3,14 @@
 export const QUEST_STATUSES = ['active', 'paused', 'queued', 'done'] as const;
 export type QuestStatus = (typeof QUEST_STATUSES)[number];
 
-export const VOICES = ['steady', 'playful'] as const;
+/**
+ * Companion voice. auto (default) = playful while the companion has the floor
+ * (intro, between steps, wrap-up), steady while a step's card is up (Nick,
+ * 2026-10-18). steady / playful pin one voice.
+ */
+export const VOICES = ['auto', 'steady', 'playful'] as const;
+/** The voice actually in use at a moment. */
+export type VoiceNow = 'steady' | 'playful';
 
 /** Persisted user settings (FEATURES §4). */
 export interface Settings {
@@ -41,6 +48,8 @@ export interface Reply {
 /** One scripted moment in a quest (see orchestrator/focusEngine.ts). */
 export interface Beat {
   say?: string;
+  /** Steady wording of `say`, used when the voice in use is steady. */
+  steady?: string;
   focus?: string;
   support?: string[];
   tick?: string;
@@ -94,6 +103,8 @@ export interface FocusView {
   complete: boolean;
   /** True while a reply moves the script on (else free text goes to Claude). */
   waiting: boolean;
+  /** The voice in use right now (auto follows the mode). */
+  voice: VoiceNow;
 }
 
 export interface Bundle {
@@ -115,7 +126,7 @@ export interface Quest {
   items: Record<string, QuestItem>;
   intro: Beat[];
   steps: Step[];
-  /** Per-quest voice override (steady | playful). */
+  /** Per-quest voice (auto | steady | playful); a Settings choice other than auto wins. */
   voice?: (typeof VOICES)[number];
   resumeNote?: string;
   createdAt?: string;
@@ -271,6 +282,8 @@ export interface CompanionHost {
   /** Resolve a folder path if it may be created (inside Documents); null otherwise. */
   folderInDocuments(folder: string): string | null;
   createFolder(folder: string): Promise<string>;
+  /** The companion voice in use right now (Orbit focus engine). */
+  voiceNow?(): VoiceNow;
   /** Log the session debrief and set the quest the next day starts with. */
   recordSession(summary: string, firstQuestId?: string): Promise<string>;
 }

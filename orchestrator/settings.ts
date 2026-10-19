@@ -6,9 +6,11 @@ import { VOICES, type Settings } from './types.ts';
 
 export const DEFAULT_SETTINGS: Settings = {
   palette: 'aqua',
-  voice: 'playful',
+  voice: 'auto',
   calm: false,
 };
+
+const SETTINGS_VERSION = 2;
 
 const PALETTE_ID = /^[a-z0-9-]{1,40}$/;
 
@@ -29,10 +31,11 @@ export function createSettingsStore(file: string) {
   return {
     async load() {
       try {
-        current = {
-          ...DEFAULT_SETTINGS,
-          ...cleanSettings(JSON.parse(await readFile(file, 'utf8'))),
-        };
+        const saved = JSON.parse(await readFile(file, 'utf8'));
+        // Files written before Auto existed (no version) stored the old
+        // default "playful"; they move to auto once (Nick, 2026-10-18).
+        if (saved && !saved.version) delete saved.voice;
+        current = { ...DEFAULT_SETTINGS, ...cleanSettings(saved) };
       } catch {
         current = { ...DEFAULT_SETTINGS };
       }
@@ -43,7 +46,10 @@ export function createSettingsStore(file: string) {
     async set(patch: unknown) {
       current = { ...current, ...cleanSettings(patch) };
       await mkdir(path.dirname(file), { recursive: true });
-      await writeFile(file, JSON.stringify(current, null, 2));
+      await writeFile(
+        file,
+        JSON.stringify({ version: SETTINGS_VERSION, ...current }, null, 2),
+      );
       return current;
     },
   };

@@ -109,7 +109,7 @@ const repoQuest = (name: string) =>
 test('v2: the demo quest loads items, intro and steps', () => {
   const q = parseQuestFile('fiverr-profile', repoQuest('fiverr-profile.md'));
   assert.equal(q.format, 2);
-  assert.equal(q.voice, 'playful');
+  assert.equal(q.voice, 'auto');
   assert.deepEqual(Object.keys(q.items), [
     'acct',
     'acctck',
@@ -133,6 +133,8 @@ test('v2: the demo quest loads items, intro and steps', () => {
   );
   assert.deepEqual(q.steps[0].beats[0], {
     say: "Here's the door. Click through and claim your seller account. I'll keep watch from here.",
+    steady:
+      'Open the sign-up page and create your seller account with your work email.',
     focus: 'acct',
     support: ['acctck'],
   });

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { FocusEngine } from './focusEngine.ts';
+import { voiceFor } from './focus.ts';
 import { createOrchestrator } from './index.ts';
 import { parseQuestFile } from './questFile.ts';
 
@@ -209,4 +210,58 @@ test('engine: questions and unmatched text are not replies; chips stay up', asyn
   await until(() => e.waitingForReply(), 'step prompt');
   assert.equal(e.matches('Which email?'), true); // a chip label still matches
   e.stop();
+});
+
+test('voice: auto is playful with the companion, steady while a card is up', async () => {
+  const q = parseQuestFile('fiverr-profile', DEMO);
+  assert.equal(q.voice, 'auto');
+  assert.equal(voiceFor('auto', q, 'm-comp'), 'playful');
+  assert.equal(voiceFor('auto', q, 'm-task'), 'steady');
+  assert.equal(voiceFor('playful', q, 'm-task'), 'playful'); // Settings pin wins
+  assert.equal(voiceFor('steady', q, 'm-comp'), 'steady');
+  assert.equal(voiceFor('auto', null, 'm-task'), 'steady');
+
+  const said: string[] = [];
+  const e = new FocusEngine(q.intro, q.steps, {
+    pace: 0,
+    voice: (mode) => voiceFor('auto', q, mode),
+  });
+  e.subscribe((s) => {
+    if (
+      s.companion === 'waiting' &&
+      s.caption.text &&
+      said.at(-1) !== s.caption.text
+    )
+      said.push(s.caption.text);
+  });
+  e.start();
+  await until(() => e.waitingForReply(), 'intro');
+  e.reply('yeah');
+  await until(
+    () => e.mode() === 'm-task' && e.waitingForReply(),
+    'step 1 card',
+  );
+  e.reply('yeah');
+  await until(
+    () =>
+      e.state().doneSteps === 0 &&
+      e.state().replies[0]?.label === "Account's made",
+    'tick',
+  );
+  e.reply('done');
+  await until(
+    () => e.state().doneSteps === 1 && e.waitingForReply(),
+    'step 1 done',
+  );
+  e.stop();
+  assert.match(said[0], /^Evening, Nick/); // intro: playful
+  assert.equal(
+    said[1],
+    'Open the sign-up page and create your seller account with your work email.',
+  ); // card up: steady
+  assert.equal(
+    said[2],
+    "When it offers 2-step verification, turn it on. I'll tick the boxes as you go.",
+  );
+  assert.match(said[3], /^That's one down/); // back with the companion: playful
 });

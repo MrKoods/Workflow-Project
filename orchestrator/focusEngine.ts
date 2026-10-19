@@ -51,6 +51,7 @@ export interface FocusHooks {
   onStepDone?: (stepIndex: number, end: boolean) => void; // port: complete-objective path
   typeMs?: number; // typewriter speed per 2 chars (default 30)
   pace?: number; // port: multiplies every delay (default 1; tests use less)
+  voice?: (mode: FocusMode) => 'steady' | 'playful'; // port: picks say vs steady wording
 }
 
 export class FocusEngine {
@@ -291,7 +292,7 @@ export class FocusEngine {
         ),
       });
     if (b.say)
-      this.say(b.say, () => {
+      this.say(this.wording(b), () => {
         if (b.tick && this.hooks.onTick) {
           const id = b.tick;
           [0, 1, 2].forEach((n) =>
@@ -301,6 +302,12 @@ export class FocusEngine {
         } else next();
       });
     else next();
+  }
+  /** port: the beat's steady wording when the voice in use is steady. */
+  private wording(b: Beat) {
+    return b.steady && this.hooks.voice?.(this.mode()) === 'steady'
+      ? b.steady
+      : b.say!;
   }
   private say(line: string, done: () => void) {
     const s = this.s;
