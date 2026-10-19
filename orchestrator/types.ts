@@ -26,6 +26,8 @@ export interface Settings {
   /** Deepgram voice for the Playful and the Steady voice (aura-2-<name>-en). */
   voicePlayful: string;
   voiceSteady: string;
+  /** The companion's name (Nick, 2026-10-18: Echo, like the wake word). */
+  companionName: string;
   /** Listen for the wake word (Phase 1 Task 6). Keeps the mic open on this PC. */
   wakeWord: boolean;
   /** Hotkey overrides by action (defaults in orchestrator/keymap.ts). */

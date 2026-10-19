@@ -212,7 +212,12 @@ export function describeState(
     hour: 'numeric',
     minute: '2-digit',
   });
+  const name = host.snapshot().settings?.companionName;
   const lines = [`Live state, ${time}.`];
+  if (name)
+    lines.push(
+      `Your name is ${name}; Nick calls you that. ("Hey ${name}" will be the wake word once he has trained it and switched it on in Settings.)`,
+    );
   const voice = host.voiceNow?.();
   if (voice)
     lines.push(

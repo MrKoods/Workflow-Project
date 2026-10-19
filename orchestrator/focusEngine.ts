@@ -118,18 +118,27 @@ export class FocusEngine {
   /** port: which reply chip `input` means, if any (matching split out of reply()). */
   private match(beat: Beat, input: string): Reply | undefined {
     const t = input.toLowerCase();
+    const bare = (s: string) => s.replace(/[^\p{L}\p{N}' ]+/gu, ' ').trim();
+    const words = bare(t).split(/\s+/).filter(Boolean);
+    // port: partial matches only for short replies, and every significant
+    // word of the chip must be there ("give me three quick tips…" is a
+    // question for Claude, not "Give me a sec").
+    const short = words.length <= 5;
     const r =
-      beat.replies!.find((x) => x.label.toLowerCase() === t) ??
-      beat.replies!.find((x) =>
-        x.label
-          .toLowerCase()
-          .split(/[ ,']/)
-          .some((word) => word.length > 3 && t.includes(word)),
-      );
+      beat.replies!.find((x) => bare(x.label.toLowerCase()) === bare(t)) ??
+      (short
+        ? beat.replies!.find((x) => {
+            const key = bare(x.label.toLowerCase())
+              .split(/[ ']/)
+              .filter((w) => w.length > 3);
+            return key.length > 0 && key.every((w) => words.includes(w));
+          })
+        : undefined);
     if (r) return r;
-    // port: a question is never a generic "yes" ("what goes in my bio?").
+    // port: a question or a long sentence is never a generic "yes".
     if (
       !t.includes('?') &&
+      words.length <= 8 &&
       /\b(yes|yeah|yep|ready|go|done|ok|sure|made|saved|added|verified|in)\b/.test(
         t,
       )

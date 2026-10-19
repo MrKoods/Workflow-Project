@@ -502,6 +502,7 @@ test('settings default to aqua/auto, persist, and ignore invalid fields', async 
     volume: 0.8,
     voicePlayful: 'aura-2-thalia-en',
     voiceSteady: 'aura-2-thalia-en',
+    companionName: 'Echo',
     wakeWord: false,
     hotkeys: {},
   });
@@ -611,4 +612,13 @@ test('templates: a fresh copy on scheduled days, no pile-up, save as template', 
   );
   assert.match(saved, /schedule: daily/);
   assert.doesNotMatch(saved, /status:|template:/);
+});
+
+test('settings: the companion name is cleaned', async () => {
+  await setup();
+  await orch.setSettings({ companionName: '  Nova  ' });
+  assert.equal(orch.snapshot().settings.companionName, 'Nova');
+  await orch.setSettings({ companionName: '<script>' });
+  await orch.setSettings({ companionName: '' });
+  assert.equal(orch.snapshot().settings.companionName, 'Nova');
 });

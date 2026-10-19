@@ -317,3 +317,22 @@ test('swap: look at done and upcoming steps, finish in order', async () => {
   await until(() => v().items.profile === 'hero', 'step 2 opens');
   f.stop();
 });
+
+test('engine: chip words only match short replies with every key word', async () => {
+  const q = parseQuestFile('fiverr-profile', DEMO);
+  const e = new FocusEngine(q.intro, q.steps, { pace: 0 });
+  e.start();
+  await until(() => e.waitingForReply(), 'intro prompt');
+  assert.equal(e.matches('give me a sec'), true);
+  assert.equal(e.matches('Give me a sec!'), true);
+  assert.equal(
+    e.matches("what's your name? and give me three quick tips"),
+    false,
+  );
+  assert.equal(
+    e.matches('yeah, okay, sure thing, let us go right now please'),
+    false,
+  ); // 10 words
+  assert.equal(e.matches("yeah let's do it"), true);
+  e.stop();
+});

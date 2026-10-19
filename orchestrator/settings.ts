@@ -14,6 +14,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // Nick's pick (2026-10-18): Thalia for both until he chooses otherwise.
   voicePlayful: 'aura-2-thalia-en',
   voiceSteady: 'aura-2-thalia-en',
+  companionName: 'Echo',
   wakeWord: false, // off until Nick switches it on (mic stays open while on)
   hotkeys: {},
 };
@@ -36,6 +37,10 @@ export function cleanSettings(input: unknown): Partial<Settings> {
   if (typeof v.calm === 'boolean') out.calm = v.calm;
   if (typeof v.speech === 'boolean') out.speech = v.speech;
   if (typeof v.wakeWord === 'boolean') out.wakeWord = v.wakeWord;
+  if (typeof v.companionName === 'string') {
+    const name = v.companionName.trim().replace(/\s+/g, ' ');
+    if (/^[\p{L}][\p{L}' -]{0,23}$/u.test(name)) out.companionName = name;
+  }
   if (typeof v.volume === 'number' && v.volume >= 0 && v.volume <= 1)
     out.volume = v.volume;
   if (typeof v.voicePlayful === 'string' && VOICE_ID.test(v.voicePlayful))

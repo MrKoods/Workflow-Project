@@ -387,3 +387,23 @@ body {
   border-color: var(--acc2);
   color: var(--acctext);
 }
+
+/* ---- long captions (Claude's answers) stay clear of the reply chips -------- */
+.orbt .ln3.long {
+  font-size: 0.8em;
+}
+.orbt .ln3.xlong {
+  font-size: 0.7em;
+}
+.orbt.m-comp .ln3 {
+  max-height: 132px; /* five lines at the small size; the chips start below */
+  overflow: hidden;
+}
+.orbt.m-task .ln3 {
+  max-height: 400px;
+  overflow: hidden;
+}
+/* When it scrolls, fade the oldest line out at the top. */
+.orbt .ln3.xlong {
+  mask-image: linear-gradient(to bottom, transparent 0, black 28px);
+}

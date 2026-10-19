@@ -131,8 +131,22 @@ export function createSettingsPanel(api: CockpitApi) {
   );
 
   // ---- Voice -----------------------------------------------------------------
+  const nameInput = h('input', {
+    class: 'cd-name',
+    attrs: {
+      type: 'text',
+      maxlength: '24',
+      'aria-label': 'Companion name',
+      spellcheck: 'false',
+    },
+  });
+  nameInput.addEventListener('change', () => {
+    const v = nameInput.value.trim();
+    if (v) void save({ companionName: v });
+    else nameInput.value = settings?.companionName ?? '';
+  });
   const speak = toggle(
-    'Companion speaks out loud',
+    'Speaks out loud',
     'Off = captions only. Push-to-talk keeps working.',
     (on) => void save({ speech: on }),
   );
@@ -283,6 +297,14 @@ export function createSettingsPanel(api: CockpitApi) {
         h('h3', { text: 'Your companion’s voice' }),
         h('p', {
           text: 'Press ▶ to hear a voice. Speech runs on Deepgram; nothing is sent unless you hold the talk key.',
+        }),
+      ]),
+      h('div', { class: 'cd-row' }, [
+        h('span', { class: 'cd-row-label' }, [h('b', { text: 'Name' })]),
+        nameInput,
+        h('small', {
+          class: 'cd-note',
+          text: 'Shown on screen and used by the companion.',
         }),
       ]),
       speak.el,
@@ -608,6 +630,7 @@ export function createSettingsPanel(api: CockpitApi) {
     );
     calm.set(s.calm);
     speak.set(s.speech);
+    if (document.activeElement !== nameInput) nameInput.value = s.companionName;
     wake.set(s.wakeWord);
     paintWake();
     volume.value = String(Math.round(s.volume * 100));

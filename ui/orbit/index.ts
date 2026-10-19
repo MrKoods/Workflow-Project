@@ -390,7 +390,8 @@ export function mountOrbit(
       .filter(Boolean)
       .join(' ');
     hooks.onCompanion?.(companion);
-    comp.setAttribute('aria-label', `Companion is ${STATE_LABEL[companion]}`);
+    const name = snap.settings.companionName || 'Companion';
+    comp.setAttribute('aria-label', `${name} is ${STATE_LABEL[companion]}`);
 
     orbit.style.setProperty('--rot', `${v?.orbitDeg ?? 90}deg`);
     orbit.style.setProperty('--step-angle', `${v?.stepAngle ?? 90}deg`);
@@ -442,11 +443,15 @@ export function mountOrbit(
       h('b'),
       you
         ? 'You'
-        : `Companion · ${v?.voice === 'steady' ? 'Focus · ' : ''}${STATE_LABEL[companion]}`,
+        : `${name} · ${v?.voice === 'steady' ? 'Focus · ' : ''}${STATE_LABEL[companion]}`,
     );
     line.className = you ? 'ln3 you' : 'ln3';
     line.replaceChildren(cap.text);
     if (companion === 'speaking' && !you) line.append(caret);
+    // Long answers: smaller type; very long ones scroll, newest words in view.
+    line.classList.toggle('long', cap.text.length > 150);
+    line.classList.toggle('xlong', cap.text.length > 300);
+    line.scrollTop = line.scrollHeight;
 
     renderChips(v);
     const on = talking();
