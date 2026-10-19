@@ -27,6 +27,8 @@ export interface FocusOptions {
   completeStep: () => Promise<unknown>;
   pace?: number;
   typeMs?: number;
+  /** Speak a line in the voice in use (Phase 1); resolves when heard. */
+  speak?: (line: string, voice: VoiceNow) => Promise<void>;
 }
 
 /** The line a resumed quest opens with, in the quest's voice. */
@@ -99,7 +101,12 @@ export function peekView(live: FocusView, quest: Quest, k: number): FocusView {
   };
 }
 
-export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
+export function createFocus({
+  completeStep,
+  pace,
+  typeMs,
+  speak,
+}: FocusOptions) {
   let engine: FocusEngine | null = null;
   let quest: Quest | null = null;
   let shape = '';
@@ -157,7 +164,7 @@ export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
     ticks = {};
     const firstOpen = q.objectives.findIndex((o) => !o.done);
     const at = firstOpen < 0 ? q.steps.length : firstOpen;
-    const e = new FocusEngine(q.intro, q.steps, {
+    const e: FocusEngine = new FocusEngine(q.intro, q.steps, {
       pace,
       typeMs,
       onVoiceLevel: (v) => voiceListeners.forEach((fn) => fn(v)),
@@ -169,6 +176,9 @@ export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
       },
       onStepDone: () => void completeStep(),
       voice: (mode) => voiceFor(voiceSetting, q, mode),
+      speak: speak
+        ? (line) => speak(line, voiceFor(voiceSetting, q, e.mode()))
+        : undefined,
     });
     engine = e;
     e.subscribe(() => {

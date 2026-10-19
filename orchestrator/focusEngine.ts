@@ -52,6 +52,7 @@ export interface FocusHooks {
   typeMs?: number; // typewriter speed per 2 chars (default 30)
   pace?: number; // port: multiplies every delay (default 1; tests use less)
   voice?: (mode: FocusMode) => 'steady' | 'playful'; // port: picks say vs steady wording
+  speak?: (line: string) => Promise<void>; // port (Phase 1): a line ends when its audio does
 }
 
 export class FocusEngine {
@@ -102,6 +103,7 @@ export class FocusEngine {
     } else this.play(-1, 0);
   }
   stop() {
+    this.gen++; // port: speech that finishes after stop() is ignored
     this.timers.forEach(clearTimeout);
     this.timers = [];
   }
@@ -309,8 +311,13 @@ export class FocusEngine {
       ? b.steady
       : b.say!;
   }
+  private gen = 0;
   private say(line: string, done: () => void) {
     const s = this.s;
+    // port (Phase 1): speak while the caption types; the line is over when
+    // both are done (the audio usually takes longer).
+    const spoken = this.hooks.speak?.(line);
+    const gen = this.gen;
     const log = [
       ...(s.caption.text
         ? [
@@ -337,10 +344,15 @@ export class FocusEngine {
       );
       if (i >= line.length) {
         this.set({ caption: { who: 'companion', text: line } });
-        this.later(500, () => {
+        const finish = () => {
           this.set({ companion: 'waiting' });
           done();
-        });
+        };
+        if (spoken)
+          void spoken.then(() => {
+            if (gen === this.gen) this.later(250, finish);
+          });
+        else this.later(500, finish);
         return;
       }
       this.set({ caption: { who: 'companion', text: line.slice(0, i) } });

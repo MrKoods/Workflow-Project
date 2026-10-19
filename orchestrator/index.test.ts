@@ -498,7 +498,19 @@ test('settings default to aqua/auto, persist, and ignore invalid fields', async 
     palette: 'aqua',
     voice: 'auto',
     calm: false,
+    speech: true,
+    volume: 0.8,
+    voicePlayful: 'aura-2-thalia-en',
+    voiceSteady: 'aura-2-thalia-en',
   });
+  await orch.setSettings({
+    voicePlayful: 'aura-2-apollo-en',
+    voiceSteady: '../x',
+    volume: 3,
+  });
+  assert.equal(orch.snapshot().settings.voicePlayful, 'aura-2-apollo-en');
+  assert.equal(orch.snapshot().settings.voiceSteady, 'aura-2-thalia-en');
+  assert.equal(orch.snapshot().settings.volume, 0.8);
   await orch.setSettings({ palette: 'ember', voice: 'loud', calm: 'yes' });
   await orch.setSettings({ palette: '../../evil' });
   assert.equal(orch.snapshot().settings.palette, 'ember');

@@ -54,6 +54,8 @@ export interface OrchestratorOptions {
   /** Focus engine timing: delay multiplier and typewriter ms (tests speed these up). */
   focusPace?: number;
   focusTypeMs?: number;
+  /** Speak engine lines out loud (Phase 1; set by the app, absent in tests). */
+  speak?: (line: string, voice: 'steady' | 'playful') => Promise<void>;
 }
 
 interface LocalState {
@@ -74,6 +76,7 @@ export function createOrchestrator({
   setupTimeoutMs = 10 * 60 * 1000,
   focusPace,
   focusTypeMs,
+  speak,
 }: OrchestratorOptions) {
   const journal = createJournal(journalDir, now);
   const measure = createMeasureLog(journalDir);
@@ -84,6 +87,7 @@ export function createOrchestrator({
     completeStep: () => orchestrator.completeObjective(),
     pace: focusPace,
     typeMs: focusTypeMs,
+    speak,
   });
   const listeners = new Set<(s: CockpitSnapshot) => void>();
   let quests: Quest[] = [];

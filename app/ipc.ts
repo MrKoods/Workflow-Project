@@ -27,4 +27,7 @@ export const IPC = {
   talkAudio: 'cockpit:talk-audio',
   talkState: 'cockpit:talk-state',
   talkToggle: 'cockpit:talk-toggle',
+  speech: 'cockpit:speech',
+  speechPlayed: 'cockpit:speech-played',
+  speechPreview: 'cockpit:speech-preview',
 } as const;

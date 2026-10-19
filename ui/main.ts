@@ -8,6 +8,7 @@ import { BloomRenderer } from './companion/bloom';
 import { mountOrbit } from './orbit';
 import { onPalette, usePalette } from './palette';
 import { createSettingsPanel } from './settings';
+import { createSpeechPlayer } from './voice/player';
 import { createTalkControl } from './voice/talk';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -21,6 +22,16 @@ Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
     let bloom: BloomRenderer | null = null;
     let refresh = () => {};
     let toast = (message: string) => console.warn('[talk]', message);
+    // The companion's voice: real audio drives Bloom while it speaks; the
+    // typewriter pulses only stand in when speech is off.
+    const player = createSpeechPlayer(window.cockpit, {
+      onLevel: (level) => bloom?.setVoiceLevel(level),
+      onPlaying: () => refresh(),
+    });
+    player.setVolume(snapshot.settings.volume);
+    const typedLevel = (level: number) => {
+      if (!player.playing) bloom?.setVoiceLevel(level);
+    };
     // Push-to-talk: the mic level drives Bloom while listening.
     const talk = createTalkControl(window.cockpit, {
       onLevel: (level) => bloom?.setVoiceLevel(level),
@@ -35,8 +46,9 @@ Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
       settings,
       {
         onCompanion: (state) => bloom?.setState(state),
-        onVoice: (level) => bloom?.setVoiceLevel(level),
+        onVoice: typedLevel,
         talk,
+        speaking: () => player.playing,
       },
     );
     const { canvas } = orbit;
@@ -53,12 +65,13 @@ Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
     onPalette((p) => bloom!.setPalette(p.accent, p.reply, p.third));
     bloom.setState(focus?.companion ?? 'waiting');
     bloom.start();
-    window.cockpit.onVoice((level) => bloom!.setVoiceLevel(level));
+    window.cockpit.onVoice(typedLevel);
     reducedMotion.addEventListener('change', applyCalm);
     window.cockpit.onSnapshot((s) => {
       settings.update(s.settings);
       calm = s.settings.calm;
       applyCalm();
+      player.setVolume(s.settings.volume);
     });
 
     // Debug: Ctrl+Shift+P cycles palettes (persisted like a Settings click).

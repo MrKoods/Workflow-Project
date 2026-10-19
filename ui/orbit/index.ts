@@ -43,6 +43,8 @@ export interface OrbitHooks {
   onVoice?: (level: number) => void;
   /** Push-to-talk control (the Talk button toggles it). */
   talk?: TalkControl;
+  /** Is the companion's voice playing right now? */
+  speaking?: () => boolean;
 }
 
 export function mountOrbit(
@@ -370,7 +372,13 @@ export function mountOrbit(
     const chatOn = !!chat && (v?.caption.text ?? '') === chat.under;
     const companion =
       debugState ??
-      (talking() ? 'listening' : chatOn ? chat!.state : v?.companion) ??
+      (talking()
+        ? 'listening'
+        : hooks.speaking?.()
+          ? 'speaking'
+          : chatOn
+            ? chat!.state
+            : v?.companion) ??
       'waiting';
     fx.className = [
       'fx orbt',

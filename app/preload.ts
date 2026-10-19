@@ -6,6 +6,7 @@ import type {
   CockpitApi,
   CockpitSnapshot,
   FocusView,
+  SpeechMessageView,
   TalkStateView,
 } from '../orchestrator/types';
 import { IPC } from './ipc';
@@ -38,6 +39,13 @@ const api: CockpitApi = {
     ipcRenderer.on(IPC.talkState, listener);
     return () => ipcRenderer.removeListener(IPC.talkState, listener);
   },
+  onSpeech(cb) {
+    const listener = (_e: IpcRendererEvent, m: SpeechMessageView) => cb(m);
+    ipcRenderer.on(IPC.speech, listener);
+    return () => ipcRenderer.removeListener(IPC.speech, listener);
+  },
+  speechPlayed: (id) => ipcRenderer.send(IPC.speechPlayed, id),
+  speechPreview: (voiceId) => ipcRenderer.invoke(IPC.speechPreview, voiceId),
   onTalkToggle(cb) {
     const listener = () => cb();
     ipcRenderer.on(IPC.talkToggle, listener);

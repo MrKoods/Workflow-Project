@@ -18,6 +18,13 @@ export interface Settings {
   palette: string;
   voice: (typeof VOICES)[number];
   calm: boolean;
+  /** The companion speaks out loud (Phase 1). Off = captions only. */
+  speech: boolean;
+  /** Speech volume 0..1. */
+  volume: number;
+  /** Deepgram voice for the Playful and the Steady voice (aura-2-<name>-en). */
+  voicePlayful: string;
+  voiceSteady: string;
 }
 
 export interface Objective {
@@ -205,6 +212,12 @@ export interface JournalEntry {
   at: string; // ISO timestamp
 }
 
+/** Speech audio for the window (mirrors orchestrator/speech.ts SpeechMessage). */
+export type SpeechMessageView =
+  | { type: 'chunk'; id: number; pcm: Uint8Array }
+  | { type: 'end'; id: number }
+  | { type: 'stop' };
+
 /** Push-to-talk state for the UI (mirrors orchestrator/talk.ts TalkState). */
 export interface TalkStateView {
   phase: 'idle' | 'connecting' | 'listening' | 'finishing';
@@ -256,6 +269,11 @@ export interface CockpitApi {
   /** One 16 kHz 16-bit mono PCM frame while talking (fire and forget). */
   talkAudio(frame: ArrayBuffer): void;
   onTalkState(cb: (state: TalkStateView) => void): () => void;
+  /** Companion speech audio (Phase 1 Task 3): play it, then report played(id). */
+  onSpeech(cb: (msg: SpeechMessageView) => void): () => void;
+  speechPlayed(id: number): void;
+  /** Settings: hear a voice say a sample line. */
+  speechPreview(voiceId: string): Promise<void>;
   /** Ctrl+Alt+V from any app: start or stop talking. */
   onTalkToggle(cb: () => void): () => void;
   /** An item's button (open link / copy draft or tags). */

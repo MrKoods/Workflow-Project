@@ -23,6 +23,12 @@ import {
 } from '../orchestrator/companion.ts';
 import { createOrchestrator } from '../orchestrator/index.ts';
 import { createTalk, TALK_RATE, type Talk } from '../orchestrator/talk.ts';
+import {
+  createSpeech,
+  takeSentences,
+  type Speech,
+} from '../orchestrator/speech.ts';
+import { VOICE_ID } from '../orchestrator/settings.ts';
 import type { ChatEvent } from '../orchestrator/types.ts';
 import trayIconUrl from './assets/tray.png';
 import { IPC } from './ipc';
@@ -83,12 +89,21 @@ const orchestrator = createOrchestrator({
   stateFile: path.join(journalDir, 'state.json'),
   documentsDir: app.getPath('documents'),
   opener,
+  // Engine lines are spoken (Phase 1 Task 3); speech is created on startup.
+  speak: (line, voice) =>
+    speech?.say(line, voiceId(voice)) ?? Promise.resolve(),
 });
 
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let companion: Companion | null = null;
 let talk: Talk | null = null;
+let speech: Speech | null = null;
+/** The Deepgram voice for the voice in use (Settings: Playful / Steady). */
+const voiceId = (voice: 'steady' | 'playful') => {
+  const s = orchestrator.snapshot().settings;
+  return voice === 'steady' ? s.voiceSteady : s.voicePlayful;
+};
 let lastChatEvent: ChatEvent['type'] | null = null;
 
 /** The design size orbit.css is built for (see fitZoom). */
@@ -110,6 +125,8 @@ const createWindow = () => {
       preload: path.join(__dirname, 'preload.cjs'),
       // Ctrl+Alt+V talks while Cockpit is hidden: keep mic audio flowing.
       backgroundThrottling: false,
+      // The companion speaks without a click first (Phase 1 Task 3).
+      autoplayPolicy: 'no-user-gesture-required',
     },
   });
 
@@ -431,6 +448,7 @@ const connectOrchestrator = async () => {
 
   let client: Anthropic | null = null;
   let turn: { start: number; firstText: number } | null = null;
+  let spoken = ''; // Claude's reply text not yet spoken (an unfinished sentence)
   companion = createCompanion({
     host: orchestrator,
     emit: (event) => {
@@ -438,6 +456,20 @@ const connectOrchestrator = async () => {
       // Latency matters for a talking companion (FEATURES §7 #3): log it.
       const now = Date.now();
       if (event.type === 'user') turn = { start: now, firstText: 0 };
+      // Speak Claude's reply sentence by sentence as it streams in.
+      if (event.type === 'user') spoken = '';
+      if (event.type === 'delta') {
+        const { done, rest } = takeSentences(spoken + event.text);
+        spoken = rest;
+        for (const s of done)
+          void speech?.say(s, voiceId(orchestrator.voiceNow()));
+      }
+      if (event.type === 'confirm')
+        void speech?.say(event.text, voiceId(orchestrator.voiceNow()));
+      if (event.type === 'done' && spoken.trim()) {
+        void speech?.say(spoken, voiceId(orchestrator.voiceNow()));
+        spoken = '';
+      }
       if (event.type === 'delta' && turn && !turn.firstText) {
         turn.firstText = now;
         console.log(`[companion] first text after ${now - turn.start} ms`);
@@ -481,6 +513,32 @@ const connectOrchestrator = async () => {
     return reply(text);
   });
 
+  // The companion speaks (Phase 1 Task 3): text-to-speech runs here too.
+  speech = createSpeech({
+    apiKey: process.env.DEEPGRAM_API_KEY,
+    send: (m) => win?.webContents.send(IPC.speech, m),
+    enabled: () => orchestrator.snapshot().settings.speech,
+    log: (line) => console.log(line),
+  });
+  ipcMain.on(IPC.speechPlayed, (_e, id: unknown) => {
+    if (typeof id !== 'number') return;
+    if (process.env.COCKPIT_SCREENSHOT) console.log(`[speech] line ${id} heard`);
+    speech?.played(id);
+  });
+  ipcMain.handle(IPC.speechPreview, (_e, voice: unknown) => {
+    if (typeof voice !== 'string' || !VOICE_ID.test(voice)) return;
+    speech?.stopAll();
+    return speech?.say(
+      "Hey Nick. This is how I'd sound working through your quest with you.",
+      voice,
+      true,
+    );
+  });
+  // Muting stops the companion mid-sentence.
+  orchestrator.onChange((s) => {
+    if (!s.settings.speech && speech?.busy()) speech.stopAll();
+  });
+
   // Push-to-talk (Phase 1 Task 2): speech-to-text runs here, not in the UI.
   talk = createTalk({
     apiKey: process.env.DEEPGRAM_API_KEY,
@@ -488,7 +546,11 @@ const connectOrchestrator = async () => {
     onFinal: (text) => void reply(text),
     log: (line) => console.log(line),
   });
-  ipcMain.handle(IPC.talkStart, () => talk?.start());
+  // Talking over the companion stops it (barge-in).
+  ipcMain.handle(IPC.talkStart, () => {
+    speech?.stopAll();
+    talk?.start();
+  });
   ipcMain.handle(IPC.talkStop, () => talk?.stop());
   ipcMain.handle(IPC.talkCancel, () => talk?.cancel());
   ipcMain.on(IPC.talkAudio, (_e, frame: unknown) => {

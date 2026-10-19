@@ -8,7 +8,15 @@ export const DEFAULT_SETTINGS: Settings = {
   palette: 'aqua',
   voice: 'auto',
   calm: false,
+  speech: true,
+  volume: 0.8,
+  // Nick's pick (2026-10-18): Thalia for both until he chooses otherwise.
+  voicePlayful: 'aura-2-thalia-en',
+  voiceSteady: 'aura-2-thalia-en',
 };
+
+/** A Deepgram Aura-2 English voice id. */
+export const VOICE_ID = /^aura-2-[a-z]{2,20}-en$/;
 
 const SETTINGS_VERSION = 2;
 
@@ -23,6 +31,13 @@ export function cleanSettings(input: unknown): Partial<Settings> {
   if (VOICES.includes(v.voice as Settings['voice']))
     out.voice = v.voice as Settings['voice'];
   if (typeof v.calm === 'boolean') out.calm = v.calm;
+  if (typeof v.speech === 'boolean') out.speech = v.speech;
+  if (typeof v.volume === 'number' && v.volume >= 0 && v.volume <= 1)
+    out.volume = v.volume;
+  if (typeof v.voicePlayful === 'string' && VOICE_ID.test(v.voicePlayful))
+    out.voicePlayful = v.voicePlayful;
+  if (typeof v.voiceSteady === 'string' && VOICE_ID.test(v.voiceSteady))
+    out.voiceSteady = v.voiceSteady;
   return out;
 }
 
