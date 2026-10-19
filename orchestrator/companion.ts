@@ -25,6 +25,10 @@ export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 const MAX_TOOL_ROUNDS = 8;
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
+// Per-message effort (Opus 5.5): an empty system message with output_config
+// changes effort from that turn on without invalidating the prompt cache
+// (Claude API docs, checked 2026-10-18 via the claude-api reference).
+const EFFORT_BETA = 'mid-conversation-output-config-2026-07-01';
 
 // Frozen and first in the request so it stays cached; live state goes in a
 // per-turn system message instead (editing this would reset the cache).
@@ -529,7 +533,11 @@ export function createCompanion({
     }
   }
 
-  async function send(raw: string) {
+  // The effort the conversation is running at right now (per-message changes).
+  let turnEffort: Effort = effort;
+
+  /** opts.effort: this turn's effort (spoken turns use low, Nick 2026-10-18). */
+  async function send(raw: string, opts: { effort?: Effort } = {}) {
     const text = raw.trim();
     if (!text) return;
     if (busy) {
@@ -538,11 +546,22 @@ export function createCompanion({
     }
     busy = true;
     const mark = messages.length;
+    const effortBefore = turnEffort;
     emit({ type: 'user', text });
     setState('thinking');
 
     try {
       const api = client();
+      const want = opts.effort ?? effort;
+      if (want !== turnEffort) {
+        // Append-only: an effort-only system message, never a top-level change.
+        messages.push({
+          role: 'system',
+          content: [],
+          output_config: { effort: want },
+        } as unknown as Anthropic.Beta.BetaMessageParam);
+        turnEffort = want;
+      }
       messages.push({ role: 'user', content: text });
       messages.push({
         role: 'system',
@@ -559,7 +578,7 @@ export function createCompanion({
           messages,
           cache_control: { type: 'ephemeral' },
           output_config: { effort },
-          betas: [FALLBACK_BETA],
+          betas: [FALLBACK_BETA, EFFORT_BETA],
           fallbacks: 'default',
         });
         let speaking = false;
@@ -618,6 +637,7 @@ export function createCompanion({
       // Drop the unanswered turn so the next request is still a valid,
       // append-only continuation of what Claude has seen.
       messages.length = mark;
+      turnEffort = effortBefore; // the effort message was dropped with the turn
       emit({ type: 'error', text: describeError(err) });
     } finally {
       busy = false;

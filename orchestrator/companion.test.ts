@@ -180,7 +180,10 @@ test('plain reply: streams text, drives orb states, sends the documented request
   const p = calls[0];
   assert.equal(p.model, MODEL);
   assert.equal(p.fallbacks, 'default');
-  assert.deepEqual(p.betas, ['server-side-fallback-2026-07-01']);
+  assert.deepEqual(p.betas, [
+    'server-side-fallback-2026-07-01',
+    'mid-conversation-output-config-2026-07-01',
+  ]);
   assert.deepEqual(p.cache_control, { type: 'ephemeral' });
   assert.deepEqual(p.output_config, { effort: 'medium' });
   assert.equal(
@@ -433,4 +436,28 @@ test('end_session logs the debrief and sets the first quest', async () => {
   await companion.send("I'm ending the session.");
   assert.deepEqual(log, ['session:Research done.:q']);
   assert.equal(calls[2].messages.at(-1).content[0].is_error, true);
+});
+
+test('spoken turns: per-message effort, append-only, back to the default after', async () => {
+  const { companion, calls } = setup([
+    { text: 'Short answer.' },
+    { text: 'Longer answer.' },
+    { text: 'Again.' },
+  ]);
+  const effortMsgs = (i: number) =>
+    (
+      calls[i].messages as {
+        role: string;
+        output_config?: { effort: string };
+      }[]
+    )
+      .filter((m) => m.role === 'system' && m.output_config)
+      .map((m) => m.output_config!.effort);
+  await companion.send('quick one', { effort: 'low' });
+  assert.deepEqual(effortMsgs(0), ['low']);
+  assert.equal(calls[0].output_config.effort, 'medium'); // top level never changes
+  await companion.send('typed question'); // back to medium, appended
+  assert.deepEqual(effortMsgs(1), ['low', 'medium']);
+  await companion.send('another typed one'); // no change, nothing new
+  assert.deepEqual(effortMsgs(2), ['low', 'medium']);
 });

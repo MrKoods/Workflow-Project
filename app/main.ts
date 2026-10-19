@@ -529,12 +529,13 @@ const connectOrchestrator = async () => {
   // Engine first (reply chips, "yeah"/"done"); anything it isn't waiting
   // for is normal chat with Claude (ORBIT-UPGRADE Task 7). Typed and spoken
   // replies take the same path.
-  /** Returns who answered: the quest script or Claude. */
-  const reply = (text: string): 'script' | 'claude' => {
+  /** Returns who answered: the quest script or Claude. Spoken questions get
+   * quick answers (effort low; Nick 2026-10-18), typed ones the usual effort. */
+  const reply = (text: string, spoken = false): 'script' | 'claude' => {
     const t = text.slice(0, 8000);
     if (orchestrator.focusReply(t)) return 'script';
     orchestrator.focusSay(t);
-    void companion?.send(t);
+    void companion?.send(t, spoken ? { effort: 'low' } : {});
     return 'claude';
   };
   ipcMain.handle(IPC.reply, (_e, text: unknown) => {
@@ -601,7 +602,7 @@ const connectOrchestrator = async () => {
     onState: (s) => win?.webContents.send(IPC.talkState, s),
     onFinal: (text, releasedAt) => {
       const transcriptMs = Date.now() - releasedAt;
-      voiceTurn = { releasedAt, transcriptMs, route: reply(text) };
+      voiceTurn = { releasedAt, transcriptMs, route: reply(text, true) };
     },
     log: (line) => console.log(line),
   });
