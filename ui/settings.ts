@@ -162,18 +162,16 @@ export function createSettingsPanel(api: CockpitApi) {
     const on = settings?.wakeWord;
     wakeNote.textContent =
       s.state === 'missing'
-        ? 'No wake model yet. Train “Hey Echo” (docs/WAKE-WORD.md) and put the file in the wake/ folder.'
+        ? 'No wake model in the wake/ folder (see docs/WAKE-WORD.md).'
         : s.state === 'error'
           ? `The wake model didn't load: ${s.error}`
           : s.state === 'loading'
             ? 'Loading the wake model…'
-            : s.standIn
-              ? `Using the stand-in “${s.word}” until your “Hey Echo” model is in wake/ (docs/WAKE-WORD.md).`
-              : on
-                ? `Listening for “${s.word}”.`
-                : s.word
-                  ? `Ready: “${s.word}”.`
-                  : '';
+            : on
+              ? `Listening for “${s.word}”.`
+              : s.word
+                ? `Wake word: “${s.word}”.`
+                : '';
   };
   const volume = h('input', {
     class: 'cd-range',

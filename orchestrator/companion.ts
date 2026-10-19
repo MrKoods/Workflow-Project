@@ -216,7 +216,7 @@ export function describeState(
   const lines = [`Live state, ${time}.`];
   if (name)
     lines.push(
-      `Your name is ${name}; Nick calls you that. ("Hey ${name}" will be the wake word once he has trained it and switched it on in Settings.)`,
+      `Your name is ${name}; Nick calls you that. (The wake word is set separately in Settings; don't assume it.)`,
     );
   const voice = host.voiceNow?.();
   if (voice)

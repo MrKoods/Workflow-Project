@@ -51,3 +51,7 @@ Windows fixes the notebook needed (all in the training folder, not in Cockpit):
 6. Windows can't delete a still-mapped file: close the memory maps before trimming.
 
 **To retrain stronger** (if it misses you in real use): edit `my_model.yaml.py` there (e.g. `n_samples` 20000, `steps` 40000), run it, delete `my_custom_model/`, then run the three stages again (`train.py --training_config my_model.yaml --generate_clips`, `--augment_clips`, `--train_model`). About an hour.
+
+## Which word is active (2026-10-19)
+
+**"Hey Jarvis" for now (Nick).** The trained Echo model is parked in `wake/disabled/hey_echo.onnx`; Cockpit only looks at files directly in `wake/`. To switch to "Hey Echo": move it back to `wake/hey_echo.onnx` and restart Cockpit (a file with "echo" in its name wins over Jarvis).
