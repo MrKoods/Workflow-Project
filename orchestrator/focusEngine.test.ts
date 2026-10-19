@@ -190,3 +190,23 @@ test('orchestrator: a quest with done steps resumes at its first open step', asy
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('engine: questions and unmatched text are not replies; chips stay up', async () => {
+  const q = parseQuestFile('fiverr-profile', DEMO);
+  const e = new FocusEngine(q.intro, q.steps, { pace: 0 });
+  e.start();
+  await until(() => e.waitingForReply(), 'intro prompt');
+  assert.equal(e.matches('yeah'), true);
+  assert.equal(e.matches("Let's dive in"), true);
+  assert.equal(e.matches('what goes in my bio?'), false); // "in" alone isn't a yes
+  assert.equal(e.matches('tell me about pricing'), false);
+  e.echo('tell me about pricing');
+  assert.equal(e.waitingForReply(), true);
+  assert.equal(e.state().caption.text, 'tell me about pricing');
+  assert.equal(e.state().replies.length, 2);
+  e.reply('yeah');
+  await until(() => e.mode() === 'm-task', 'first card');
+  await until(() => e.waitingForReply(), 'step prompt');
+  assert.equal(e.matches('Which email?'), true); // a chip label still matches
+  e.stop();
+});

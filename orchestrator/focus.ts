@@ -134,15 +134,19 @@ export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
     },
     /** Engine is waiting for a reply? */
     waiting: () => !!engine?.waitingForReply(),
-    /** Send a reply chip / typed reply to the engine; false if it wasn't waiting. */
+    /**
+     * Send a reply chip / typed reply to the engine. False when it isn't
+     * waiting or the text matches no reply: that goes to Claude instead
+     * (Nick, 2026-10-18), and the chips stay up.
+     */
     reply(text: string) {
-      if (!engine?.waitingForReply()) return false;
+      if (!engine?.matches(text)) return false;
       engine.reply(text);
       return true;
     },
     /** Show the user's own line in the caption (free text that went to Claude). */
     say(text: string) {
-      engine?.reply(text); // not waiting: the engine only shows it as "You"
+      engine?.echo(text);
     },
     /** One short companion line, only if it isn't mid-sentence (e.g. "Copied."). */
     note(line: string) {

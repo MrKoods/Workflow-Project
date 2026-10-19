@@ -112,6 +112,39 @@ export class FocusEngine {
     return this.waiting !== null;
   }
 
+  /** port: which reply chip `input` means, if any (matching split out of reply()). */
+  private match(beat: Beat, input: string): Reply | undefined {
+    const t = input.toLowerCase();
+    const r =
+      beat.replies!.find((x) => x.label.toLowerCase() === t) ??
+      beat.replies!.find((x) =>
+        x.label
+          .toLowerCase()
+          .split(/[ ,']/)
+          .some((word) => word.length > 3 && t.includes(word)),
+      );
+    if (r) return r;
+    // port: a question is never a generic "yes" ("what goes in my bio?").
+    if (
+      !t.includes('?') &&
+      /\b(yes|yeah|yep|ready|go|done|ok|sure|made|saved|added|verified|in)\b/.test(
+        t,
+      )
+    )
+      return beat.replies![0];
+  }
+
+  /** port: would reply(input) move the script on or answer it from the script? */
+  matches(input: string) {
+    const w = this.waiting;
+    return !!w && !!this.match(this.beat(w.step, w.beat), input);
+  }
+
+  /** port: show the user's line as the caption without consuming it (it went to Claude). */
+  echo(input: string) {
+    this.set({ caption: { who: 'you', text: input } });
+  }
+
   /** User picked a reply chip, or typed/said something. */
   reply(input: string) {
     const w = this.waiting;
@@ -120,22 +153,7 @@ export class FocusEngine {
       return;
     }
     const beat = this.beat(w.step, w.beat);
-    const t = input.toLowerCase();
-    let r =
-      beat.replies!.find((x) => x.label.toLowerCase() === t) ??
-      beat.replies!.find((x) =>
-        x.label
-          .toLowerCase()
-          .split(/[ ,']/)
-          .some((word) => word.length > 3 && t.includes(word)),
-      );
-    if (
-      !r &&
-      /\b(yes|yeah|yep|ready|go|done|ok|sure|made|saved|added|verified|in)\b/.test(
-        t,
-      )
-    )
-      r = beat.replies![0];
+    const r = this.match(beat, input);
     // port: cleared before set() so listeners see it, and so a second reply
     // during the pause below can't advance twice.
     this.waiting = null;
