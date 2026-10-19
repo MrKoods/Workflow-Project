@@ -22,6 +22,7 @@ import {
   type Effort,
 } from '../orchestrator/companion.ts';
 import { createOrchestrator } from '../orchestrator/index.ts';
+import { createMeasureLog } from '../orchestrator/measure.ts';
 import { createTalk, TALK_RATE, type Talk } from '../orchestrator/talk.ts';
 import {
   createSpeech,
@@ -528,16 +529,38 @@ const connectOrchestrator = async () => {
   // Engine first (reply chips, "yeah"/"done"); anything it isn't waiting
   // for is normal chat with Claude (ORBIT-UPGRADE Task 7). Typed and spoken
   // replies take the same path.
-  const reply = (text: string) => {
+  /** Returns who answered: the quest script or Claude. */
+  const reply = (text: string): 'script' | 'claude' => {
     const t = text.slice(0, 8000);
-    if (orchestrator.focusReply(t)) return;
+    if (orchestrator.focusReply(t)) return 'script';
     orchestrator.focusSay(t);
-    return companion?.send(t);
+    void companion?.send(t);
+    return 'claude';
   };
   ipcMain.handle(IPC.reply, (_e, text: unknown) => {
     if (typeof text !== 'string' || !text.trim()) return;
-    return reply(text);
+    reply(text);
   });
+
+  // Phase 1 Task 5: time each spoken turn, key release -> first word back.
+  const voiceLog = createMeasureLog(journalDir);
+  let voiceTurn: {
+    releasedAt: number;
+    transcriptMs: number;
+    route: 'script' | 'claude';
+  } | null = null;
+  const firstAudio = () => {
+    if (!voiceTurn) return;
+    const t = voiceTurn;
+    voiceTurn = null;
+    if (Date.now() - t.releasedAt > 15_000) return; // speech was off; not a turn
+    void voiceLog.addVoiceTurn({
+      at: new Date(t.releasedAt).toISOString(),
+      route: t.route,
+      transcriptMs: t.transcriptMs,
+      firstAudioMs: Date.now() - t.releasedAt,
+    });
+  };
 
   // The companion speaks (Phase 1 Task 3): text-to-speech runs here too.
   speech = createSpeech({
@@ -545,6 +568,7 @@ const connectOrchestrator = async () => {
     send: (m) => win?.webContents.send(IPC.speech, m),
     enabled: () => orchestrator.snapshot().settings.speech,
     log: (line) => console.log(line),
+    onAudio: () => firstAudio(),
   });
   ipcMain.on(IPC.speechPlayed, (_e, id: unknown) => {
     if (typeof id !== 'number') return;
@@ -575,7 +599,10 @@ const connectOrchestrator = async () => {
   talk = createTalk({
     apiKey: process.env.DEEPGRAM_API_KEY,
     onState: (s) => win?.webContents.send(IPC.talkState, s),
-    onFinal: (text) => void reply(text),
+    onFinal: (text, releasedAt) => {
+      const transcriptMs = Date.now() - releasedAt;
+      voiceTurn = { releasedAt, transcriptMs, route: reply(text) };
+    },
     log: (line) => console.log(line),
   });
   // Talking over the companion stops it (barge-in).

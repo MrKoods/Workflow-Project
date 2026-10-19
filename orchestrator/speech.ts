@@ -24,6 +24,8 @@ export interface SpeechOptions {
   enabled: () => boolean;
   fetchImpl?: typeof fetch;
   log?: (line: string) => void;
+  /** The first audio of a line is on its way to the window (Task 5 timing). */
+  onAudio?: () => void;
 }
 
 /** Turn a caption into something a voice should say. */
@@ -76,6 +78,7 @@ export function createSpeech({
   enabled,
   fetchImpl = fetch,
   log,
+  onAudio,
 }: SpeechOptions) {
   let nextId = 1;
   const queue: Line[] = [];
@@ -112,7 +115,10 @@ export function createSpeech({
       if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
       let first = true;
       for await (const chunk of res.body as AsyncIterable<Uint8Array>) {
-        if (first) log?.(`[speech] first audio ${Date.now() - t0} ms`);
+        if (first) {
+          log?.(`[speech] first audio ${Date.now() - t0} ms`);
+          onAudio?.();
+        }
         first = false;
         line.bytes += chunk.byteLength;
         send({ type: 'chunk', id: line.id, pcm: chunk });

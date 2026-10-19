@@ -1,7 +1,11 @@
 // Task 7 report: npm run measure            -> setup times vs. baseline
 //                npm run measure -- baseline 6.5 "manual, no Cockpit"
 import path from 'node:path';
-import { createMeasureLog, formatReport } from '../orchestrator/measure.ts';
+import {
+  createMeasureLog,
+  formatReport,
+  formatVoiceReport,
+} from '../orchestrator/measure.ts';
 
 const dir =
   process.env.COCKPIT_JOURNAL_DIR ??
@@ -9,6 +13,10 @@ const dir =
 const log = createMeasureLog(dir);
 const [cmd, ...rest] = process.argv.slice(2);
 
+if (cmd === 'voice') {
+  console.log(formatVoiceReport(await log.readVoiceTurns()));
+  process.exit(0);
+}
 if (cmd === 'baseline') {
   const minutes = Number(rest[0]);
   if (!(minutes > 0 && minutes < 600)) {

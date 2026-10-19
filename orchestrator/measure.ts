@@ -32,6 +32,18 @@ export interface Baseline {
   note?: string;
 }
 
+/** Phase 1 Task 5: one spoken turn, from key release to the first word heard back. */
+export interface VoiceTurn {
+  at: string; // ISO time of the key release
+  /** script = the quest engine answered; claude = it went to Claude. */
+  route: 'script' | 'claude';
+  transcriptMs: number; // release -> final transcript
+  firstAudioMs: number; // release -> first audio of the reply
+}
+
+/** Targets from FEATURES §0 (2026-10-18, Task 1): medians, release -> first word. */
+export const VOICE_TARGET_MS = { script: 600, claude: 2200 } as const;
+
 /** CONTEXT.md §12: less than ~30% reduction means bundles aren't the win. */
 export const TARGET_REDUCTION = 0.3;
 
@@ -58,7 +70,10 @@ export function createMeasureLog(dir: string) {
     await mkdir(dir, { recursive: true });
     await appendFile(file, JSON.stringify(value) + '\n');
   };
+  const turns = path.join(dir, 'voice-turns.jsonl');
   return {
+    addVoiceTurn: (t: VoiceTurn) => append(turns, t),
+    readVoiceTurns: () => readJsonl<VoiceTurn>(turns),
     addTime: (t: SetupTime) => append(times, t),
     addBaseline: (b: Baseline) => append(baselines, b),
     readTimes: () => readJsonl<SetupTime>(times),
@@ -110,6 +125,26 @@ const fmt = (s: number | null) =>
   s === null
     ? '-'
     : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+
+export function formatVoiceReport(turns: VoiceTurn[]): string {
+  const lines = [
+    'Spoken turns: key release -> first word of the reply (medians)',
+    '',
+  ];
+  for (const route of ['script', 'claude'] as const) {
+    const xs = turns.filter((t) => t.route === route);
+    const audio = median(xs.map((t) => t.firstAudioMs));
+    const stt = median(xs.map((t) => t.transcriptMs));
+    const target = VOICE_TARGET_MS[route];
+    const name = route === 'script' ? 'Scripted replies' : 'Claude replies  ';
+    lines.push(
+      audio === null
+        ? `  ${name}: no turns yet`
+        : `  ${name}: ${Math.round(audio)} ms (transcript ${Math.round(stt!)} ms) over ${xs.length} turn${xs.length === 1 ? '' : 's'}, target < ${target} ms: ${audio < target ? 'OK' : 'TOO SLOW'}`,
+    );
+  }
+  return lines.join('\n');
+}
 
 export function formatReport(
   times: SetupTime[],

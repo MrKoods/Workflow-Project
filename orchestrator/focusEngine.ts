@@ -165,9 +165,12 @@ export class FocusEngine {
       companion: 'listening',
       replies: [],
     });
-    this.later(900, () => {
+    // port (Phase 1 Task 5): was 900 + 450 ms of acted "listening / thinking";
+    // with real speech the listening already happened, so it was dead air
+    // (scripted replies measured 1.7 s to the first word).
+    this.later(100, () => {
       this.set({ companion: 'thinking' });
-      this.later(450, () => {
+      this.later(50, () => {
         if (!r) {
           this.say(
             'Happy to help with that. Say "done" when you are ready to move on.',

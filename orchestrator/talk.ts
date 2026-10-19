@@ -34,8 +34,8 @@ export interface TalkSocket {
 export interface TalkOptions {
   apiKey: string | undefined;
   onState: (state: TalkState) => void;
-  /** The final transcript of one press (never called with empty text). */
-  onFinal: (text: string) => void;
+  /** The final transcript of one press (never called with empty text), and when the key was released (ms epoch). */
+  onFinal: (text: string, releasedAt: number) => void;
   /** Test seam: open a socket. Defaults to Node's WebSocket with the auth header. */
   connect?: (url: string, apiKey: string) => TalkSocket;
   /** Optional timing log (release -> final transcript). */
@@ -101,12 +101,13 @@ export function createTalk({
 
   function finish() {
     const text = heard();
+    const released = releasedAt || Date.now();
     if (releasedAt)
       log?.(
         `[talk] final transcript ${Date.now() - releasedAt} ms after release`,
       );
     reset();
-    if (text) onFinal(text);
+    if (text) onFinal(text, released);
   }
 
   const talk = {

@@ -43,8 +43,8 @@ Rules from CLAUDE.md still apply. Keys live in `.env` (main process only). Audio
 - [x] All hotkeys are named actions with saved overrides (`orchestrator/keymap.ts`); global ones re-register live; the tray menu shows the current keys.
 
 ## Task 5: Measure in the app
-- [ ] Log each spoken turn: key release → transcript → first Claude text → first audio. `npm run measure -- voice` prints medians.
-- **Done when:** the median is under the Task 1 target over a real session.
+- [x] Log each spoken turn: key release → transcript → first Claude text → first audio. `npm run measure -- voice` prints medians.
+- **Done when:** the median is under the Task 1 target over a real session. *(Recorded speech, 5 scripted turns: **540 ms** (target 600) after cutting the engine's acted 900 + 450 ms reply pause to 100 + 50 ms. Claude turns: **~2.9 s** (target 2.2 s), ~2 s of it Claude's first text at effort medium; open question for Nick: lower effort for spoken turns. Real-session check by Nick still to do.)*
 
 ## Task 6: Wake word
 - [ ] Pick the engine after checking current docs and licensing (Porcupine Web SDK vs openWakeWord on ONNX Runtime). Detection runs locally; nothing is sent until it fires.
