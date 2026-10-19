@@ -138,6 +138,59 @@ function fakeHost() {
       log.push(`mkdir:${f}`);
       return 'Created.';
     },
+    async changeSettings(input) {
+      log.push(`settings:${JSON.stringify(input)}`);
+      return 'Changed.';
+    },
+    async setSteps(which, done, id) {
+      log.push(`steps:${JSON.stringify(which)}:${done}:${id ?? ''}`);
+      return 'Steps set.';
+    },
+    async goBackToStep(step) {
+      log.push(`back:${step}`);
+      return 'Back.';
+    },
+    viewStep(target) {
+      log.push(`view:${target}`);
+      return 'Showing.';
+    },
+    async pauseActive(note) {
+      log.push(`pause:${note}`);
+      return 'Paused.';
+    },
+    async startNext() {
+      log.push('next');
+      return 'Started.';
+    },
+    async archiveQuest(id) {
+      log.push(`archive:${id}`);
+      return 'Archived.';
+    },
+    async cockpitUi(action, tab) {
+      log.push(`ui:${action}:${tab ?? ''}`);
+      return 'Done.';
+    },
+    async listWindows() {
+      return [
+        { id: '42', app: 'chrome', title: 'YouTube', state: 'normal' as const },
+      ];
+    },
+    async windowAction(id, action) {
+      log.push(`window:${id}:${action}`);
+      return 'Ok.';
+    },
+    async openApp(name) {
+      log.push(`app:${name}`);
+      return 'Opened.';
+    },
+    async openLink(url) {
+      log.push(`link:${url}`);
+      return 'Opened.';
+    },
+    async openFolder(p) {
+      log.push(`folder:${p}`);
+      return 'Opened.';
+    },
   };
   return { host, log, quest };
 }
@@ -204,6 +257,17 @@ test('plain reply: streams text, drives orb states, sends the documented request
       'save_as_template',
       'set_active_quest',
       'create_folder',
+      'change_settings',
+      'set_steps',
+      'go_back_to_step',
+      'view_step',
+      'quest_control',
+      'cockpit_ui',
+      'list_windows',
+      'window_control',
+      'open_app',
+      'open_link',
+      'open_folder',
       'end_session',
     ],
   );
@@ -223,7 +287,7 @@ test('plain reply: streams text, drives orb states, sends the documented request
   );
 });
 
-test('complete_objective asks the user, completes on confirm, and reports back', async () => {
+test('complete_objective completes right away (no confirmation) and reports back', async () => {
   const { companion, calls, events, log, answers } = setup([
     {
       text: 'Nice.',
@@ -236,11 +300,11 @@ test('complete_objective asks the user, completes on confirm, and reports back',
     },
     { text: 'Done. Gig copy next.' },
   ]);
-  answers.push(true);
+  void answers;
   await companion.send('research is done');
 
   assert.deepEqual(log, ['complete:Research what sells']);
-  assert.ok(kinds(events).includes('confirm'));
+  assert.ok(!kinds(events).includes('confirm'));
   assert.ok(events.some((e) => e.type === 'objective-completed'));
   const toolResult = calls[1].messages.at(-1).content[0];
   assert.equal(toolResult.type, 'tool_result');
@@ -249,26 +313,7 @@ test('complete_objective asks the user, completes on confirm, and reports back',
   assert.equal(calls[1].messages[2].content[0].signature, 'sig-1');
 });
 
-test('declining leaves the objective open; a wrong objective is refused without asking', async () => {
-  const declined = setup([
-    {
-      tools: [
-        {
-          name: 'complete_objective',
-          input: { objective: 'Research what sells' },
-        },
-      ],
-    },
-    { text: 'No problem.' },
-  ]);
-  declined.answers.push(false);
-  await declined.companion.send('mark it done');
-  assert.deepEqual(declined.log, []);
-  assert.equal(
-    declined.calls[1].messages.at(-1).content[0].content,
-    'Nick declined. The objective stays open.',
-  );
-
+test('a wrong objective is refused without asking', async () => {
   const wrong = setup([
     {
       tools: [
@@ -390,7 +435,7 @@ test('draft_quest validates and shows the card without writing anything', async 
   );
 });
 
-test('update_quest and create_folder ask first; outside-Documents folders are refused', async () => {
+test('update_quest and create_folder run directly; outside-Documents folders are refused', async () => {
   const { companion, log, answers, calls } = setup([
     {
       tools: [
@@ -401,13 +446,16 @@ test('update_quest and create_folder ask first; outside-Documents folders are re
     },
     { text: 'Done.' },
   ]);
-  answers.push(true, false);
+  void answers;
   await companion.send('rename objectives and make folders');
-  assert.deepEqual(log, ['update:q:{"objectives":["A","B"]}']);
-  const [upd, outside, declined] = calls[1].messages.at(-1).content;
+  assert.deepEqual(log, [
+    'update:q:{"objectives":["A","B"]}',
+    'mkdir:Fiverr/portfolio',
+  ]);
+  const [upd, outside, made] = calls[1].messages.at(-1).content;
   assert.equal(upd.content, 'Updated.');
   assert.equal(outside.is_error, true);
-  assert.equal(declined.content, 'Nick declined. No folder was created.');
+  assert.equal(made.content, 'Created.');
 });
 
 test('set_active_quest switches via the orchestrator', async () => {
@@ -460,4 +508,58 @@ test('spoken turns: per-message effort, append-only, back to the default after',
   assert.deepEqual(effortMsgs(1), ['low', 'medium']);
   await companion.send('another typed one'); // no change, nothing new
   assert.deepEqual(effortMsgs(2), ['low', 'medium']);
+});
+
+test('operating Cockpit: tools act directly; only closing a window asks', async () => {
+  const { companion, log, answers, events, calls } = setup([
+    {
+      tools: [
+        { name: 'change_settings', input: { skin: 'ember', volume: 40 } },
+        { name: 'set_steps', input: { all: true, done: false } },
+        { name: 'set_steps', input: { steps: [2], done: true, quest_id: 'q' } },
+        { name: 'go_back_to_step', input: { step: 1 } },
+        { name: 'view_step', input: { target: '2' } },
+        { name: 'quest_control', input: { action: 'pause', note: 'lunch' } },
+        { name: 'cockpit_ui', input: { action: 'open_settings', tab: 'keys' } },
+        {
+          name: 'window_control',
+          input: { window_id: '42', action: 'minimize' },
+        },
+        { name: 'open_app', input: { name: 'discord' } },
+        { name: 'open_link', input: { url: 'file:///c:/evil' } },
+      ],
+    },
+    {
+      tools: [
+        { name: 'window_control', input: { window_id: '42', action: 'close' } },
+      ],
+    },
+    {
+      tools: [
+        { name: 'window_control', input: { window_id: '42', action: 'close' } },
+      ],
+    },
+    { text: 'Done.' },
+  ]);
+  answers.push(false, true); // first close: no; second: yes
+  await companion.send('do all the things');
+  assert.deepEqual(log, [
+    'settings:{"skin":"ember","volume":40}',
+    'steps:"all":false:',
+    'steps:[2]:true:q',
+    'back:1',
+    'view:1', // step 2 -> 0-based 1
+    'pause:lunch',
+    'ui:open_settings:keys',
+    'window:42:minimize', // no question for minimize
+    'app:discord',
+    'window:42:close', // only after he said yes
+  ]);
+  assert.equal(events.filter((e) => e.type === 'confirm').length, 2);
+  const firstRound = calls[1].messages.at(-1).content;
+  assert.equal(firstRound.at(-1).is_error, true); // file:// link refused
+  assert.equal(
+    calls[2].messages.at(-1).content[0].content,
+    'Nick said no. The window stays open.',
+  );
 });

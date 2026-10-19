@@ -296,6 +296,8 @@ export interface CockpitApi {
   onWakeStatus(cb: (s: WakeStatusView) => void): () => void;
   /** The wake word fired: talking has started hands-free. */
   onTalkAuto(cb: () => void): () => void;
+  /** Echo changed the screen (open settings, journal, quest log). */
+  onUiCommand(cb: (cmd: UiCommand) => void): () => void;
   /** Global hotkeys Windows wouldn't give us (another app owns them). */
   hotkeyTrouble(): Promise<Partial<Record<HotkeyAction, string>>>;
   /** Settings: hear a voice say a sample line. */
@@ -352,4 +354,40 @@ export interface CompanionHost {
   voiceNow?(): VoiceNow;
   /** Log the session debrief and set the quest the next day starts with. */
   recordSession(summary: string, firstQuestId?: string): Promise<string>;
+
+  // ---- Operating Cockpit and his apps (Nick, 2026-10-19). Each returns a
+  // one-line result for the companion; failures come back as text too.
+  /** Raw change_settings input (validated by the host). */
+  changeSettings(input: Record<string, unknown>): Promise<string>;
+  setSteps(
+    which: number[] | 'all',
+    done: boolean,
+    id?: string,
+  ): Promise<string>;
+  goBackToStep(step: number): Promise<string>;
+  /** Look at a step (0-based) or prev/next/current; progress is unchanged. */
+  viewStep(target: number | 'prev' | 'next' | 'current'): string;
+  pauseActive(note: string): Promise<string>;
+  startNext(): Promise<string>;
+  archiveQuest(id: string): Promise<string>;
+  cockpitUi(action: string, tab?: string): Promise<string>;
+  listWindows(): Promise<AppWindow[]>;
+  windowAction(id: string, action: string): Promise<string>;
+  openApp(name: string): Promise<string>;
+  openLink(url: string): Promise<string>;
+  openFolder(path: string): Promise<string>;
 }
+
+/** One of Nick's other app windows (app/windows.ts). */
+export interface AppWindow {
+  id: string;
+  app: string;
+  title: string;
+  state: 'normal' | 'minimized' | 'maximized';
+}
+
+/** A screen change the companion asked for (main -> window). */
+export type UiCommand =
+  | { type: 'settings'; open: boolean; tab?: 'look' | 'voice' | 'keys' }
+  | { type: 'journal'; open: boolean }
+  | { type: 'questLog'; open: boolean };

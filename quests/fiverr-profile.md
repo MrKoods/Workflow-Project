@@ -65,8 +65,8 @@ steps:
       - { say: "And that's the quest. Your seller profile is live. I lined up the next one: your first gig. Ride the momentum, or take a breather?", stepDone: true, end: true }
       - replies: [{ label: "Take a breather", answer: "Earned it. I'll be right here." }, { label: "Ride it", answer: "That's the spirit. The gig editor will be waiting." }]
 ---
-- [ ] Create your seller account
-- [ ] Customize your profile
+- [x] Create your seller account
+- [x] Customize your profile
 - [ ] Add skills + languages
 - [ ] Verify + secure
 

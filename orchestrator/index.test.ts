@@ -622,3 +622,40 @@ test('settings: the companion name is cleaned', async () => {
   await orch.setSettings({ companionName: '' });
   assert.equal(orch.snapshot().settings.companionName, 'Nova');
 });
+
+test('echo: tick/untick steps, go back to a step, archive a quest', async () => {
+  await setup({
+    'a.md': quest('A', 'active', ['one', 'two', 'three']),
+    'b.md': quest('B', 'queued', ['b1']),
+  });
+  const done = () => orch.snapshot().current?.objectives.map((o) => o.done);
+
+  assert.match(await orch.setSteps([1, 2], true), /Ticked steps 1, 2 of "A"/);
+  assert.deepEqual(done(), [true, true, false]);
+  assert.match(await orch.setSteps([9], true), /numbered 1 to 3/);
+
+  // Untick all: back to the start.
+  await orch.setSteps('all', false);
+  assert.deepEqual(done(), [false, false, false]);
+
+  // Tick all: the quest finishes; unticking reopens it.
+  await orch.setSteps('all', true);
+  assert.match(await read('a.md'), /status: done/);
+  await orch.setSteps([3], false, 'a');
+  assert.match(await read('a.md'), /status: active/);
+  assert.doesNotMatch(await read('a.md'), /completedAt/);
+
+  // Go back to step 2: steps 2 and 3 open again.
+  await orch.setSteps('all', false);
+  await orch.setSteps([1, 2, 3], true);
+  await orch.setSteps([3], false);
+  assert.equal(await orch.goBackToStep(2), 'Back to step 2: two.');
+  assert.deepEqual(done(), [true, false, false]);
+
+  // Archive: moved, never deleted.
+  assert.match(await orch.archiveQuest('b'), /Archived "B"/);
+  assert.deepEqual(await readdir(path.join(root, 'quests', 'archive')), [
+    'b.md',
+  ]);
+  assert.ok(!orch.snapshot().queue.some((q) => q.id === 'b'));
+});

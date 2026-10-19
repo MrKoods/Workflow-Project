@@ -118,6 +118,8 @@ export function createFocus({
   // Swap (Nick, 2026-10-18): look at another step on the orbit. View and use
   // only: the script keeps its place and steps still finish in order.
   let peek: number | null = null;
+  // Steps the engine finished that are still being written to the quest file.
+  let completing = 0;
   const viewListeners = new Set<(v: FocusView | null) => void>();
   const voiceListeners = new Set<(level: number) => void>();
 
@@ -174,7 +176,10 @@ export function createFocus({
         ticks = { ...ticks, [id]: Math.min(max, (ticks[id] ?? 0) + 1) };
         publish();
       },
-      onStepDone: () => void completeStep(),
+      onStepDone: () => {
+        completing++;
+        void completeStep().finally(() => completing--);
+      },
       voice: (mode) => voiceFor(voiceSetting, q, mode),
       speak: speak
         ? (line) => speak(line, voiceFor(voiceSetting, q, e.mode()))
@@ -213,7 +218,10 @@ export function createFocus({
       if (sameQuest) {
         quest = q; // fresher resume note etc.
         const done = q.objectives.filter((o) => o.done).length;
-        if (done > engine!.state().doneSteps) begin(q);
+        // Steps done elsewhere (chat tool) or unticked (Echo going back): restart
+        // there. Not while the engine's own step is still being written.
+        const ahead = engine!.state().doneSteps;
+        if (done > ahead || (done < ahead && completing === 0)) begin(q);
         else if (voiceChanged) publish();
         return;
       }

@@ -527,6 +527,18 @@ export function mountOrbit(
     }
     render();
   });
+  // Echo opening / closing panels (main -> here).
+  api.onUiCommand((cmd) => {
+    if (cmd.type === 'journal') toggleJournal(cmd.open);
+    else if (cmd.type === 'questLog') {
+      logOpen = cmd.open;
+      if (logOpen) journal.setOpen(false);
+      render();
+    } else if (cmd.type === 'settings') {
+      if (cmd.open) settings.openTab(cmd.tab);
+      else settings.toggle(false);
+    }
+  });
   api.onTalkState((s) => {
     if (s.error && s.error !== talkState.error) toast(s.error);
     talkState = s;

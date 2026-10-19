@@ -8,6 +8,7 @@ import type {
   FocusView,
   SpeechMessageView,
   TalkStateView,
+  UiCommand,
   WakeStatusView,
 } from '../orchestrator/types';
 import { IPC } from './ipc';
@@ -54,6 +55,11 @@ const api: CockpitApi = {
     const listener = (_e: IpcRendererEvent, s: WakeStatusView) => cb(s);
     ipcRenderer.on(IPC.wakeStatus, listener);
     return () => ipcRenderer.removeListener(IPC.wakeStatus, listener);
+  },
+  onUiCommand(cb) {
+    const listener = (_e: IpcRendererEvent, cmd: UiCommand) => cb(cmd);
+    ipcRenderer.on(IPC.uiCommand, listener);
+    return () => ipcRenderer.removeListener(IPC.uiCommand, listener);
   },
   onTalkAuto(cb) {
     const listener = () => cb();

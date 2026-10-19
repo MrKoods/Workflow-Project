@@ -1,7 +1,14 @@
 // The orchestrator owns all quest state (CLAUDE.md rule 4). The UI only sees
 // snapshots and asks for changes through the preload bridge.
 import { watch, type FSWatcher } from 'node:fs';
-import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
+import {
+  access,
+  mkdir,
+  readdir,
+  readFile,
+  rename,
+  writeFile,
+} from 'node:fs/promises';
 import path from 'node:path';
 import {
   createFolders,
@@ -79,6 +86,12 @@ interface LocalState {
   /** Template id -> the local day a copy was last made (Phase 1 Task 7). */
   templates?: Record<string, string>;
 }
+
+const exists = (p: string) =>
+  access(p).then(
+    () => true,
+    () => false,
+  );
 
 export function createOrchestrator({
   questsDir,
@@ -727,6 +740,105 @@ export function createOrchestrator({
         return current
           ? `Paused "${current.title}" and started "${target.title}".`
           : `Started "${target.title}".`;
+      }),
+
+    /**
+     * Echo (2026-10-19): tick or untick steps. `which` = 1-based step numbers
+     * or 'all'; default quest = the one on screen. A finished quest that gets
+     * unticked opens again (active if nothing else is, else queued).
+     */
+    setSteps: (which: number[] | 'all', done: boolean, id?: string) =>
+      serial(async (): Promise<string> => {
+        await load();
+        const quest = id
+          ? quests.find((q) => q.id === id)
+          : (active() ?? quests.find((q) => q.id === justFinished));
+        if (!quest)
+          return id ? `No quest with id "${id}".` : 'No quest is on screen.';
+        const n = quest.objectives.length;
+        const idx =
+          which === 'all' ? [...Array(n).keys()] : which.map((k) => k - 1);
+        if (
+          !idx.length ||
+          idx.some((i) => !Number.isInteger(i) || i < 0 || i >= n)
+        )
+          return `Steps are numbered 1 to ${n}.`;
+        const list = quest.objectives.map((o, i) => ({
+          title: o.title,
+          done: idx.includes(i) ? done : o.done,
+        }));
+        await edit(quest.id, (t) => setObjectives(t, list));
+        const allDone = list.every((o) => o.done);
+        if (allDone && quest.status !== 'done') {
+          await edit(quest.id, (t) =>
+            setFrontmatter(t, {
+              status: 'done',
+              completedAt: now().toISOString(),
+            }),
+          );
+          await journal.add({
+            kind: 'finish',
+            questId: quest.id,
+            text: quest.title,
+          });
+          justFinished = quest.id;
+        } else if (!allDone && quest.status === 'done') {
+          const other = active();
+          await edit(quest.id, (t) =>
+            setFrontmatter(t, {
+              status: other ? 'queued' : 'active',
+              completedAt: undefined,
+            }),
+          );
+        }
+        const what =
+          which === 'all'
+            ? 'all steps'
+            : `step${idx.length > 1 ? 's' : ''} ${idx.map((i) => i + 1).join(', ')}`;
+        await journal.add({
+          kind: 'decision',
+          questId: quest.id,
+          text: `${done ? 'Ticked' : 'Unticked'} ${what} of "${quest.title}".`,
+        });
+        await reload();
+        return `${done ? 'Ticked' : 'Unticked'} ${what} of "${quest.title}".`;
+      }),
+
+    /** Echo: go back to step k and redo from there (unticks k and later). */
+    goBackToStep: async (k: number) => {
+      await serial(load);
+      const quest = active() ?? quests.find((q) => q.id === justFinished);
+      if (!quest) return 'No quest is on screen.';
+      const n = quest.objectives.length;
+      if (!Number.isInteger(k) || k < 1 || k > n)
+        return `Steps are numbered 1 to ${n}.`;
+      const later = [...Array(n - k + 1).keys()].map((i) => k + i);
+      const said = await orchestrator.setSteps(later, false, quest.id);
+      return said.startsWith('Unticked')
+        ? `Back to step ${k}: ${quest.objectives[k - 1].title}.`
+        : said;
+    },
+
+    /** Echo: archive a quest (moved to quests/archive/, never deleted). */
+    archiveQuest: (id: string) =>
+      serial(async (): Promise<string> => {
+        await load();
+        const quest = quests.find((q) => q.id === id);
+        if (!quest) return `No quest with id "${id}".`;
+        const dir = path.join(questsDir, 'archive');
+        await mkdir(dir, { recursive: true });
+        let target = path.join(dir, `${id}.md`);
+        for (let n = 2; await exists(target); n++)
+          target = path.join(dir, `${id}-${n}.md`);
+        await rename(fileOf(id), target);
+        if (justFinished === id) justFinished = null;
+        await journal.add({
+          kind: 'decision',
+          questId: id,
+          text: `Archived "${quest.title}" (quests/archive/).`,
+        });
+        await reload();
+        return `Archived "${quest.title}". It's in quests/archive/ if you want it back.`;
       }),
 
     /** Resolve a folder for create_folder: must be inside Documents. */

@@ -23,6 +23,7 @@ import {
 } from '../orchestrator/companion.ts';
 import { createOrchestrator } from '../orchestrator/index.ts';
 import { createMeasureLog } from '../orchestrator/measure.ts';
+import { createEchoHost } from './echoHost.ts';
 import {
   createWakeListener,
   type WakeListener,
@@ -505,7 +506,14 @@ const connectOrchestrator = async () => {
   let turn: { start: number; firstText: number } | null = null;
   let spoken = ''; // Claude's reply text not yet spoken (an unfinished sentence)
   companion = createCompanion({
-    host: orchestrator,
+    // Echo operates all of Cockpit and his other apps (Nick, 2026-10-19).
+    host: createEchoHost({
+      orchestrator,
+      window: () => win,
+      showWindow,
+      sendUi: (cmd) => win?.webContents.send(IPC.uiCommand, cmd),
+      hotkeyTrouble: () => ({ ...hotkeyTrouble }),
+    }),
     emit: (event) => {
       lastChatEvent = event.type;
       // Latency matters for a talking companion (FEATURES §7 #3): log it.

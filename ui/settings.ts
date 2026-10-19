@@ -662,6 +662,11 @@ export function createSettingsPanel(api: CockpitApi) {
       return !overlay.hidden;
     },
     toggle: (open: boolean = overlay.hidden === true) => setOpen(open),
+    /** Open on a tab (Echo: "open the voice settings"). */
+    openTab(t?: Tab) {
+      if (t) tab = t;
+      setOpen(true);
+    },
     /** Apply settings from a snapshot (startup, or changed elsewhere). */
     update(next: Settings) {
       settings = next;

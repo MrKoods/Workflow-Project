@@ -42,23 +42,39 @@ How you work:
 - If he drifts off the quest, name it once and offer to park the quest or come back. Don't repeat it.
 - Never say you did something unless a tool call did it.
 
+You can operate all of Cockpit and his Windows apps (Nick, 2026-10-19: "full range"). When he asks you to change something, do it with a tool right away and then say what you did in a few words; don't ask "are you sure?". The tools themselves ask him only before closing another app's window (unsaved work could be lost).
+
 Tools:
 - get_current_quest: full detail of the active quest, when the live state isn't enough.
-- complete_objective: when he says the current objective is done. Cockpit asks him to confirm on screen. Only the current objective can be completed; if he declines, leave it open.
+- complete_objective: when he says the current objective is done.
 - add_journal_entry: record a decision, a blocker or where he left off, in one or two sentences.
 - open_bundle_item: open one of the quest's folders, sites or apps, using the exact entry from the bundle.
 
 Creating quests (Quest Forge): when Nick wants a new quest (he may start with "new quest:"), draft it right away with draft_quest if you can make a reasonable draft, and say briefly which assumptions he may want to change (done-when, folder, sites); the card is editable. Ask clarifying questions first only when you can't draft anything sensible, at most three. Cockpit shows the draft as a card he can edit, then Accept or Discard; you never write the file yourself. Aim for 3-7 concrete objectives, each a step he can finish in one sitting. When he asks for a change ("change objective 2 to ..."), call draft_quest again with the full revised draft. After he accepts, the new quest shows up in the live state.
-- update_quest: change the title, done-when or objectives of an existing quest. He confirms on screen.
-- save_as_template: make a quest recurring (e.g. pre-market prep "weekdays 08:30"). He confirms on screen.
+- update_quest: change the title, done-when or objectives of an existing quest.
+- save_as_template: make a quest recurring (e.g. pre-market prep "weekdays 08:30").
 - set_active_quest: switch to another quest. The current one is paused with a resume note and the new one's bundle opens. Use it when he says to start or switch to a quest.
-- create_folder: create a folder inside his Documents folder, for example for a new quest's bundle. He confirms on screen.
+- create_folder: create a folder inside his Documents folder, for example for a new quest's bundle.
+
+Operating Cockpit:
+- change_settings: color skin, voice style (auto/steady/playful), speaking on/off, volume, your name, wake word on/off, calm mode, the Playful and Steady voices, hotkeys. The live state lists the current values.
+- set_steps: tick or untick steps (by number, or all) of the quest on screen or another quest. Unticking a finished quest opens it again.
+- go_back_to_step: go back to step N and redo from there (unticks N and the steps after it).
+- view_step: look at another step's cards without changing progress (or back to the current one).
+- quest_control: pause the quest (with a note), resume or start a specific quest, start the next one, or archive a quest (moved to quests/archive/, never deleted).
+- cockpit_ui: open or close Settings (on a tab), the journal or the quest log; show, hide or minimize Cockpit.
+
+His other apps:
+- list_windows: the open windows (id, app, title, state). Call it before acting on a window; ids change.
+- window_control: minimize, restore, maximize, focus or close a window by id. Close asks him first.
+- open_app: open an installed app by name (from his Start menu).
+- open_link / open_folder: open a web page (http/https) in his browser, or a folder in Explorer.
 
 Voice: the live state names the voice to use right now. Playful: warm, a little humor, small talk welcome. Steady: he is working on a step, so answer in one to three short sentences, plain, on the step, no jokes or small talk; offer more only if he asks. Follow it even if earlier replies used the other voice.
 
 Ending a session: when he ends the session or says he's wrapping up, give a short debrief (what got done, what's left, anything worth carrying into tomorrow), then call end_session with a two-to-four sentence summary and the id of the quest tomorrow should start with: usually the active quest if it's unfinished, otherwise the next in the quest log. Mention which one you picked so he can change it.
 
-You can't send messages, submit forms, delete anything, touch accounts or money, or place trades; those stay with Nick. Market data and analysis are fine, trading orders never.`;
+You can't send messages, submit forms, delete files, touch accounts or money, or place trades; those stay with Nick. Market data and analysis are fine, trading orders never.`;
 
 const tool = (
   name: string,
@@ -81,7 +97,7 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
   ),
   tool(
     'complete_objective',
-    "Mark the active quest's current objective as done. Cockpit asks the user to confirm on screen first; the result says whether they confirmed.",
+    "Mark the active quest's current objective as done.",
     {
       objective: {
         type: 'string',
@@ -139,7 +155,7 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
   ),
   tool(
     'update_quest',
-    'Change the title, done-when and/or objectives of an existing quest. The user confirms on screen. Objectives replace the whole list; unchanged titles keep their done state.',
+    'Change the title, done-when and/or objectives of an existing quest. Objectives replace the whole list; unchanged titles keep their done state.',
     {
       id: {
         type: 'string',
@@ -153,7 +169,7 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
   ),
   tool(
     'save_as_template',
-    'Save a quest as a recurring template: on its scheduled days a fresh copy (nothing ticked) appears in the quest log. The user confirms on screen.',
+    'Save a quest as a recurring template: on its scheduled days a fresh copy (nothing ticked) appears in the quest log.',
     {
       id: { type: 'string', description: 'Quest id.' },
       schedule: {
@@ -172,7 +188,7 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
   ),
   tool(
     'create_folder',
-    "Create a folder inside the user's Documents folder. The user confirms on screen.",
+    "Create a folder inside the user's Documents folder.",
     {
       path: {
         type: 'string',
@@ -180,6 +196,152 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
           'Path relative to Documents (e.g. "Fiverr/portfolio") or a full path inside it.',
       },
     },
+    ['path'],
+  ),
+  tool(
+    'change_settings',
+    'Change Cockpit settings. Give only the fields to change. Reports what changed and anything that was refused.',
+    {
+      skin: {
+        type: 'string',
+        description:
+          'Color skin id: aqua, ember, nebula, aurora, frost, crimson, eclipse.',
+      },
+      voice_style: { type: 'string', enum: ['auto', 'steady', 'playful'] },
+      speech: {
+        type: 'boolean',
+        description: 'Speak out loud (false = captions only).',
+      },
+      volume: {
+        type: 'number',
+        description: 'Speech volume in percent, 0-100.',
+      },
+      name: { type: 'string', description: 'Your own name (the companion).' },
+      wake_word: { type: 'boolean' },
+      calm: {
+        type: 'boolean',
+        description: 'Calm mode (slower, quieter motion).',
+      },
+      playful_voice: {
+        type: 'string',
+        description: 'thalia, apollo, aries, atlas or hermes.',
+      },
+      steady_voice: {
+        type: 'string',
+        description: 'thalia, apollo, aries, atlas or hermes.',
+      },
+      hotkeys: {
+        type: 'object',
+        description:
+          'Action -> key combo, e.g. {"journal": "J", "talkToggle": "Ctrl+Alt+B"}. Actions: toggleWindow, quit, talkToggle, pushToTalk, stepPrev, stepNext, stepCurrent, newQuest, journal, working, mute, calm, nextSkin, settings, debugCompanion. "default" resets one.',
+        additionalProperties: { type: 'string' },
+      },
+    },
+  ),
+  tool(
+    'set_steps',
+    'Tick or untick steps. Steps are numbered from 1. Default quest: the one on screen.',
+    {
+      steps: {
+        type: 'array',
+        items: { type: 'integer' },
+        description: 'Step numbers. Omit when all is true.',
+      },
+      all: { type: 'boolean', description: 'All steps.' },
+      done: { type: 'boolean', description: 'true = tick, false = untick.' },
+      quest_id: { type: 'string' },
+    },
+    ['done'],
+  ),
+  tool(
+    'go_back_to_step',
+    'Go back to step N of the quest on screen and redo from there (unticks N and every later step).',
+    { step: { type: 'integer' } },
+    ['step'],
+  ),
+  tool(
+    'view_step',
+    "Show another step's cards on the orbit without changing progress. target: a step number, or prev / next / current.",
+    {
+      target: {
+        type: 'string',
+        description: 'A step number, "prev", "next" or "current".',
+      },
+    },
+    ['target'],
+  ),
+  tool(
+    'quest_control',
+    'pause (note optional), resume (quest_id: start/resume that quest, pausing the current one), start_next (first queued quest when nothing is active), archive (quest_id; moved to quests/archive/).',
+    {
+      action: {
+        type: 'string',
+        enum: ['pause', 'resume', 'start_next', 'archive'],
+      },
+      quest_id: { type: 'string' },
+      note: { type: 'string', description: 'For pause: where he left off.' },
+    },
+    ['action'],
+  ),
+  tool(
+    'cockpit_ui',
+    "Cockpit's own screen and window.",
+    {
+      action: {
+        type: 'string',
+        enum: [
+          'open_settings',
+          'close_settings',
+          'open_journal',
+          'close_journal',
+          'open_quest_log',
+          'close_quest_log',
+          'show',
+          'hide',
+          'minimize',
+        ],
+      },
+      tab: {
+        type: 'string',
+        enum: ['look', 'voice', 'keys'],
+        description: 'For open_settings.',
+      },
+    },
+    ['action'],
+  ),
+  tool(
+    'list_windows',
+    "List his open app windows (not Cockpit's own): id, app, title, state.",
+    {},
+  ),
+  tool(
+    'window_control',
+    'Minimize, restore, maximize, focus or close one of his windows (id from list_windows). Close asks him first.',
+    {
+      window_id: { type: 'string' },
+      action: {
+        type: 'string',
+        enum: ['minimize', 'restore', 'maximize', 'focus', 'close'],
+      },
+    },
+    ['window_id', 'action'],
+  ),
+  tool(
+    'open_app',
+    'Open an installed app by name, e.g. "chrome", "discord", "visual studio code" (Start menu shortcuts only).',
+    { name: { type: 'string' } },
+    ['name'],
+  ),
+  tool(
+    'open_link',
+    'Open a web page (http or https) in his default browser.',
+    { url: { type: 'string' } },
+    ['url'],
+  ),
+  tool(
+    'open_folder',
+    'Open an existing folder in Explorer (e.g. "~/Documents/Fiverr").',
+    { path: { type: 'string' } },
     ['path'],
   ),
   tool(
@@ -212,8 +374,13 @@ export function describeState(
     hour: 'numeric',
     minute: '2-digit',
   });
-  const name = host.snapshot().settings?.companionName;
+  const s = host.snapshot().settings;
+  const name = s?.companionName;
   const lines = [`Live state, ${time}.`];
+  if (s)
+    lines.push(
+      `Settings: skin ${s.palette}, voice style ${s.voice}, speaking ${s.speech ? `on (${Math.round(s.volume * 100)}%)` : 'off'}, playful voice ${s.voicePlayful.replace(/^aura-2-|-en$/g, '')}, steady voice ${s.voiceSteady.replace(/^aura-2-|-en$/g, '')}, wake word ${s.wakeWord ? 'on' : 'off'}, calm ${s.calm ? 'on' : 'off'}${Object.keys(s.hotkeys ?? {}).length ? `, custom keys ${JSON.stringify(s.hotkeys)}` : ''}.`,
+    );
   if (name)
     lines.push(
       `Your name is ${name}; Nick calls you that. (The wake word is set separately in Settings; don't assume it.)`,
@@ -371,10 +538,6 @@ export function createCompanion({
             is_error: true,
           };
         }
-        setState('waiting'); // the confirmation is the user's move
-        const ok = await askUser(`Mark "${title}" complete?`);
-        setState('working');
-        if (!ok) return { content: 'Nick declined. The objective stays open.' };
         const result = await host.completeObjective();
         if (!result)
           return { content: 'Nothing was completed.', is_error: true };
@@ -450,18 +613,7 @@ export function createCompanion({
         );
         if (!quest)
           return { content: `No open quest with id "${id}".`, is_error: true };
-        const summary = [
-          changes.title && `title → "${changes.title}"`,
-          changes.doneWhen && `done when → "${changes.doneWhen}"`,
-          changes.objectives &&
-            `objectives → ${changes.objectives.map((o, i) => `${i + 1}. ${o}`).join('; ')}`,
-        ]
-          .filter(Boolean)
-          .join(', ');
-        setState('waiting');
-        const ok = await askUser(`Update "${quest.title}": ${summary}?`);
-        setState('working');
-        if (!ok) return { content: 'Nick declined. The quest is unchanged.' };
+        // In-app and undoable: no confirmation (Nick, 2026-10-19).
         const said = await host.updateQuest(id, changes);
         emit({ type: 'action', text: said });
         return { content: said };
@@ -475,12 +627,6 @@ export function createCompanion({
             content: 'id and schedule (strings) are required.',
             is_error: true,
           };
-        setState('waiting');
-        const ok = await askUser(
-          `Save this quest as a template that comes back ${schedule}?`,
-        );
-        setState('working');
-        if (!ok) return { content: 'Nick declined. No template was saved.' };
         const said = await host.saveTemplate(id, schedule);
         emit({ type: 'action', text: said });
         return { content: said };
@@ -524,11 +670,169 @@ export function createCompanion({
             is_error: true,
           };
         }
-        setState('waiting');
-        const ok = await askUser(`Create folder ${full}?`);
-        setState('working');
-        if (!ok) return { content: 'Nick declined. No folder was created.' };
         const said = await host.createFolder(folder);
+        emit({ type: 'action', text: said });
+        return { content: said };
+      }
+
+      // ---- Operating Cockpit (Nick, 2026-10-19: no confirmation) --------------
+      case 'change_settings': {
+        const said = await host.changeSettings(input);
+        emit({ type: 'action', text: said });
+        return { content: said };
+      }
+
+      case 'set_steps': {
+        if (typeof input.done !== 'boolean')
+          return { content: 'done (boolean) is required.', is_error: true };
+        const all = input.all === true;
+        const steps = input.steps;
+        if (
+          !all &&
+          (!Array.isArray(steps) ||
+            !steps.length ||
+            !steps.every((s) => Number.isInteger(s)))
+        )
+          return {
+            content: 'Give steps (a list of step numbers) or all: true.',
+            is_error: true,
+          };
+        const id =
+          input.quest_id == null ? undefined : str(input.quest_id, 200);
+        const said = await host.setSteps(
+          all ? 'all' : (steps as number[]),
+          input.done,
+          id || undefined,
+        );
+        emit({ type: 'action', text: said });
+        return { content: said };
+      }
+
+      case 'go_back_to_step': {
+        if (!Number.isInteger(input.step))
+          return { content: 'step (integer) is required.', is_error: true };
+        const said = await host.goBackToStep(input.step as number);
+        emit({ type: 'action', text: said });
+        return { content: said };
+      }
+
+      case 'view_step': {
+        const target = str(input.target, 20)?.toLowerCase();
+        const n = Number(target);
+        const t =
+          target === 'prev' || target === 'next' || target === 'current'
+            ? target
+            : Number.isInteger(n) && n >= 1
+              ? n - 1
+              : null;
+        if (t === null)
+          return {
+            content: 'target must be a step number, prev, next or current.',
+            is_error: true,
+          };
+        return { content: host.viewStep(t) };
+      }
+
+      case 'quest_control': {
+        const action = str(input.action, 20);
+        const id =
+          input.quest_id == null ? '' : (str(input.quest_id, 200) ?? '');
+        let said: string;
+        if (action === 'pause')
+          said = await host.pauseActive(str(input.note, 500) ?? '');
+        else if (action === 'resume') {
+          if (!id)
+            return {
+              content: 'quest_id is required to resume.',
+              is_error: true,
+            };
+          said = await host.switchQuest(id);
+        } else if (action === 'start_next') said = await host.startNext();
+        else if (action === 'archive') {
+          if (!id)
+            return {
+              content: 'quest_id is required to archive.',
+              is_error: true,
+            };
+          said = await host.archiveQuest(id);
+        } else
+          return {
+            content: 'action must be pause, resume, start_next or archive.',
+            is_error: true,
+          };
+        emit({ type: 'action', text: said });
+        return { content: said };
+      }
+
+      case 'cockpit_ui': {
+        const said = await host.cockpitUi(
+          str(input.action, 30) ?? '',
+          str(input.tab, 10) ?? undefined,
+        );
+        return { content: said };
+      }
+
+      case 'list_windows': {
+        const windows = await host.listWindows();
+        return {
+          content: windows.length
+            ? JSON.stringify(windows)
+            : 'No other app windows are open.',
+        };
+      }
+
+      case 'window_control': {
+        const id = str(input.window_id, 30);
+        const action = str(input.action, 20);
+        if (!id || !action)
+          return {
+            content: 'window_id and action are required.',
+            is_error: true,
+          };
+        if (action === 'close') {
+          // Still asks (CLAUDE.md rule 2): closing can lose unsaved work.
+          const win = (await host.listWindows()).find((w) => w.id === id);
+          if (!win)
+            return {
+              content: 'No such window (ids change; call list_windows again).',
+              is_error: true,
+            };
+          setState('waiting');
+          const ok = await askUser(
+            `Close "${win.title}" (${win.app})? Anything unsaved there could be lost.`,
+          );
+          setState('working');
+          if (!ok) return { content: 'Nick said no. The window stays open.' };
+        }
+        const said = await host.windowAction(id, action);
+        emit({ type: 'action', text: said });
+        return { content: said };
+      }
+
+      case 'open_app': {
+        const name = str(input.name, 100);
+        if (!name) return { content: 'name is required.', is_error: true };
+        const said = await host.openApp(name);
+        emit({ type: 'action', text: said });
+        return { content: said };
+      }
+
+      case 'open_link': {
+        const url = str(input.url, 2000);
+        if (!url || !/^https?:\/\//i.test(url))
+          return {
+            content: 'Only http(s) links can be opened.',
+            is_error: true,
+          };
+        const said = await host.openLink(url);
+        emit({ type: 'action', text: said });
+        return { content: said };
+      }
+
+      case 'open_folder': {
+        const folder = str(input.path, 500);
+        if (!folder) return { content: 'path is required.', is_error: true };
+        const said = await host.openFolder(folder);
         emit({ type: 'action', text: said });
         return { content: said };
       }

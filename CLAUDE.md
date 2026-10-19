@@ -25,7 +25,7 @@ Full specs live in `docs/`:
 
 ## Ground rules for the code
 1. **One active quest at a time.** Everything else is queued.
-2. **Permission tiers for anything an agent does:** Read (free) · Prep (free, undoable, sandboxed) · Act (send/submit/delete/accounts/money — always asks the user, every time).
+2. **Permission tiers for anything an agent does:** Read (free) · Prep (free, undoable, sandboxed) · Act (send/submit/delete/accounts/money — always asks the user, every time). **The companion operating Cockpit itself is free (Nick, 2026-10-19):** settings, quest/step state, panels, its own window, and other apps' windows (minimize/restore/maximize/focus/open) need no confirmation because they're undoable. Still Act (asks every time): closing another app's window, deleting files, anything that sends, submits or spends. Quests are archived, never deleted.
 3. **No trading orders from agents, ever.** Market data/analysis only.
 4. **One local orchestrator owns all state.** The UI never talks to agents or external APIs directly; the permission gate lives in the orchestrator.
 5. **Palettes can't leak.** Adding a color skin = adding one JSON file in `skins/palettes/`. If it needs a CSS or component edit, fix the component.
