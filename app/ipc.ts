@@ -19,4 +19,5 @@ export const IPC = {
   focus: 'cockpit:focus',
   voice: 'cockpit:voice',
   reply: 'cockpit:reply',
+  itemAction: 'cockpit:item-action',
 } as const;

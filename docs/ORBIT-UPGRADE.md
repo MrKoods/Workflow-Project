@@ -31,7 +31,7 @@ Rules from CLAUDE.md still apply. Work top to bottom; the app must still start a
 - [x] Add `skins/palettes/` with the 7 JSON files from `reference/palettes/`.
 - [x] Add `ui/palette.ts` from `reference/palette.ts`. Load the saved palette at startup (default `aqua`) and apply it to the root element.
 - [x] Settings → **Color skin**: 7 swatch buttons (gradient accent→reply), live switch, persisted in `Settings.palette`. Debug hotkey `Ctrl+Shift+P` cycles palettes.
-- [ ] Remove the old Frostbound tokens/styles once nothing references them (keep the files in git history only). *(Deferred to Task 5: the legacy HUD still uses Frostbound fonts/shapes; its colors already come from the palette via `ui/hud/legacyPalette.ts`.)*
+- [x] Remove the old Frostbound tokens/styles once nothing references them (keep the files in git history only). *(Done in Task 5, with the legacy HUD.)*
 - **Done when:** switching palettes recolors the whole screen instantly, survives a restart, and `grep` finds no hue hex colors in `ui/` outside `skins/palettes/`.
 
 ## Task 3: Quest file v2 (backward compatible)
@@ -51,15 +51,15 @@ Rules from CLAUDE.md still apply. Work top to bottom; the app must still start a
 - **Done when:** a headless test plays the demo quest by sending replies ("yeah", "done"…) and asserts the sequence of `hero` items: acct → profile → skills → verify → companion, with `doneSteps` = 4 and `complete` = true.
 
 ## Task 5: Orbit layout UI
-- [ ] Port `reference/orbit.css` into the app's stylesheet. Keep the class names; it already reads only CSS variables.
-- [ ] Build the DOM to match `reference/markup-snapshot.html`:
+- [x] Port `reference/orbit.css` into the app's stylesheet. Keep the class names; it already reads only CSS variables.
+- [x] Build the DOM to match `reference/markup-snapshot.html`:
   - Root: `.fx.orbt` + `mode` (`m-comp` / `m-task`) + `s-<companionState>`.
   - Orbit: `.orbit` with `style="--rot: <orbitDeg>deg; --step-angle: <360/N>deg"`, two `.ring`s, 12 `.mote`s (`--j: 0..11`), one `.pln` per step (`--k`, class = planet state), and the `.tether`.
   - Companion: `.comp` containing the Bloom `<canvas>`. Caption: `.capx` (companion or "You" line). Reply chips: `.chipsx`. Say box: `.sayx`.
   - **One stable element per item** (`.it` + its state class). Do not unmount/remount items when their state changes; the CSS transitions do all the motion (pop out, glide, tuck back).
-- [ ] Item rendering by type: `link` = browser-bar preview + preview rows + CTA; `checklist` = boxes with ✓ count; `draft` = text + Copy; `tags` = pills + Copy all.
-- [ ] Item CTAs: `link` opens the URL in the default browser (existing bundle-opening code); `draft`/`tags` copy to clipboard; the companion says one short confirmation line.
-- [ ] Remove the old HUD screen once Orbit runs the demo quest (keep it behind a `legacyHud` flag until then).
+- [x] Item rendering by type: `link` = browser-bar preview + preview rows + CTA; `checklist` = boxes with ✓ count; `draft` = text + Copy; `tags` = pills + Copy all.
+- [x] Item CTAs: `link` opens the URL in the default browser (existing bundle-opening code); `draft`/`tags` copy to clipboard; the companion says one short confirmation line.
+- [x] Remove the old HUD screen once Orbit runs the demo quest (keep it behind a `legacyHud` flag until then). *(Orbit ran the demo end to end before removal, so no flag was needed; git history is the rollback.)*
 - **Done when:** the demo quest looks like the "Orbit" board on the canvas: planets turn to the front in order, the current step's card pops out from the front of the orbit, done steps show ✓, and nothing jumps or re-mounts.
 
 ## Task 6: Bloom companion

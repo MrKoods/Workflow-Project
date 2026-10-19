@@ -386,6 +386,33 @@ export function createOrchestrator({
     /** Show the user's free-text line as the caption (it went to Claude instead). */
     focusSay: (text: string) => focus.say(text),
 
+    /**
+     * An item's button: a link opens in the browser (http/https only); a
+     * draft or tags item returns the text to copy. Only items of the quest
+     * on screen, so the UI can't open arbitrary URLs.
+     */
+    itemAction: (itemId: string) =>
+      serial(async (): Promise<{ copy?: string } | null> => {
+        const quest = snapshot().current;
+        const item = quest?.items[itemId];
+        if (!quest || !item) return null;
+        if (item.type === 'link') {
+          if (!/^https?:\/\//i.test(item.url)) return null;
+          await opener.openExternal(item.url);
+          focus.note("Opened it in your browser. I'm right here.");
+          return {};
+        }
+        if (item.type === 'draft') {
+          focus.note('Copied. Paste it in.');
+          return { copy: item.text };
+        }
+        if (item.type === 'tags') {
+          focus.note(`All ${item.tags.length} copied.`);
+          return { copy: item.tags.join(', ') };
+        }
+        return null;
+      }),
+
     onChange(fn: (s: CockpitSnapshot) => void) {
       listeners.add(fn);
       return () => listeners.delete(fn);

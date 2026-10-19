@@ -1,0 +1,307 @@
+/* Orbit shell: page base, reduced motion, and the Phase 0 extras (control
+   row, notices, pause, quest log, journal, Quest Forge) restyled to the
+   palette. Palette variables only (SKINS.md); neutral black/white is fine. */
+@import '@fontsource/bricolage-grotesque/500.css';
+@import '@fontsource/bricolage-grotesque/700.css';
+@import '@fontsource/manrope/400.css';
+@import '@fontsource/manrope/500.css';
+@import '@fontsource/manrope/600.css';
+@import '@fontsource/manrope/700.css';
+@import '@fontsource/manrope/800.css';
+@import '@fontsource/newsreader/400.css';
+@import '@fontsource/newsreader/500.css';
+@import '@fontsource/newsreader/400-italic.css';
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+body {
+  background: black;
+  overflow: hidden;
+}
+.fx.orbt {
+  min-height: 100vh;
+}
+
+/* Reduced motion = calm mode (CLAUDE.md rule 7). */
+@media (prefers-reduced-motion: reduce) {
+  .orbt *,
+  .orbt *::before,
+  .orbt *::after {
+    animation-duration: 0s !important;
+    transition-duration: 0.01s !important;
+  }
+}
+
+/* ---- top-right control row ---------------------------------------------- */
+.orbt .ctrlx {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 60%;
+}
+.orbt .pl {
+  background: var(--chipbg);
+}
+.orbt .pl:hover {
+  border-color: var(--acc);
+}
+.orbt .pl[hidden] {
+  display: none;
+}
+.xpx {
+  font: 700 11px var(--lf);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--acc2);
+  margin-right: 6px;
+}
+/* The Settings panel's own floating button is replaced by the control row. */
+.settings-btn {
+  display: none;
+}
+.settings-panel {
+  font-family: var(--bf);
+}
+
+/* ---- "I'm working" chip --------------------------------------------------- */
+.chp.working {
+  border-color: var(--acc);
+  background: var(--chipbg);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- notices and pause ---------------------------------------------------- */
+.noticex,
+.pausex {
+  position: absolute;
+  z-index: 20;
+  top: 78px;
+  right: 32px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(560px, 60vw);
+  padding: 10px 12px 10px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  background: var(--saybg);
+  color: var(--text);
+  font: 500 14px var(--bf);
+}
+.noticex[hidden],
+.pausex[hidden] {
+  display: none;
+}
+.pausex .field {
+  min-width: 280px;
+}
+
+/* ---- shared field / button classes used by the Phase 0 panels ------------ */
+.orbt .eyebrow {
+  display: block;
+  font: 700 10px var(--lf);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.orbt .field {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--edge);
+  background: rgba(var(--card), 0.8);
+  color: var(--text);
+  font: 400 14px var(--bf);
+  outline: none;
+}
+.orbt .field:focus {
+  border-color: var(--acc);
+}
+.orbt .field-area {
+  resize: vertical;
+}
+.orbt .btn-link {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  background: transparent;
+  color: var(--text);
+  font: 600 12px var(--bf);
+  cursor: pointer;
+}
+.orbt .btn-link:hover {
+  border-color: var(--acc);
+}
+.orbt .btn-link:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.orbt .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--acc);
+  color: var(--acctext);
+  font: 700 13px var(--bf);
+  cursor: pointer;
+}
+.orbt .btn-icon {
+  display: none;
+}
+
+/* ---- panels: quest log, journal, Quest Forge ------------------------------ */
+.orbt .quest-log,
+.orbt .journal-panel,
+.orbt .forge {
+  position: absolute;
+  z-index: 22;
+  margin: 0;
+  border: 1px solid var(--edge);
+  border-radius: 20px;
+  background: rgba(var(--card), 0.97);
+  color: var(--text);
+  box-shadow: 0 40px 90px -30px black;
+  font: 400 14px var(--bf);
+}
+.orbt .quest-log[hidden],
+.orbt .journal-panel[hidden],
+.orbt .forge[hidden] {
+  display: none;
+}
+.orbt .quest-log {
+  top: 78px;
+  right: 32px;
+  width: 400px;
+  list-style: none;
+  padding: 10px;
+}
+.orbt .quest-log:empty::before {
+  content: 'Nothing queued.';
+  display: block;
+  padding: 10px;
+  color: var(--muted);
+}
+.orbt .quest-log-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 12px;
+}
+.orbt .quest-log-item + .quest-log-item {
+  border-top: 1px solid var(--edge);
+}
+.orbt .quest-log-title {
+  flex: 1;
+}
+.orbt .quest-log-tag {
+  font: 700 9px var(--lf);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--acc2);
+}
+.orbt .journal-panel {
+  top: 78px;
+  right: 32px;
+  bottom: 170px;
+  width: 440px;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px;
+}
+.orbt .journal-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.orbt .journal-eyebrow {
+  flex: 1;
+}
+.orbt .journal-tomorrow {
+  margin: 10px 0 0;
+  color: var(--acc2);
+}
+.orbt .journal-empty {
+  color: var(--muted);
+}
+.orbt .journal-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.orbt .journal-entry {
+  display: grid;
+  grid-template-columns: 64px 84px 1fr;
+  gap: 8px;
+  padding: 7px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.orbt .journal-time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.orbt .journal-kind {
+  font: 700 9px/1.9 var(--lf);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--acc);
+}
+.orbt .forge {
+  top: 84px;
+  left: calc(50% - 280px);
+  width: 560px;
+  max-height: calc(100% - 260px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px;
+}
+.orbt .forge-body {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.orbt .forge-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.orbt .forge-objectives {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.orbt .forge-objective {
+  display: flex;
+  gap: 8px;
+}
+.orbt .forge-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.orbt .forge-actions[hidden] {
+  display: none;
+}
+.orbt .forge-error {
+  margin: 0;
+  color: var(--acc2);
+}
+.orbt .forge-error:empty {
+  display: none;
+}

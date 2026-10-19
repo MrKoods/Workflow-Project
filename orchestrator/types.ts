@@ -149,7 +149,7 @@ export interface QueueItem {
 }
 
 export interface CockpitSnapshot {
-  /** The active quest, or the one just finished this session (so the HUD can show "Quest complete"). */
+  /** The active quest, or the one just finished this session (so Orbit can show "Quest complete"). */
   current: Quest | null;
   /** Paused quests first, then queued, each in file-name order. */
   queue: QueueItem[];
@@ -227,6 +227,8 @@ export interface CockpitApi {
   onVoice(cb: (level: number) => void): () => void;
   /** Reply chip or Say box: goes to the engine if it's waiting, else to Claude. */
   reply(text: string): Promise<void>;
+  /** An item's button (open link / copy draft or tags). */
+  itemAction(itemId: string): Promise<void>;
   /** Merge and persist settings (palette, voice, calm); the new snapshot follows. */
   setSettings(patch: Partial<Settings>): Promise<Settings>;
 }

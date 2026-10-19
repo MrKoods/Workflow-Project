@@ -1,6 +1,7 @@
 import {
   app,
   BrowserWindow,
+  clipboard,
   globalShortcut,
   ipcMain,
   Menu,
@@ -155,14 +156,14 @@ const createWindow = () => {
       }
     };
     // In dev, Vite can reload the page once while it optimizes dependencies,
-    // so wait for the HUD to be mounted and no reload for 2.5 s.
+    // so wait for Orbit to be mounted and no reload for 2.5 s.
     let lastLoad = Date.now();
     win.webContents.on('did-finish-load', () => (lastLoad = Date.now()));
     win.webContents.once('did-finish-load', async () => {
       for (let t = 0; t < 120; t++) {
         await wait(500);
         const mounted = await win?.webContents
-          .executeJavaScript('!!document.querySelector(".hotbar")')
+          .executeJavaScript('!!document.querySelector(".orbt")')
           .catch(() => false);
         if (mounted && Date.now() - lastLoad > 2500) break;
       }
@@ -184,6 +185,55 @@ const createWindow = () => {
           await press(process.env.COCKPIT_SCREENSHOT_AFTER_KEYS);
           await settleChat();
         }
+      }
+      // COCKPIT_SCREENSHOT_REPLIES="yeah,done,…" types each reply into the
+      // Say box when the focus engine waits for one; captures <shot>-NNa.png
+      // mid-motion (600 ms) and <shot>-NNb.png once settled. It also checks
+      // that item cards are never removed or re-created (stable elements).
+      const replies = process.env.COCKPIT_SCREENSHOT_REPLIES;
+      if (replies) {
+        const js = (code: string) => win!.webContents.executeJavaScript(code);
+        const capture = async (name: string) => {
+          const image = await win?.webContents.capturePage();
+          if (image)
+            await writeFile(
+              shot.replace(/\.png$/, `-${name}.png`),
+              image.toPNG(),
+            );
+        };
+        const untilWaiting = async () => {
+          for (let t = 0; t < 400 && !orchestrator.focusWaiting(); t++)
+            await wait(100);
+        };
+        await js(`(() => {
+          const p = (window.__probe = { removed: 0, added: 0, moves: [] });
+          document.querySelectorAll('.it').forEach((el, i) => (el.dataset.probe = String(i)));
+          new MutationObserver((ms) => ms.forEach((m) => {
+            if (m.type === 'childList') {
+              m.removedNodes.forEach((n) => n.classList?.contains('it') && p.removed++);
+              m.addedNodes.forEach((n) => n.classList?.contains('it') && p.added++);
+            } else if (m.target.classList.contains('it')) {
+              p.moves.push(m.target.dataset.probe + ':' + m.target.className.replace('it ', ''));
+            }
+          })).observe(document.querySelector('.fx'), { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+        })()`);
+        let n = 0;
+        for (const reply of replies.split(',')) {
+          await untilWaiting();
+          const tag = String(++n).padStart(2, '0');
+          await js(
+            `(() => { const i = document.getElementById('sayOrb'); i.value = ${JSON.stringify(reply)}; i.form.requestSubmit(); })()`,
+          );
+          await wait(600);
+          await capture(`${tag}a`);
+          await untilWaiting();
+          await wait(1200); // let the CSS transitions finish
+          await capture(`${tag}b`);
+        }
+        const probe = await js(
+          `JSON.stringify({ ...window.__probe, cards: document.querySelectorAll('.it').length, probed: document.querySelectorAll('.it[data-probe]').length })`,
+        );
+        console.log(`[cockpit] stability probe: ${probe}`);
       }
       await wait(1500);
       const image = await win?.webContents.capturePage();
@@ -316,6 +366,11 @@ const connectOrchestrator = async () => {
     if (orchestrator.focusReply(t)) return;
     orchestrator.focusSay(t);
     return companion?.send(t);
+  });
+  ipcMain.handle(IPC.itemAction, async (_e, id: unknown) => {
+    if (typeof id !== 'string' || !/^[\w.-]{1,100}$/.test(id)) return;
+    const result = await orchestrator.itemAction(id);
+    if (result?.copy) clipboard.writeText(result.copy);
   });
   ipcMain.handle(IPC.chatAnswer, (_e, id: unknown, ok: unknown) => {
     if (typeof id === 'string') companion?.answer(id, ok === true);

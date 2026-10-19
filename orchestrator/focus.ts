@@ -144,6 +144,10 @@ export function createFocus({ completeStep, pace, typeMs }: FocusOptions) {
     say(text: string) {
       engine?.reply(text); // not waiting: the engine only shows it as "You"
     },
+    /** One short companion line, only if it isn't mid-sentence (e.g. "Copied."). */
+    note(line: string) {
+      if (engine?.state().companion === 'waiting') engine.run({ say: line });
+    },
     /** Live mode (Task 9): run one beat decided outside the script. */
     run(beat: Beat) {
       engine?.run(beat);

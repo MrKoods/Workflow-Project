@@ -26,6 +26,7 @@ const api: CockpitApi = {
   setSettings: (patch) => ipcRenderer.invoke(IPC.setSettings, patch),
   getFocus: () => ipcRenderer.invoke(IPC.focus),
   reply: (text) => ipcRenderer.invoke(IPC.reply, text),
+  itemAction: (id) => ipcRenderer.invoke(IPC.itemAction, id),
   onFocus(cb) {
     const listener = (_e: IpcRendererEvent, v: FocusView | null) => cb(v);
     ipcRenderer.on(IPC.focus, listener);

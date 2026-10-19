@@ -1,7 +1,7 @@
 // Settings panel: Color skin swatches (live switch, persisted by the
-// orchestrator). Palette-styled; works over the legacy HUD and Orbit alike.
+// orchestrator). Palette-styled; lives inside the Orbit root.
 import type { CockpitApi, Settings } from '../orchestrator/types';
-import { h } from './hud/dom';
+import { h } from './panels/dom';
 import { PALETTES, currentPalette, usePalette } from './palette';
 
 export function createSettingsPanel(api: CockpitApi) {
