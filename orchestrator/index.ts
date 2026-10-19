@@ -256,6 +256,7 @@ export function createOrchestrator({
       ),
       confirmed: endedBy === 'tap',
       endedBy,
+      layout: 'orbit',
     });
     if (endedBy === 'tap') {
       const secs = Math.round((endedAt.getTime() - startedAt.getTime()) / 1000);

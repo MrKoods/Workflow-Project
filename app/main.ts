@@ -83,10 +83,16 @@ let companion: Companion | null = null;
 let lastChatEvent: ChatEvent['type'] | null = null;
 
 const createWindow = () => {
+  // Dev aid: COCKPIT_WINDOW_SIZE=1100x900 opens a window of that size
+  // instead of full screen (narrow-screen layout checks).
+  const size = /^(\d{3,4})x(\d{3,4})$/.exec(
+    process.env.COCKPIT_WINDOW_SIZE ?? '',
+  );
   win = new BrowserWindow({
     show: false,
     frame: false,
-    fullscreen: true,
+    fullscreen: !size,
+    ...(size ? { width: Number(size[1]), height: Number(size[2]) } : {}),
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),

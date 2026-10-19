@@ -305,3 +305,32 @@ body {
 .orbt .forge-error:empty {
   display: none;
 }
+
+/* ---- Task 8 polish -------------------------------------------------------- */
+/* 6–7 steps: planets at the back of the orbit show their icon only. */
+.orbt .pln.back {
+  padding: 10px;
+}
+.orbt .pln.back > span:last-child {
+  display: none;
+}
+/* Narrow screens: helpers go under the hero card at 0.6 scale (orbit radius
+   already uses min(…, 40vw) in orbit.css). */
+@media (max-width: 1199px) {
+  .orbt .it.sup1,
+  .orbt .it.sup2 {
+    top: 712px;
+    transform: scale(0.6);
+    transform-origin: 0 0;
+  }
+  .orbt .it.sup1 {
+    left: calc(50% - 376px);
+  }
+  .orbt .it.sup2 {
+    left: calc(50% + 4px);
+  }
+  /* keep the docked caption clear of the hero card */
+  .orbt.m-task .capx {
+    width: max(180px, calc(50% - 350px));
+  }
+}

@@ -59,3 +59,24 @@ test('report: asks for a baseline first, then gives a verdict', () => {
     /\(\?\)/,
   );
 });
+
+test('report: Orbit vs Phase 0 HUD, untagged records count as HUD', () => {
+  const orbit = (d: string, s: number): SetupTime => ({
+    ...t(d, s),
+    layout: 'orbit',
+  });
+  const times = [
+    t('2026-10-18T09:00:00', 300),
+    t('2026-10-19T09:00:00', 240),
+    ...['20', '21', '22', '23'].map((d) => orbit(`2026-10-${d}T09:00:00`, 100)),
+  ];
+  const s = summarize(times, []);
+  assert.deepEqual(s.hud, { count: 2, medianSeconds: 270 });
+  assert.deepEqual(s.orbit, { count: 4, medianSeconds: 100 });
+  assert.match(
+    formatReport(times, []),
+    /Orbit 1:40 over 4\/5 sessions, HUD 4:30 over 2\./,
+  );
+  const five = [...times, orbit('2026-10-24T09:00:00', 120)];
+  assert.match(formatReport(five, []), /Orbit is faster to first real work/);
+});

@@ -17,7 +17,14 @@ export interface SetupTime {
   /** Only a tap on "I'm working" is a confirmed measurement. */
   confirmed: boolean;
   endedBy: SetupEnd;
+  /** Which screen ran the session; records from before Orbit have none (= the Phase 0 HUD). */
+  layout?: 'hud' | 'orbit';
 }
+
+export const layoutOf = (t: SetupTime) => t.layout ?? 'hud';
+
+/** ORBIT-UPGRADE Task 8: compare Orbit with the Phase 0 HUD over this many sessions. */
+export const COMPARE_SESSIONS = 5;
 
 export interface Baseline {
   at: string;
@@ -71,6 +78,10 @@ export function summarize(times: SetupTime[], baselines: Baseline[]) {
   const days = new Set(confirmed.map((t) => localDay(new Date(t.startedAt))));
   const cockpit = median(confirmed.map((t) => t.seconds));
   const baseline = median(baselines.map((b) => b.minutes * 60));
+  const byLayout = (l: 'hud' | 'orbit') => {
+    const xs = confirmed.filter((t) => layoutOf(t) === l).map((t) => t.seconds);
+    return { count: xs.length, medianSeconds: median(xs) };
+  };
   const reduction =
     cockpit !== null && baseline ? (baseline - cockpit) / baseline : null;
   return {
@@ -81,6 +92,8 @@ export function summarize(times: SetupTime[], baselines: Baseline[]) {
     baselineMedianSeconds: baseline,
     baselineCount: baselines.length,
     reduction,
+    hud: byLayout('hud'),
+    orbit: byLayout('orbit'),
   };
 }
 
@@ -106,7 +119,7 @@ export function formatReport(
   const lines = ['Cockpit setup time (start quest -> first real work)', ''];
   for (const t of times) {
     lines.push(
-      `  ${localStamp(t.startedAt)}  ${fmt(t.seconds).padStart(6)}  ${t.confirmed ? '   ' : '(?)'} ${t.trigger.padEnd(6)} ${t.questTitle}`,
+      `  ${localStamp(t.startedAt)}  ${fmt(t.seconds).padStart(6)}  ${t.confirmed ? '   ' : '(?)'} ${layoutOf(t).padEnd(5)} ${t.trigger.padEnd(6)} ${t.questTitle}`,
     );
   }
   if (!times.length) lines.push('  (no sessions yet)');
@@ -130,6 +143,21 @@ export function formatReport(
       s.reduction >= TARGET_REDUCTION
         ? 'Verdict: bundles are cutting setup time. Keep going.'
         : 'Verdict: under the 30% bar, so bundles alone are not the win yet (CONTEXT.md §12).',
+    );
+  }
+  lines.push(
+    '',
+    `Orbit vs Phase 0 HUD (confirmed): Orbit ${fmt(s.orbit.medianSeconds)} over ${s.orbit.count}/${COMPARE_SESSIONS} sessions, HUD ${fmt(s.hud.medianSeconds)} over ${s.hud.count}.`,
+  );
+  if (s.orbit.count >= COMPARE_SESSIONS && s.hud.medianSeconds !== null) {
+    lines.push(
+      s.orbit.medianSeconds! < s.hud.medianSeconds
+        ? 'Orbit is faster to first real work. Focus switching earns its place.'
+        : 'Orbit is not faster than the HUD on this number (FEATURES §3.8: the focus model is wrong, or needs tuning).',
+    );
+  } else if (!s.hud.count) {
+    lines.push(
+      'No HUD sessions were recorded, so Orbit is compared with the manual baseline only.',
     );
   }
   if (s.days < 5) {

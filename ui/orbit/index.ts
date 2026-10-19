@@ -342,10 +342,16 @@ export function mountOrbit(
 
     orbit.style.setProperty('--rot', `${v?.orbitDeg ?? 90}deg`);
     orbit.style.setProperty('--step-angle', `${v?.stepAngle ?? 90}deg`);
+    // 6–7 steps (Task 8): a planet at the back of the orbit (same angle math
+    // as orbit.css, minus the small wobble) shows its icon only.
+    const crowded = (v?.planets.length ?? 0) >= 6;
     v?.planets.forEach((p, k) => {
       const el = planets[k];
       if (!el) return;
-      el.className = `pln ${p.state}`;
+      const a = ((k * v.stepAngle + v.orbitDeg) * Math.PI) / 180;
+      const back = crowded && Math.sin(a) < -0.25;
+      el.className = `pln ${p.state}${back ? ' back' : ''}`;
+      el.title = back ? p.label : '';
       el.querySelector('.pd')!.textContent = p.icon;
       el.querySelector('em')!.textContent = PLANET_LABEL[p.state];
     });

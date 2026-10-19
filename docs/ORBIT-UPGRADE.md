@@ -74,9 +74,9 @@ Rules from CLAUDE.md still apply. Work top to bottom; the app must still start a
 - **Done when:** Nick can run the whole demo quest by typing only "yeah" and "done".
 
 ## Task 8: Polish + measure
-- [ ] Narrow screens: below 1200 px wide, side helpers (sup1/sup2) move under the hero card at 0.6 scale; the orbit radius uses `min(…, 40vw)` (already in CSS).
-- [ ] Quests with 6–7 steps: `--step-angle` = 360/N, and planets show the icon only for planets at the back.
-- [ ] Keep Phase 0's metric: time from "start quest" to first real action. Compare Orbit vs. the Phase 0 HUD over 5 sessions.
+- [x] Narrow screens: below 1200 px wide, side helpers (sup1/sup2) move under the hero card at 0.6 scale; the orbit radius uses `min(…, 40vw)` (already in CSS).
+- [x] Quests with 6–7 steps: `--step-angle` = 360/N, and planets show the icon only for planets at the back.
+- [ ] Keep Phase 0's metric: time from "start quest" to first real action. Compare Orbit vs. the Phase 0 HUD over 5 sessions. *(Instrumented: sessions are tagged `layout: orbit`; `npm run measure` prints Orbit vs HUD and counts toward 5. Needs 5 real sessions by Nick. No HUD sessions were ever recorded, so the comparison falls back to the manual baseline.)*
 
 ## Task 9 (groundwork only): let Claude drive the sequence
 - [ ] Define orchestrator tools for later (don't enable them yet): `focus_item(itemId)`, `support_items(ids[])`, `complete_step()`, `offer_replies(labels[])`, `say(text)`. Each call becomes `engine.run(beat)`.
