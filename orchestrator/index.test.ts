@@ -492,10 +492,11 @@ test('Setup timer: times out unconfirmed', async () => {
   assert.equal(orch.snapshot().setupTimer, null);
 });
 
-test('settings default to aqua/auto, persist, and ignore invalid fields', async () => {
+test('settings default to ice/hud/auto, persist, and ignore invalid fields', async () => {
   await setup();
   assert.deepEqual(orch.snapshot().settings, {
-    palette: 'aqua',
+    palette: 'ice',
+    layout: 'hud',
     voice: 'auto',
     calm: false,
     speech: true,
@@ -517,6 +518,9 @@ test('settings default to aqua/auto, persist, and ignore invalid fields', async 
   assert.equal(orch.snapshot().settings.voiceSteady, 'aura-2-thalia-en');
   assert.equal(orch.snapshot().settings.volume, 0.8);
   await orch.setSettings({ palette: 'ember', voice: 'loud', calm: 'yes' });
+  await orch.setSettings({ layout: 'orbit' });
+  await orch.setSettings({ layout: 'sideways' });
+  assert.equal(orch.snapshot().settings.layout, 'orbit');
   await orch.setSettings({ palette: '../../evil' });
   assert.equal(orch.snapshot().settings.palette, 'ember');
   assert.equal(orch.snapshot().settings.voice, 'auto');
@@ -525,17 +529,28 @@ test('settings default to aqua/auto, persist, and ignore invalid fields', async 
   await setup(); // restart: read back from settings.json
   assert.equal(orch.snapshot().settings.palette, 'ember');
   assert.equal(orch.snapshot().settings.voice, 'steady');
-  // A file from before Auto existed (no version) moves to auto once.
+  assert.equal(orch.snapshot().settings.layout, 'orbit');
+  // A file from before Auto existed (no version) moves to auto once, and a
+  // file from before the Tech HUD (version < 3) moves to hud + ice once.
   await writeFile(
     path.join(root, 'settings.json'),
-    JSON.stringify({ palette: 'frost', voice: 'playful', calm: false }),
+    JSON.stringify({ palette: 'frost', voice: 'playful', calm: true }),
+  );
+  await setup();
+  assert.equal(orch.snapshot().settings.palette, 'ice');
+  assert.equal(orch.snapshot().settings.layout, 'hud');
+  assert.equal(orch.snapshot().settings.voice, 'auto');
+  assert.equal(orch.snapshot().settings.calm, true);
+  await writeFile(
+    path.join(root, 'settings.json'),
+    JSON.stringify({ version: 3, palette: 'frost', layout: 'orbit' }),
   );
   await setup();
   assert.equal(orch.snapshot().settings.palette, 'frost');
-  assert.equal(orch.snapshot().settings.voice, 'auto');
+  assert.equal(orch.snapshot().settings.layout, 'orbit');
   await writeFile(path.join(root, 'settings.json'), '{not json');
   await setup();
-  assert.equal(orch.snapshot().settings.palette, 'aqua');
+  assert.equal(orch.snapshot().settings.palette, 'ice');
 });
 
 test('v2: completing a step ticks its box (written if missing), adds XP + journal', async () => {

@@ -1,0 +1,456 @@
+/* Cockpit · Tech HUD layout (Settings → Look → Interface). Ported from the design canvas
+   board "Focus A2 · Tech HUD with a talking 3D hologram head" (FoHolo), on top of the
+   Orbit markup: root <div class="fx orbt hud m-comp|m-task s-<state>">. Same elements,
+   same engine; only placement and look change, so every Orbit transition still runs.
+   Colors come only from palette variables (--acc --acc2 --c3 --card --text --muted).
+   Frame: 01 Companion (left top) · 02 Comms (left bottom) · center view · 03 Handed to
+   you (right top) · 04 Completed (right bottom). Steps run as a rail across the view.
+*/
+@import '@fontsource/chakra-petch/500.css';
+@import '@fontsource/chakra-petch/600.css';
+@import '@fontsource/chakra-petch/700.css';
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import '@fontsource/barlow/700.css';
+
+.orbt.hud {
+  --tf: 'Chakra Petch', sans-serif;
+  --tw: 600;
+  --lf: 'Chakra Petch', sans-serif;
+  --bf: 'Barlow', sans-serif;
+  --cf: 'Barlow', sans-serif;
+  --cw: 500;
+  --br: 3px;
+  --r2: 4px;
+  --ts: 22px;
+  --ez: cubic-bezier(0.7, 0, 0.2, 1);
+  --sw: 330px; /* side column width */
+  --gx: 24px; /* outer gutter */
+  --top: 92px; /* frame top */
+  --bot: 136px; /* frame bottom (room for chips + Say box) */
+  --vl: calc(var(--gx) + var(--sw) + 16px); /* view module left/right inset */
+  --hud-line: color-mix(in srgb, var(--acc) 28%, transparent);
+}
+/* blueprint grid + scanlines */
+.orbt.hud::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+        color-mix(in srgb, var(--acc) 4%, transparent) 1px,
+        transparent 1px
+      )
+      0 0 / 32px 32px,
+    linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--acc) 4%, transparent) 1px,
+        transparent 1px
+      )
+      0 0 / 32px 32px,
+    radial-gradient(
+      ellipse at 50% 45%,
+      color-mix(in srgb, var(--acc) 8%, transparent),
+      transparent 60%
+    );
+}
+.orbt.hud::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    rgba(0, 0, 0, 0.18) 0 1px,
+    transparent 1px 3px
+  );
+  opacity: 0.35;
+}
+.orbt.hud .stars,
+.orbt.hud .orbit .ring,
+.orbt.hud .orbit .mote,
+.orbt.hud .tether {
+  display: none;
+}
+.orbt:not(.hud) .mod {
+  display: none;
+}
+
+/* ---- header ---------------------------------------------------------- */
+.orbt.hud .topr2 {
+  left: var(--gx);
+  right: var(--gx);
+  top: 14px;
+  height: 60px;
+  align-items: center;
+  border-bottom: 1px solid var(--hud-line);
+}
+.orbt.hud .topr2 .q {
+  font: 600 11px var(--lf);
+  letter-spacing: 0.3em;
+}
+.orbt.hud .topr2 .q b {
+  margin-top: 4px;
+  font: 600 18px var(--tf);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.orbt.hud .pl {
+  font: 600 11px var(--lf);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* ---- frame modules (decorative) ---------------------------------------- */
+.mod {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  border: 1px solid var(--hud-line);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--acc) 3.5%, transparent),
+    rgba(var(--card), 0.55)
+  );
+  transition:
+    border-color 0.6s,
+    background 0.6s;
+}
+.mod::before,
+.mod::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--acc);
+  transition: border-color 0.6s;
+}
+.mod::before {
+  left: -2px;
+  top: -2px;
+  border-right: 0;
+  border-bottom: 0;
+}
+.mod::after {
+  right: -2px;
+  bottom: -2px;
+  border-left: 0;
+  border-top: 0;
+}
+.mod .ml,
+.mod .mr {
+  position: absolute;
+  top: -9px;
+  padding: 0 8px;
+  background: rgb(var(--card));
+  font: 600 10px var(--lf);
+  text-transform: uppercase;
+}
+.mod .ml {
+  left: 12px;
+  letter-spacing: 0.26em;
+  color: var(--acc);
+}
+.mod .mr {
+  right: 12px;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+}
+.mod.m1 {
+  left: var(--gx);
+  top: var(--top);
+  width: var(--sw);
+  height: var(--sw);
+}
+.mod.m2 {
+  left: var(--gx);
+  top: calc(var(--top) + var(--sw) + 16px);
+  width: var(--sw);
+  bottom: var(--bot);
+}
+.mod.view {
+  left: var(--vl);
+  right: var(--vl);
+  top: var(--top);
+  bottom: var(--bot);
+  border-color: color-mix(in srgb, var(--acc) 50%, transparent);
+}
+.orbt.hud.m-task .mod.view {
+  border-color: color-mix(in srgb, var(--acc2) 45%, transparent);
+}
+.orbt.hud.m-task .mod.view::before,
+.orbt.hud.m-task .mod.view::after {
+  border-color: var(--acc2);
+}
+.mod.m3 {
+  right: var(--gx);
+  top: var(--top);
+  width: var(--sw);
+  height: 470px;
+}
+.mod.m4 {
+  right: var(--gx);
+  top: calc(var(--top) + 486px);
+  width: var(--sw);
+  bottom: var(--bot);
+}
+.mod .vl1,
+.mod .vl2 {
+  transition: opacity 0.5s;
+}
+.mod .vl2 {
+  position: absolute;
+  left: 8px;
+  white-space: nowrap;
+  opacity: 0;
+}
+.orbt.hud.m-task .mod .vl1 {
+  opacity: 0;
+}
+.orbt.hud.m-task .mod .vl2 {
+  opacity: 1;
+}
+
+/* ---- steps: a rail across the top of the view (planets, restyled) ------ */
+.orbt.hud .orbit {
+  animation: none;
+}
+.orbt.hud .pln {
+  --a: 90deg;
+  left: calc(
+    var(--vl) + (var(--k) + 0.5) * (100% - 2 * var(--vl)) / max(var(--n, 4), 1)
+  );
+  top: calc(var(--top) + 18px);
+  transform: translateX(-50%);
+  opacity: 1;
+  z-index: 10;
+  padding: 6px 12px 6px 6px;
+  gap: 10px;
+  border-radius: 3px;
+  background: rgba(var(--card), 0.92);
+  border: 1px solid var(--hud-line);
+  pointer-events: auto;
+  cursor: pointer;
+  clip-path: polygon(
+    0 0,
+    calc(100% - 8px) 0,
+    100% 8px,
+    100% 100%,
+    8px 100%,
+    0 calc(100% - 8px)
+  );
+}
+.orbt.hud .pln .pd {
+  width: 26px;
+  height: 26px;
+  border-radius: 2px;
+  font: 700 13px var(--lf);
+}
+.orbt.hud .pln b {
+  font: 600 13px var(--tf);
+  letter-spacing: 0.04em;
+}
+.orbt.hud .pln em {
+  font: 600 8px var(--lf);
+  letter-spacing: 0.24em;
+}
+.orbt.hud .pln.upnext {
+  animation: none;
+  border-color: var(--acc);
+  box-shadow: 0 0 24px -6px var(--acc);
+}
+.orbt.hud .pln.pulled {
+  border-style: solid;
+  border-color: var(--acc2);
+  background: color-mix(in srgb, var(--acc2) 10%, rgba(var(--card), 0.92));
+}
+.orbt.hud .pln.pulled .pd {
+  background: var(--acc2);
+}
+.orbt.hud .pln.pulled em {
+  color: var(--acc2);
+}
+.orbt.hud .pln.peek {
+  outline: 1px dashed var(--acc);
+  outline-offset: 3px;
+}
+.orbt.hud.m-task .pln {
+  top: calc(var(--top) + 14px);
+}
+
+/* ---- the companion: big in the view, then docks into 01 --------------- */
+.orbt.hud .comp {
+  left: calc(50% - 250px);
+  top: 140px;
+  width: 500px;
+  height: 500px;
+  z-index: 8;
+}
+.orbt.hud.m-task .comp {
+  left: calc(var(--gx) + 4px);
+  top: calc(var(--top) + 4px);
+  width: calc(var(--sw) - 8px);
+  height: calc(var(--sw) - 8px);
+}
+.orbt.hud .comp::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    rgba(0, 0, 0, 0.22) 0 1px,
+    transparent 1px 3px
+  );
+  mask: radial-gradient(circle, #000 55%, transparent 72%);
+}
+
+/* caption: under the head, then inside Comms */
+.orbt.hud .capx {
+  left: calc(50% - 330px);
+  top: 640px;
+  width: 660px;
+  font-size: 23px;
+  text-align: center;
+}
+.orbt.hud.m-task .capx {
+  left: calc(var(--gx) + 18px);
+  top: calc(var(--top) + var(--sw) + 40px);
+  width: calc(var(--sw) - 36px);
+  font-size: 17px;
+  text-align: left;
+}
+.orbt.hud .who3 {
+  font: 600 11px var(--lf);
+  letter-spacing: 0.3em;
+}
+/* conversation log: left column (behind the head's module in companion mode) */
+.orbt.hud .logx {
+  display: flex;
+  left: calc(var(--gx) + 18px);
+  width: calc(var(--sw) - 36px);
+  top: calc(var(--top) + 26px);
+  height: calc(100% - var(--top) - var(--bot) - 52px);
+  overflow: hidden;
+  justify-content: flex-start;
+}
+.orbt.hud.m-task .logx {
+  top: calc(var(--top) + var(--sw) + 150px);
+  height: auto;
+  bottom: calc(var(--bot) + 20px);
+}
+
+/* ---- items: hero in the view, helpers in 03, done ones stack in 04 ---- */
+.orbt.hud .it {
+  --iw: 640px;
+  padding: 22px 24px 24px;
+  border-radius: 0;
+  transform-origin: 0 0;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--card), 0.97),
+    rgba(var(--card), 0.94)
+  );
+  border: 1px solid var(--hud-line);
+  box-shadow: none;
+}
+.orbt.hud .it.hero {
+  left: calc(50% - 320px);
+  top: calc(var(--top) + 78px);
+  transform: none;
+  opacity: 1;
+  filter: none;
+  border-color: var(--acc2);
+  box-shadow: inset 0 0 40px color-mix(in srgb, var(--acc2) 6%, transparent);
+}
+.orbt.hud .it.hero::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--acc2), transparent);
+  animation: hudScan 1.4s var(--ez) 1;
+  opacity: 0;
+}
+@keyframes hudScan {
+  0% {
+    top: 0;
+    opacity: 1;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+.orbt.hud .it.sup1,
+.orbt.hud .it.sup2 {
+  left: calc(100% - var(--gx) - var(--sw) + 10px);
+  transform: scale(0.48);
+  opacity: 1;
+  filter: none;
+}
+.orbt.hud .it.sup1 {
+  top: calc(var(--top) + 26px);
+}
+.orbt.hud .it.sup2 {
+  top: calc(var(--top) + 238px);
+}
+.orbt.hud .it.done {
+  left: calc(100% - var(--gx) - var(--sw) + 10px);
+  top: calc(var(--top) + 500px + var(--d, 0) * 38px);
+  transform: scale(0.48);
+  opacity: 0.75;
+  filter: none;
+  pointer-events: none;
+}
+.orbt.hud .it.done .itt b::after {
+  content: '  ✓';
+  color: var(--acc2);
+}
+.orbt.hud .it.off {
+  left: calc(50% - 320px);
+  top: calc(var(--top) + 140px);
+  transform: scale(0.9);
+  opacity: 0;
+  filter: blur(4px);
+  pointer-events: none;
+}
+
+/* ---- chips + Say box: squared, technical ------------------------------- */
+.orbt.hud .chipsx {
+  bottom: 84px;
+}
+.orbt.hud .chp {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font: 600 12px var(--lf);
+}
+.orbt.hud .chp:first-of-type {
+  color: var(--acctext);
+}
+.orbt.hud .sayx {
+  bottom: 22px;
+  width: min(640px, calc(100% - 2 * var(--vl)));
+}
+.orbt.hud .tg {
+  border-radius: 3px;
+}
+
+/* notices: above the chips, centered in the view (not over module 03) */
+.orbt.hud .noticex,
+.orbt.hud .pausex {
+  top: auto;
+  right: auto;
+  left: 50%;
+  bottom: calc(var(--bot) + 14px);
+  transform: translateX(-50%);
+  border-radius: var(--br);
+}
+
+/* calm: no scan sweep */
+.orbt.hud.calm .it.hero::after {
+  animation: none;
+}

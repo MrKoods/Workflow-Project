@@ -1,12 +1,14 @@
-// Renderer entry: apply the saved color skin, then mount the Orbit screen,
-// the Bloom companion and the Settings panel from the orchestrator's
-// snapshot + focus view.
+// Renderer entry: apply the saved color skin, then mount the screen (Tech HUD
+// or Orbit layout), its companion (Holo head or Bloom) and the Settings panel
+// from the orchestrator's snapshot + focus view.
 import './orbit/orbit.css';
 import './orbit/panels.css';
 import './settings.css';
-import { BloomRenderer } from './companion/bloom';
+import './hud/hud.css';
+import { BloomRenderer, type CompanionState } from './companion/bloom';
+import { HoloRenderer } from './companion/holo';
 import { mountOrbit } from './orbit';
-import { onPalette, usePalette } from './palette';
+import { currentPalette, onPalette, usePalette, type Palette } from './palette';
 import { setHotkeys } from './keys';
 import { createSettingsPanel } from './settings';
 import { createSpeechPlayer } from './voice/player';
@@ -22,7 +24,10 @@ Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
     const settings = createSettingsPanel(window.cockpit);
     settings.update(snapshot.settings);
 
-    let bloom: BloomRenderer | null = null;
+    // The companion: Holo head in the Tech HUD, Bloom in Orbit (same API).
+    let bloom: BloomRenderer | HoloRenderer | null = null;
+    let layout = snapshot.settings.layout;
+    let companionState: CompanionState = focus?.companion ?? 'waiting';
     let refresh = () => {};
     let toast = (message: string) => console.warn('[talk]', message);
     // The companion's voice: real audio drives Bloom while it speaks; the
@@ -64,8 +69,14 @@ Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
       focus,
       settings,
       {
-        onCompanion: (state) => bloom?.setState(state),
+        onCompanion: (state) => {
+          companionState = state;
+          bloom?.setState(state);
+        },
         onVoice: typedLevel,
+        onLine: (text) => {
+          if (bloom instanceof HoloRenderer) bloom.setLine(text);
+        },
         talk,
         speaking: () => player.playing,
       },
@@ -76,14 +87,25 @@ Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
     // The panel lives inside the Orbit root so it shares its fonts.
     document.querySelector('.fx')!.append(...settings.els);
 
-    // Bloom (Task 6): one instance; palette colors, engine state, voice level, calm.
+    // One companion at a time on the same canvas; swapped when the layout changes.
     let calm = snapshot.settings.calm;
     const applyCalm = () => bloom?.setCalm(calm || reducedMotion.matches);
-    bloom = new BloomRenderer(canvas);
-    applyCalm();
-    onPalette((p) => bloom!.setPalette(p.accent, p.reply, p.third));
-    bloom.setState(focus?.companion ?? 'waiting');
-    bloom.start();
+    const paint = (p: Palette) =>
+      bloom instanceof HoloRenderer
+        ? bloom.setPalette(p.accent, p.reply, p.third, p.holo)
+        : bloom?.setPalette(p.accent, p.reply, p.third);
+    const mountCompanion = () => {
+      bloom?.stop();
+      bloom =
+        layout === 'hud' ? new HoloRenderer(canvas) : new BloomRenderer(canvas);
+      applyCalm();
+      const p = currentPalette();
+      if (p) paint(p);
+      bloom.setState(companionState);
+      bloom.start();
+    };
+    mountCompanion();
+    onPalette(paint);
     window.cockpit.onVoice(typedLevel);
     reducedMotion.addEventListener('change', applyCalm);
     window.cockpit.onSnapshot((s) => {
@@ -95,6 +117,10 @@ Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
       wakeWanted = s.settings.wakeWord;
       syncWake();
       setHotkeys(s.settings.hotkeys);
+      if (s.settings.layout !== layout) {
+        layout = s.settings.layout;
+        mountCompanion();
+      }
     });
   },
 );

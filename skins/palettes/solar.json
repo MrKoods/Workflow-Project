@@ -1,0 +1,25 @@
+{
+  "id": "solar",
+  "name": "Solar",
+  "ground": {
+    "center": "#1A0C04",
+    "mid": "#080402",
+    "edge": "#000000"
+  },
+  "accent": "#FFB547",
+  "reply": "#FFE08A",
+  "third": "#FF7A3D",
+  "card": "14,8,4",
+  "text": "#FBEFE2",
+  "muted": "#9A8676",
+  "onAccent": "#140A02",
+  "companion": {
+    "core": "#FFB547",
+    "filamentsA": "#FF4F6B",
+    "filamentsB": "#FFE08A"
+  },
+  "holo": {
+    "tint": "#FF4F6B",
+    "eye": "ring"
+  }
+}

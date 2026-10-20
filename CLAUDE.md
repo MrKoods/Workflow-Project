@@ -18,8 +18,8 @@ Full specs live in `docs/`:
 ## Decisions already made (don't relitigate without asking)
 - **Platform:** Windows desktop.
 - **Voice:** wake word, push-to-talk fallback. (Phase 1, not Phase 0.)
-- **Layout: Orbit.** Quest steps orbit the companion. The orbit turns so the current step is at the front; its work pops out as the center card; done steps tuck back in with ✓. One spotlit thing at a time; the conversation drives the sequence.
-- **Look:** components never hard-code colors. Skins are **color palettes only**: one JSON token file each in `skins/palettes/` (Aqua default, Ember, Nebula, Aurora, Frost, Crimson, Eclipse). Companion visual: **Bloom** (canvas). Fonts fixed: Bricolage Grotesque, Manrope, Newsreader. Voice (Steady / Playful) is separate from skin.
+- **Layout: Tech HUD (default) or Orbit** (`Settings.layout`, switch live in Control Deck → Look). Tech HUD: frame modules around a talking Circuit hologram head (`ui/companion/holo.ts`); the work slides into the center view. Orbit: quest steps orbit the companion. The orbit turns so the current step is at the front; its work pops out as the center card; done steps tuck back in with ✓. One spotlit thing at a time; the conversation drives the sequence.
+- **Look:** components never hard-code colors. Skins are **color palettes only**: one JSON token file each in `skins/palettes/` (Ice default, Synapse, Solar, Aqua, Ember, Nebula, Aurora, Frost, Crimson, Eclipse); an optional `holo` block sets the hologram's tint + eye style. Companion visual: **Holo head** in the HUD, **Bloom** in Orbit (both canvas, same API). Fonts: Chakra Petch + Barlow (HUD); Bricolage Grotesque, Manrope, Newsreader (Orbit). Voice (Steady / Playful) is separate from skin.
 - **Companion:** a co-pilot and friend — talks you through work, checks in, keeps you on track, honest pushback, small talk at breaks. Presence dial: Buddy (default) / Coach / Quiet + deep-work hold.
 - **First workflow:** launching a Fiverr gig for AI automation services.
 

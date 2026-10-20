@@ -1,0 +1,25 @@
+{
+  "id": "synapse",
+  "name": "Synapse",
+  "ground": {
+    "center": "#0A0A1E",
+    "mid": "#04030B",
+    "edge": "#000000"
+  },
+  "accent": "#3FE0FF",
+  "reply": "#9FFFE0",
+  "third": "#9F7BFF",
+  "card": "5,5,14",
+  "text": "#E8F4FA",
+  "muted": "#7F86A0",
+  "onAccent": "#03080C",
+  "companion": {
+    "core": "#3FE0FF",
+    "filamentsA": "#FF4FD8",
+    "filamentsB": "#9FFFE0"
+  },
+  "holo": {
+    "tint": "#FF4FD8",
+    "eye": "spark"
+  }
+}

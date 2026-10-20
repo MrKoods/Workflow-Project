@@ -3,10 +3,12 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { cleanHotkeys } from './keymap.ts';
-import { VOICES, type Settings } from './types.ts';
+import { LAYOUTS, VOICES, type Settings } from './types.ts';
 
 export const DEFAULT_SETTINGS: Settings = {
-  palette: 'aqua',
+  // Nick, 2026-10-20: switch to the Tech HUD with the Circuit hologram head (Ice).
+  palette: 'ice',
+  layout: 'hud',
   voice: 'auto',
   calm: false,
   speech: true,
@@ -22,7 +24,7 @@ export const DEFAULT_SETTINGS: Settings = {
 /** A Deepgram Aura-2 English voice id. */
 export const VOICE_ID = /^aura-2-[a-z]{2,20}-en$/;
 
-const SETTINGS_VERSION = 2;
+const SETTINGS_VERSION = 3;
 
 const PALETTE_ID = /^[a-z0-9-]{1,40}$/;
 
@@ -32,6 +34,8 @@ export function cleanSettings(input: unknown): Partial<Settings> {
   const out: Partial<Settings> = {};
   if (typeof v.palette === 'string' && PALETTE_ID.test(v.palette))
     out.palette = v.palette;
+  if (LAYOUTS.includes(v.layout as Settings['layout']))
+    out.layout = v.layout as Settings['layout'];
   if (VOICES.includes(v.voice as Settings['voice']))
     out.voice = v.voice as Settings['voice'];
   if (typeof v.calm === 'boolean') out.calm = v.calm;
@@ -61,6 +65,12 @@ export function createSettingsStore(file: string) {
         // Files written before Auto existed (no version) stored the old
         // default "playful"; they move to auto once (Nick, 2026-10-18).
         if (saved && !saved.version) delete saved.voice;
+        // Files from before the Tech HUD (version < 3) switch to it once, in Ice
+        // (Nick, 2026-10-20). Orbit stays one setting away.
+        if (saved && (saved.version ?? 0) < 3) {
+          delete saved.layout;
+          delete saved.palette;
+        }
         current = { ...DEFAULT_SETTINGS, ...cleanSettings(saved) };
       } catch {
         current = { ...DEFAULT_SETTINGS };

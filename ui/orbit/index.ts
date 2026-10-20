@@ -46,6 +46,8 @@ export interface OrbitHooks {
   talk?: TalkControl;
   /** Is the companion's voice playing right now? */
   speaking?: () => boolean;
+  /** The companion line on screen while it speaks (the hologram's mouth follows it). */
+  onLine?: (text: string) => void;
 }
 
 export function mountOrbit(
@@ -125,6 +127,34 @@ export function mountOrbit(
     if (!text) return;
     say.value = '';
     void api.reply(text);
+  });
+
+  // ---- Tech HUD frame (layout 'hud'): decorative modules, hidden in Orbit --
+  const modLabel = (text: string) => h('span', { class: 'ml', text });
+  const modState = h('span', { class: 'mr' });
+  const modStep = h('span', { class: 'mr' });
+  const modDone = h('span', { class: 'mr' });
+  const viewTask = h('span', { class: 'vl2' });
+  const hudFrame = [
+    h('div', { class: 'mod m1' }, [modLabel('01 · Companion'), modState]),
+    h('div', { class: 'mod m2' }, [
+      modLabel('02 · Comms'),
+      h('span', { class: 'mr', text: 'live' }),
+    ]),
+    h('div', { class: 'mod view' }, [
+      h('span', { class: 'ml' }, [
+        h('span', { class: 'vl1', text: 'Focus · companion' }),
+        viewTask,
+      ]),
+      modStep,
+    ]),
+    h('div', { class: 'mod m3' }, [modLabel('03 · Handed to you')]),
+    h('div', { class: 'mod m4' }, [modLabel('04 · Completed'), modDone]),
+  ];
+  hudFrame.forEach((m) => m.setAttribute('aria-hidden', 'true'));
+  const logx = h('div', {
+    class: 'logx',
+    attrs: { 'aria-label': 'Conversation' },
   });
 
   // ---- Phase 0 extras, restyled (decision 2026-10-18) -------------------
@@ -224,6 +254,7 @@ export function mountOrbit(
 
   const fx = h('div', { class: 'fx orbt m-comp s-waiting' }, [
     h('div', { class: 'stars', attrs: { 'aria-hidden': 'true' } }),
+    ...hudFrame,
     h('div', { class: 'topr2' }, [
       h('div', { class: 'q' }, ['Today’s quest', title]),
       ctrl,
@@ -231,6 +262,7 @@ export function mountOrbit(
     orbit,
     h('div', { class: 'tether', attrs: { 'aria-hidden': 'true' } }),
     comp,
+    logx,
     capx,
     chips,
     sayForm,
@@ -381,8 +413,10 @@ export function mountOrbit(
             ? chat!.state
             : v?.companion) ??
       'waiting';
+    const hud = snap.settings.layout === 'hud';
     fx.className = [
       'fx orbt',
+      hud ? 'hud' : '',
       v?.mode ?? 'm-comp',
       `s-${companion}`,
       snap.settings.calm ? 'calm' : '',
@@ -395,6 +429,7 @@ export function mountOrbit(
 
     orbit.style.setProperty('--rot', `${v?.orbitDeg ?? 90}deg`);
     orbit.style.setProperty('--step-angle', `${v?.stepAngle ?? 90}deg`);
+    orbit.style.setProperty('--n', String(v?.planets.length ?? 0));
     // 6–7 steps (Task 8): a planet at the back of the orbit (same angle math
     // as orbit.css, minus the small wobble) shows its icon only.
     const crowded = (v?.planets.length ?? 0) >= 6;
@@ -410,8 +445,12 @@ export function mountOrbit(
       el.querySelector('em')!.textContent = PLANET_LABEL[p.state];
     });
 
+    let doneIdx = 0;
     for (const c of items) {
-      c.setState(v?.items[c.id] ?? 'off');
+      const st = v?.items[c.id] ?? 'off';
+      // HUD: done cards stack in the Completed module, in the order they finished.
+      if (st === 'done') c.el.style.setProperty('--d', String(doneIdx++));
+      c.setState(st);
       c.setTicks(v?.ticks[c.id] ?? 0);
     }
 
@@ -452,6 +491,36 @@ export function mountOrbit(
     line.classList.toggle('long', cap.text.length > 150);
     line.classList.toggle('xlong', cap.text.length > 300);
     line.scrollTop = line.scrollHeight;
+    if (!you && companion === 'speaking') hooks.onLine?.(cap.text);
+
+    // HUD frame labels + the conversation log (comms module).
+    if (hud) {
+      modState.textContent = STATE_LABEL[companion];
+      const total = v?.planets.length ?? 0;
+      const stepNo = Math.min(total, (v?.stepIndex ?? 0) + 1);
+      modStep.textContent = total
+        ? `Step ${Math.max(1, stepNo)} / ${total}`
+        : '';
+      modDone.textContent = total ? `${v?.doneSteps ?? 0} / ${total}` : '';
+      const cur = v?.planets[v.peek ?? Math.min(v.doneSteps, total - 1)];
+      viewTask.textContent = `Focus · ${cur?.label ?? 'task'}`;
+      const logKey = JSON.stringify(v?.log ?? []);
+      if (logx.dataset.key !== logKey) {
+        logx.dataset.key = logKey;
+        logx.replaceChildren(
+          ...(v?.log ?? []).map((g, i) =>
+            h(
+              'div',
+              {
+                class: g.who === 'You' ? 'lg you' : 'lg',
+                vars: { opacity: String(0.75 - i * 0.15) },
+              },
+              [h('b', { text: g.who === 'You' ? 'You' : name }), g.text],
+            ),
+          ),
+        );
+      }
+    }
 
     renderChips(v);
     const on = talking();

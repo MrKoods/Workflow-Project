@@ -25,6 +25,9 @@ type Tab = 'look' | 'voice' | 'keys';
 
 // A word for each skin's mood (SKINS.md "Feel"); new skins just show none.
 const FEEL: Record<string, string> = {
+  ice: 'Hologram · white-hot pulses',
+  synapse: 'Hologram · cyan to magenta',
+  solar: 'Hologram · gold to coral',
   aqua: 'Cool, crisp',
   ember: 'Warm fire',
   nebula: 'Cosmic violet',
@@ -106,6 +109,20 @@ export function createSettingsPanel(api: CockpitApi) {
       ],
     );
   const skins = PALETTES.map(skinCard);
+  const layoutBtns = (
+    [
+      ['hud', 'Tech HUD'],
+      ['orbit', 'Orbit'],
+    ] as const
+  ).map(([v, label]) =>
+    h('button', {
+      class: 'cd-seg-btn',
+      text: label,
+      attrs: { type: 'button', 'aria-pressed': 'false', 'data-v': v },
+      on: { click: () => void save({ layout: v }) },
+    }),
+  );
+  const layoutText = h('p', { class: 'cd-note' });
   async function chooseSkin(id: string) {
     usePalette(id); // instant; the save follows
     await save({ palette: id });
@@ -120,9 +137,26 @@ export function createSettingsPanel(api: CockpitApi) {
     { class: 'cd-pane', attrs: { 'data-tab': 'look' } },
     [
       h('header', { class: 'cd-pane-head' }, [
+        h('h3', { text: 'Interface' }),
+        h('p', {
+          text: 'Tech HUD: modules around a talking hologram head. Orbit: your steps circle the Bloom companion.',
+        }),
+      ]),
+      h('div', { class: 'cd-row cd-row-col' }, [
+        h(
+          'div',
+          {
+            class: 'cd-seg',
+            attrs: { role: 'group', 'aria-label': 'Interface' },
+          },
+          layoutBtns,
+        ),
+        layoutText,
+      ]),
+      h('header', { class: 'cd-pane-head' }, [
         h('h3', { text: 'Color skin' }),
         h('p', {
-          text: 'Each skin recolors everything at once. Pick one and watch the orbit behind change.',
+          text: 'Each skin recolors everything at once, in either interface. Ice, Synapse and Solar also set the hologram’s eyes.',
         }),
       ]),
       h('div', { class: 'cd-skins' }, skins),
@@ -626,6 +660,13 @@ export function createSettingsPanel(api: CockpitApi) {
     skins.forEach((c) =>
       c.setAttribute('aria-pressed', String(c.dataset.id === pal)),
     );
+    layoutBtns.forEach((b) =>
+      b.setAttribute('aria-pressed', String(b.dataset.v === s.layout)),
+    );
+    layoutText.textContent =
+      s.layout === 'hud'
+        ? 'Hologram head in the middle; the work slides into the center module.'
+        : 'Bloom in the middle; the current step pops out of the orbit.';
     calm.set(s.calm);
     speak.set(s.speech);
     if (document.activeElement !== nameInput) nameInput.value = s.companionName;

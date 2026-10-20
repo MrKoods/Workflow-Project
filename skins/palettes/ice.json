@@ -1,0 +1,25 @@
+{
+  "id": "ice",
+  "name": "Ice",
+  "ground": {
+    "center": "#06111F",
+    "mid": "#02050B",
+    "edge": "#000000"
+  },
+  "accent": "#5AB8FF",
+  "reply": "#BFE9FF",
+  "third": "#B48CFF",
+  "card": "3,8,16",
+  "text": "#E3F2FF",
+  "muted": "#7489A0",
+  "onAccent": "#020A14",
+  "companion": {
+    "core": "#5AB8FF",
+    "filamentsA": "#B48CFF",
+    "filamentsB": "#BFE9FF"
+  },
+  "holo": {
+    "tint": "#E8F7FF",
+    "eye": "iris"
+  }
+}

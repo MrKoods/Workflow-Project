@@ -42,7 +42,9 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
+    "@fontsource/barlow": "^5.3.0",
     "@fontsource/bricolage-grotesque": "^5.3.0",
+    "@fontsource/chakra-petch": "^5.3.0",
     "@fontsource/manrope": "^5.3.0",
     "@fontsource/newsreader": "^5.3.0",
     "electron-squirrel-startup": "^1.0.1",

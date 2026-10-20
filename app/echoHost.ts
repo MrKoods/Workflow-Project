@@ -64,6 +64,8 @@ export function createEchoHost(opts: {
             `skin "${input.skin}" (have: ${(await palettes()).join(', ')})`,
           );
       }
+      if (input.layout !== undefined)
+        patch.layout = String(input.layout).toLowerCase() as Settings['layout'];
       if (input.voice_style !== undefined)
         patch.voice = input.voice_style as Settings['voice'];
       if (input.speech !== undefined) patch.speech = input.speech as boolean;

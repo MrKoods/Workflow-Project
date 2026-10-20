@@ -1,13 +1,15 @@
 # Cockpit — Skins (visual system)
 
-> Decision record. Updated 2026-10-18. Replaces all earlier versions (Quest HUD skins; Flow / Tech HUD / Portal skins).
+> Decision record. Updated 2026-10-20 (Tech HUD + hologram head added as the default layout).
 > Live prototypes: "Cockpit Visual Direction" design canvas — https://claude.ai/artifact/FdDxmuzioUQjpmP1u4kyVq
-> Look at the bottom section: **Orbit color skins** (7 boards; switch palettes live bottom-left).
+> Boards: **Focus A2** (Tech HUD + hologram head), **Circuit + Pixel, round 2** (Ice / Synapse / Solar), **Orbit color skins**.
 
 ## Decisions
-- **One layout: Orbit.** Your quest's steps orbit the companion. The layout is fixed for now.
-- **Skins = color palettes only** (for now). A skin changes colors and gradients. It does not change the layout, fonts, shapes or motion.
-- **Default palette: Aqua.**
+- **Two layouts, one setting** (`Settings.layout`, Control Deck → Look → Interface, live):
+  - **Tech HUD** (default, 2026-10-20): frame modules — 01 Companion · 02 Comms · center view · 03 Handed to you · 04 Completed. The talking **hologram head** (Circuit particles) is big in the center view; when a step's card comes up the head docks into 01, the card takes the view, helpers go to 03, finished cards stack in 04. Steps run as a rail across the top of the view. Same engine and markup as Orbit (`ui/hud/hud.css` restyles `.fx.orbt.hud`).
+  - **Orbit**: your quest's steps orbit the Bloom companion (below).
+- **Skins = color palettes** and work in both layouts. A palette may add `holo: { tint, eye }` for the hologram (second particle color + eye style: iris / spark / ring / glow).
+- **Default palette: Ice** (Tech HUD). Aqua stays the Orbit look.
 - **Switching is live** from Settings → Color skin (no restart). The choice persists.
 - **Voice is separate from skin:** Steady or Playful (default Playful). Same quest beats, different wording.
 - **Archived** (kept on the canvas, not built): Frostbound / Gilded / Forge / Strike, Flow, Tech HUD, Portal. Frostbound's look survives as the **Frost** palette.
@@ -27,7 +29,10 @@
 
 | Palette | Ground (center → mid → edge) | Accent | Reply / done | Third (thinking, filaments) | Card base (rgb) | Feel |
 |---|---|---|---|---|---|---|
-| **Aqua** (default) | #07101C → #020409 → #000 | #7DE3FF | #C6FF8A | #B18CFF | 4,8,14 | Cool, crisp |
+| **Ice** (default) | #06111F → #02050B → #000 | #5AB8FF | #BFE9FF | #B48CFF | 3,8,16 | Hologram · white-hot pulses, iris eyes |
+| **Synapse** | #0A0A1E → #04030B → #000 | #3FE0FF | #9FFFE0 | #9F7BFF | 5,5,14 | Hologram · cyan → magenta (tint #FF4FD8), spark eyes |
+| **Solar** | #1A0C04 → #080402 → #000 | #FFB547 | #FFE08A | #FF7A3D | 14,8,4 | Hologram · gold → coral (tint #FF4F6B), ring eyes |
+| **Aqua** | #07101C → #020409 → #000 | #7DE3FF | #C6FF8A | #B18CFF | 4,8,14 | Cool, crisp |
 | **Ember** | #1C0D05 → #070302 → #000 | #FFB15C | #FFE08A | #FF5E7A | 14,8,5 | Warm fire |
 | **Nebula** | #180A2A → #06030C → #000 | #C79BFF | #7EF2D4 | #FF7AC8 | 11,6,18 | Cosmic violet |
 | **Aurora** | #04201A → #010806 → #000 | #5CF2B0 | #E6FF7A | #4FB6FF | 4,12,10 | Northern lights |

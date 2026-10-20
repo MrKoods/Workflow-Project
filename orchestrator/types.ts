@@ -10,6 +10,8 @@ export type QuestStatus = (typeof QUEST_STATUSES)[number];
  * 2026-10-18). steady / playful pin one voice.
  */
 export const VOICES = ['auto', 'steady', 'playful'] as const;
+/** Screen layouts (SKINS.md): Tech HUD with the hologram head, or Orbit with Bloom. */
+export const LAYOUTS = ['hud', 'orbit'] as const;
 /** The voice actually in use at a moment. */
 export type VoiceNow = 'steady' | 'playful';
 
@@ -17,6 +19,8 @@ export type VoiceNow = 'steady' | 'playful';
 export interface Settings {
   /** Color skin id = file name in skins/palettes/ (default aqua). */
   palette: string;
+  /** Screen layout: 'hud' (Tech HUD + hologram head, default) or 'orbit' (Orbit + Bloom). */
+  layout: (typeof LAYOUTS)[number];
   voice: (typeof VOICES)[number];
   calm: boolean;
   /** The companion speaks out loud (Phase 1). Off = captions only. */

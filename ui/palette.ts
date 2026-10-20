@@ -13,6 +13,9 @@ export interface Palette {
   muted: string;
   onAccent: string;
   companion: { core: string; filamentsA: string; filamentsB: string };
+  /** Hologram head (Tech HUD): the second particle/pulse color and the eye style.
+   *  Optional: palettes without it use `reply` as the tint and the iris eyes. */
+  holo?: { tint: string; eye: 'iris' | 'spark' | 'ring' | 'glow' };
 }
 
 // Ported from docs/reference/palette.ts unchanged.
@@ -43,9 +46,12 @@ const files = import.meta.glob<Palette>('../skins/palettes/*.json', {
   import: 'default',
 });
 
-// Aqua first (the default), then the rest in the order SKINS.md lists them;
+// The three hologram palettes first (Ice is the default), then the rest in the order SKINS.md lists them;
 // any palette added later goes at the end, alphabetically.
 const ORDER = [
+  'ice',
+  'synapse',
+  'solar',
   'aqua',
   'ember',
   'nebula',
@@ -60,7 +66,7 @@ export const PALETTES: Palette[] = Object.values(files).sort((a, b) => {
   return ra - rb || a.id.localeCompare(b.id);
 });
 
-export const DEFAULT_PALETTE = 'aqua';
+export const DEFAULT_PALETTE = 'ice';
 
 export const paletteById = (id: string): Palette =>
   PALETTES.find((p) => p.id === id) ??
