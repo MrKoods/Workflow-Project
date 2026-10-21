@@ -61,6 +61,11 @@ const api: CockpitApi = {
     ipcRenderer.on(IPC.uiCommand, listener);
     return () => ipcRenderer.removeListener(IPC.uiCommand, listener);
   },
+  onVisible(cb) {
+    const listener = (_e: IpcRendererEvent, v: boolean) => cb(v);
+    ipcRenderer.on(IPC.visible, listener);
+    return () => ipcRenderer.removeListener(IPC.visible, listener);
+  },
   onTalkAuto(cb) {
     const listener = () => cb();
     ipcRenderer.on(IPC.talkAuto, listener);

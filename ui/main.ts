@@ -118,6 +118,14 @@ Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
     mountCompanion();
     onPalette(paint);
     window.cockpit.onVoice(typedLevel);
+    // Hidden or minimized: stop drawing the companion; back on screen: resume.
+    let shown = true;
+    window.cockpit.onVisible((v) => {
+      if (v === shown) return;
+      shown = v;
+      if (v) bloom?.start();
+      else bloom?.stop();
+    });
     reducedMotion.addEventListener('change', applyCalm);
     window.cockpit.onSnapshot((s) => {
       settings.update(s.settings);

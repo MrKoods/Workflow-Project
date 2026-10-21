@@ -641,7 +641,13 @@ export function mountOrbit(
         }
         break;
       case 'confirmed':
-        if (chat) chat.confirm = undefined;
+        // Answered: the question gives way to Echo's follow-up (it used to run
+        // straight on: "…could be lost.You said no…").
+        if (chat) {
+          chat.confirm = undefined;
+          chat.text = '';
+          chat.state = 'thinking';
+        }
         break;
       case 'action':
         toast(e.text);

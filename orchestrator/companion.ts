@@ -890,6 +890,9 @@ export function createCompanion({
       });
 
       let jsonRetries = 0;
+      // The text so far this turn ends in whitespace? Text after a tool round
+      // starts a new block and must not run on ("…match.I switched…").
+      let said = '';
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
         const stream = api.beta.messages.stream({
           model,
@@ -907,7 +910,10 @@ export function createCompanion({
           if (!speaking) {
             speaking = true;
             setState('speaking');
+            if (said && !/\s$/.test(said) && !/^\s/.test(delta))
+              emit({ type: 'delta', text: ' ' });
           }
+          said += delta;
           emit({ type: 'delta', text: delta });
         });
 

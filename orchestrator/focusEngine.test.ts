@@ -334,5 +334,11 @@ test('engine: chip words only match short replies with every key word', async ()
     false,
   ); // 10 words
   assert.equal(e.matches("yeah let's do it"), true);
+  // Requests to Echo are not a generic yes, even with "go" / "in" / "done".
+  assert.equal(e.matches('go back to step 2'), false);
+  assert.equal(e.matches('put me in orbit'), false);
+  assert.equal(e.matches('ok open the journal'), false);
+  assert.equal(e.matches('done, turn calm mode on'), false);
+  assert.equal(e.matches('ok go'), true);
   e.stop();
 });

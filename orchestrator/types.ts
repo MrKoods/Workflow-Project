@@ -306,6 +306,8 @@ export interface CockpitApi {
   onTalkAuto(cb: () => void): () => void;
   /** Echo changed the screen (open settings, journal, quest log). */
   onUiCommand(cb: (cmd: UiCommand) => void): () => void;
+  /** Cockpit's window was hidden / minimized (false) or shown again (true). */
+  onVisible(cb: (visible: boolean) => void): () => void;
   /** Global hotkeys Windows wouldn't give us (another app owns them). */
   hotkeyTrouble(): Promise<Partial<Record<HotkeyAction, string>>>;
   /** Settings: hear a voice say a sample line. */

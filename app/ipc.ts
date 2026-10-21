@@ -35,4 +35,5 @@ export const IPC = {
   wakeStatus: 'cockpit:wake-status',
   talkAuto: 'cockpit:talk-auto',
   uiCommand: 'cockpit:ui-command',
+  visible: 'cockpit:visible',
 } as const;

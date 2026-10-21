@@ -55,6 +55,10 @@ export interface FocusHooks {
   speak?: (line: string) => Promise<void>; // port (Phase 1): a line ends when its audio does
 }
 
+/** A line that asks Echo to do something, not a "yes" to the chip on screen. */
+const COMMAND =
+  /\b(back|open|close|switch|turn|change|use|set|untick|tick|uncheck|check|minimi[sz]e|maximi[sz]e|restore|show|hide|start|pause|resume|archive|skip|undo|step|steps|settings|skin|layout|face|journal|log|window|orbit|hud|calm)\b|\d/;
+
 export class FocusEngine {
   private s: FocusState = {
     stepIndex: -1,
@@ -135,10 +139,13 @@ export class FocusEngine {
           })
         : undefined);
     if (r) return r;
-    // port: a question or a long sentence is never a generic "yes".
+    // port: a question or a long sentence is never a generic "yes", and nor
+    // is a request to Echo ("go back to step 2" is not "Let's go"; Nick,
+    // 2026-10-20): it names an action, a step, or a part of Cockpit.
     if (
       !t.includes('?') &&
       words.length <= 8 &&
+      !COMMAND.test(t) &&
       /\b(yes|yeah|yep|ready|go|done|ok|sure|made|saved|added|verified|in)\b/.test(
         t,
       )

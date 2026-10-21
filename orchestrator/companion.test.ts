@@ -563,3 +563,19 @@ test('operating Cockpit: tools act directly; only closing a window asks', async 
     'Nick said no. The window stays open.',
   );
 });
+
+test('text before and after a tool call reads as two sentences, not one', async () => {
+  const { companion, events } = setup([
+    {
+      text: 'Phosphor is the closest match.',
+      tools: [{ name: 'change_settings', input: { skin: 'phosphor' } }],
+    },
+    { text: 'I switched you to it.' },
+  ]);
+  await companion.send('switch to phosphorus');
+  const said = events
+    .filter((e) => e.type === 'delta')
+    .map((e) => (e as { text: string }).text)
+    .join('');
+  assert.equal(said, 'Phosphor is the closest match. I switched you to it.');
+});

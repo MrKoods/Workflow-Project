@@ -328,10 +328,30 @@ const createWindow = () => {
             const at = buf.indexOf('data');
             const pcm = buf.subarray(at + 8, at + 8 + buf.readUInt32LE(at + 4));
             await wake.enable();
+            let heardAt = -1;
             for (let i = 0; i < pcm.length; i += 640) {
               const frame = new Uint8Array(pcm.subarray(i, i + 640));
               if (talk.state().phase === 'idle') wake.feed(frame);
-              else talk.audio(frame);
+              else {
+                if (heardAt < 0) {
+                  heardAt = i;
+                  console.log(
+                    `[wake] talk began at ${(i / 32000).toFixed(2)} s of ${(pcm.length / 32000).toFixed(2)} s`,
+                  );
+                }
+                talk.audio(frame);
+              }
+              await wait(20);
+            }
+            // A real mic keeps sending (silence) after you stop talking; the
+            // speech service needs that to hear the end of the turn.
+            const hush = new Uint8Array(640);
+            for (
+              let t = 0;
+              t < 250 && talk.state().phase === 'listening';
+              t++
+            ) {
+              talk.audio(hush);
               await wait(20);
             }
             for (let t = 0; t < 100 && talk.state().phase !== 'idle'; t++)
@@ -365,10 +385,10 @@ const createWindow = () => {
           // "fps:<seconds>" logs the window's frame rate and the head's draw time.
           if (kind === 'fps') {
             const r = await js(`new Promise((done) => {
-              let n = 0; const t0 = performance.now(), ms = [];
+              let n = 0; const t0 = performance.now(), ms = [], f0 = +(document.querySelector('canvas')?.dataset.frames ?? 0);
               const tick = () => { n++; const c = document.querySelector('canvas')?.dataset.frameMs; if (c) ms.push(+c);
                 if (performance.now() - t0 < ${Number(arg) * 1000}) requestAnimationFrame(tick);
-                else done(JSON.stringify({ fps: +(n / ((performance.now() - t0) / 1000)).toFixed(1), drawMs: ms.length ? +(ms.reduce((a, b) => a + b) / ms.length).toFixed(2) : null, drawMsMax: ms.length ? Math.max(...ms) : null, skin: document.documentElement.style.getPropertyValue('--acc') }));
+                else done(JSON.stringify({ fps: +(n / ((performance.now() - t0) / 1000)).toFixed(1), drawMs: ms.length ? +(ms.reduce((a, b) => a + b) / ms.length).toFixed(2) : null, drawMsMax: ms.length ? Math.max(...ms) : null, skin: document.documentElement.style.getPropertyValue('--acc'), headFps: +((+(document.querySelector('canvas')?.dataset.frames ?? 0) - f0) / ((performance.now() - t0) / 1000)).toFixed(1) }));
               };
               requestAnimationFrame(tick);
             })`);
@@ -414,6 +434,15 @@ const createWindow = () => {
       app.quit();
     });
   }
+
+  // Background throttling is off (the mic must keep flowing while hidden), so
+  // the page never learns it's hidden by itself: tell it, and the hologram
+  // stops drawing behind other apps.
+  const visible = (v: boolean) => () => win?.webContents.send(IPC.visible, v);
+  win.on('hide', visible(false));
+  win.on('minimize', visible(false));
+  win.on('show', visible(true));
+  win.on('restore', visible(true));
 
   win.on('closed', () => {
     win = null;

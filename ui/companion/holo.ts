@@ -174,6 +174,9 @@ export class HoloRenderer {
       // Draw time per frame, every 30 frames (read by the dev fps probe).
       if (++n === 30) {
         this.cv.dataset.frameMs = (cost / 30).toFixed(2);
+        this.cv.dataset.frames = String(
+          Number(this.cv.dataset.frames ?? 0) + 30,
+        );
         n = 0;
         cost = 0;
       }
