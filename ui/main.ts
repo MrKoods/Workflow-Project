@@ -51,7 +51,7 @@ Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
       onLevel: (level) => bloom?.setVoiceLevel(level),
       onActive: () => refresh(),
       onError: (message) => toast(message),
-      onWake: () => chime(volume),
+      onWake: (followUp) => chime(volume, followUp),
     });
     // Wake word: listen only while it's switched on AND its model is loaded.
     let volume = snapshot.settings.volume;

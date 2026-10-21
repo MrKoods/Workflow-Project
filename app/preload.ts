@@ -61,13 +61,20 @@ const api: CockpitApi = {
     ipcRenderer.on(IPC.uiCommand, listener);
     return () => ipcRenderer.removeListener(IPC.uiCommand, listener);
   },
+  talkHandsFree: () => ipcRenderer.invoke(IPC.talkHandsFree),
+  onConversation(cb) {
+    const listener = (_e: IpcRendererEvent, on: boolean) => cb(on);
+    ipcRenderer.on(IPC.conversation, listener);
+    return () => ipcRenderer.removeListener(IPC.conversation, listener);
+  },
   onVisible(cb) {
     const listener = (_e: IpcRendererEvent, v: boolean) => cb(v);
     ipcRenderer.on(IPC.visible, listener);
     return () => ipcRenderer.removeListener(IPC.visible, listener);
   },
   onTalkAuto(cb) {
-    const listener = () => cb();
+    const listener = (_e: IpcRendererEvent, info?: { followUp?: boolean }) =>
+      cb({ followUp: !!info?.followUp });
     ipcRenderer.on(IPC.talkAuto, listener);
     return () => ipcRenderer.removeListener(IPC.talkAuto, listener);
   },

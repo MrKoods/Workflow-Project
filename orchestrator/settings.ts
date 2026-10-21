@@ -19,6 +19,7 @@ export const DEFAULT_SETTINGS: Settings = {
   voiceSteady: 'aura-2-thalia-en',
   companionName: 'Echo',
   wakeWord: false, // off until Nick switches it on (mic stays open while on)
+  conversation: true, // open mic after the wake word (Nick, 2026-10-21)
   hotkeys: {},
 };
 
@@ -44,6 +45,7 @@ export function cleanSettings(input: unknown): Partial<Settings> {
   if (typeof v.calm === 'boolean') out.calm = v.calm;
   if (typeof v.speech === 'boolean') out.speech = v.speech;
   if (typeof v.wakeWord === 'boolean') out.wakeWord = v.wakeWord;
+  if (typeof v.conversation === 'boolean') out.conversation = v.conversation;
   if (typeof v.companionName === 'string') {
     const name = v.companionName.trim().replace(/\s+/g, ' ');
     if (/^[\p{L}][\p{L}' -]{0,23}$/u.test(name)) out.companionName = name;

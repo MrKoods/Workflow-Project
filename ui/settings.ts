@@ -251,6 +251,11 @@ export function createSettingsPanel(api: CockpitApi) {
     'Say it and start talking, no key needed. The mic stays open on this PC; nothing is sent until the word is heard.',
     (on) => void save({ wakeWord: on }),
   );
+  const convo = toggle(
+    'Keep listening',
+    'After the wake word, the mic reopens when I finish answering, so you just keep talking. Stay quiet a few seconds or say “that’s all” to end.',
+    (on) => void save({ conversation: on }),
+  );
   const wakeNote = h('p', { class: 'cd-note cd-wake-note' });
   let wakeStatus: WakeStatusView = { state: 'off' };
   const paintWake = () => {
@@ -404,6 +409,7 @@ export function createSettingsPanel(api: CockpitApi) {
       speak.el,
       wake.el,
       wakeNote,
+      convo.el,
       h('div', { class: 'cd-row' }, [
         h('span', { class: 'cd-row-label' }, [h('b', { text: 'Volume' })]),
         volume,
@@ -742,6 +748,7 @@ export function createSettingsPanel(api: CockpitApi) {
     speak.set(s.speech);
     if (document.activeElement !== nameInput) nameInput.value = s.companionName;
     wake.set(s.wakeWord);
+    convo.set(s.conversation);
     paintWake();
     volume.value = String(Math.round(s.volume * 100));
     volumeOut.textContent = `${volume.value}%`;

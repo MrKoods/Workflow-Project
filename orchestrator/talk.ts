@@ -44,6 +44,8 @@ export interface TalkOptions {
   connect?: (url: string, apiKey: string) => TalkSocket;
   /** Optional timing log (release -> final transcript). */
   log?: (line: string) => void;
+  /** A hands-free turn ended with nothing said (the conversation can end). */
+  onEmpty?: () => void;
 }
 
 export const LISTEN_URL =
@@ -64,6 +66,7 @@ export function createTalk({
   onFinal,
   connect = defaultConnect,
   log,
+  onEmpty,
 }: TalkOptions) {
   let state: TalkState = { phase: 'idle', partial: '' };
   let ws: TalkSocket | null = null;
@@ -114,8 +117,10 @@ export function createTalk({
       log?.(
         `[talk] final transcript ${Date.now() - releasedAt} ms after release`,
       );
+    const wasAuto = auto;
     reset();
     if (text) onFinal(text, released);
+    else if (wasAuto) onEmpty?.();
   }
 
   const talk = {
@@ -124,9 +129,10 @@ export function createTalk({
     /**
      * Talk key pressed: open the connection; audio is buffered until it's up.
      * auto (wake word): no key to release, so it sends when you stop
-     * speaking (Deepgram's end of speech) and cancels if you say nothing.
+     * speaking (Deepgram's end of speech) and cancels if you say nothing
+     * within silenceMs (longer for a conversation's follow-up turns).
      */
-    start(opts: { auto?: boolean } = {}) {
+    start(opts: { auto?: boolean; silenceMs?: number } = {}) {
       if (state.phase !== 'idle') return;
       auto = !!opts.auto;
       if (!apiKey) {
@@ -197,8 +203,10 @@ export function createTalk({
       maxTimer.unref?.(); // never keeps the process alive on its own
       if (auto) {
         silenceTimer = setTimeout(() => {
-          if (!heard()) talk.cancel();
-        }, AUTO_SILENCE_MS);
+          if (heard()) return;
+          talk.cancel();
+          onEmpty?.();
+        }, opts.silenceMs ?? AUTO_SILENCE_MS);
         silenceTimer.unref?.();
       }
     },

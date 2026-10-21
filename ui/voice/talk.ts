@@ -13,8 +13,8 @@ export interface TalkHooks {
   /** Talking started / ended on this side (before the server answers). */
   onActive(active: boolean): void;
   onError(message: string): void;
-  /** The wake word fired (play the chime). */
-  onWake?(): void;
+  /** Hands-free listening began: the wake word (chime) or a conversation follow-up (soft cue). */
+  onWake?(followUp: boolean): void;
 }
 
 export function createTalkControl(api: CockpitApi, hooks: TalkHooks) {
@@ -26,6 +26,7 @@ export function createTalkControl(api: CockpitApi, hooks: TalkHooks) {
   let stream: MediaStream | null = null;
   let opening: Promise<void> | null = null;
   let closeTimer = 0;
+  let conversation = false; // an open-mic conversation is on (main says)
 
   async function openMic() {
     if (ctx) return;
@@ -82,15 +83,25 @@ export function createTalkControl(api: CockpitApi, hooks: TalkHooks) {
     });
   }
 
-  // Hands-free: the orchestrator started talking after the wake word, and
-  // ends it when you stop speaking (its state goes back to idle).
-  api.onTalkAuto(() => {
+  // Hands-free: the orchestrator started talking after the wake word (or
+  // reopened the mic for the next turn of a conversation), and ends it when
+  // you stop speaking (its state goes back to idle).
+  api.onTalkAuto(({ followUp }) => {
     if (active) return;
     active = true;
     auto = true;
     held = false;
+    clearTimeout(closeTimer);
     hooks.onActive(true);
-    hooks.onWake?.();
+    hooks.onWake?.(followUp);
+    opening ??= openMic().catch((err: Error) => {
+      closeMic();
+      hooks.onError(`Microphone unavailable: ${err.message}`);
+    });
+  });
+  api.onConversation((on) => {
+    conversation = on;
+    hooks.onActive(active); // repaint the Talk button
   });
   api.onTalkState((s) => {
     if (auto && active && s.phase === 'idle') {
@@ -126,9 +137,15 @@ export function createTalkControl(api: CockpitApi, hooks: TalkHooks) {
     },
     stop: () => end(true),
     cancel: () => end(false),
+    /** Talk button / Ctrl+Alt+V: talking -> send now; in a conversation ->
+     *  end it; otherwise start a hands-free conversation. */
     toggle() {
       if (active) end(true);
-      else control.start(false);
+      else if (conversation) void api.talkCancel();
+      else void api.talkHandsFree();
+    },
+    get conversation() {
+      return conversation;
     },
     /** Wake word on (model loaded) / off: keeps the mic open while on. */
     setWake(on: boolean) {

@@ -36,4 +36,6 @@ export const IPC = {
   talkAuto: 'cockpit:talk-auto',
   uiCommand: 'cockpit:ui-command',
   visible: 'cockpit:visible',
+  talkHandsFree: 'cockpit:talk-hands-free',
+  conversation: 'cockpit:conversation',
 } as const;

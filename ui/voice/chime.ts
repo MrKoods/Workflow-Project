@@ -1,12 +1,13 @@
-// A short, soft two-note chime: "I heard the wake word, go ahead."
+// A short, soft two-note chime: "I heard the wake word, go ahead." In a
+// conversation, the mic reopening after a reply gets one quieter note.
 let ctx: AudioContext | null = null;
 
-export function chime(volume = 0.8) {
+export function chime(volume = 0.8, followUp = false) {
   ctx ??= new AudioContext();
   if (ctx.state === 'suspended') void ctx.resume();
   const t0 = ctx.currentTime + 0.01;
-  const level = Math.max(0.05, Math.min(1, volume)) * 0.18;
-  [660, 990].forEach((freq, i) => {
+  const level = Math.max(0.05, Math.min(1, volume)) * (followUp ? 0.1 : 0.18);
+  (followUp ? [880] : [660, 990]).forEach((freq, i) => {
     const osc = ctx!.createOscillator();
     const gain = ctx!.createGain();
     osc.type = 'sine';

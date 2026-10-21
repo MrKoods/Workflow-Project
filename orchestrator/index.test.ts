@@ -506,6 +506,7 @@ test('settings default to ice/hud/auto, persist, and ignore invalid fields', asy
     voiceSteady: 'aura-2-thalia-en',
     companionName: 'Echo',
     wakeWord: false,
+    conversation: true,
     hotkeys: {},
   });
   await orch.setSettings({ hotkeys: { journal: 'J', talkToggle: 'V' } });

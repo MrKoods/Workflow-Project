@@ -38,6 +38,8 @@ export interface Settings {
   companionName: string;
   /** Listen for the wake word (Phase 1 Task 6). Keeps the mic open on this PC. */
   wakeWord: boolean;
+  /** After the wake word, keep listening after each reply until you go quiet (Nick, 2026-10-21). */
+  conversation: boolean;
   /** Hotkey overrides by action (defaults in orchestrator/keymap.ts). */
   hotkeys: Partial<Record<HotkeyAction, string>>;
 }
@@ -302,10 +304,15 @@ export interface CockpitApi {
   wakeAudio(frame: ArrayBuffer): void;
   getWakeStatus(): Promise<WakeStatusView>;
   onWakeStatus(cb: (s: WakeStatusView) => void): () => void;
-  /** The wake word fired: talking has started hands-free. */
-  onTalkAuto(cb: () => void): () => void;
+  /** Hands-free talking started: the wake word fired, or (followUp) the
+   * conversation reopened the mic after a reply. */
+  onTalkAuto(cb: (info: { followUp: boolean }) => void): () => void;
   /** Echo changed the screen (open settings, journal, quest log). */
   onUiCommand(cb: (cmd: UiCommand) => void): () => void;
+  /** Start a hands-free conversation (Talk button, Ctrl+Alt+V): like the wake word. */
+  talkHandsFree(): Promise<void>;
+  /** An open-mic conversation started (true) or ended (false). */
+  onConversation(cb: (on: boolean) => void): () => void;
   /** Cockpit's window was hidden / minimized (false) or shown again (true). */
   onVisible(cb: (visible: boolean) => void): () => void;
   /** Global hotkeys Windows wouldn't give us (another app owns them). */

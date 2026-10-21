@@ -30,6 +30,11 @@ import {
 } from '../orchestrator/wakeListener.ts';
 import { createTalk, TALK_RATE, type Talk } from '../orchestrator/talk.ts';
 import {
+  createConversation,
+  FOLLOW_UP_SILENCE_MS,
+  isGoodbye,
+} from '../orchestrator/conversation.ts';
+import {
   createSpeech,
   takeSentences,
   type Speech,
@@ -107,6 +112,8 @@ let tray: Tray | null = null;
 let companion: Companion | null = null;
 let talk: Talk | null = null;
 let wake: WakeListener | null = null;
+/** Dev harness: a recorded clip is the mic, so the window's real mic is ignored. */
+let scriptedAudio = false;
 let speech: Speech | null = null;
 /** The Deepgram voice for the voice in use (Settings: Playful / Steady). */
 const voiceId = (voice: 'steady' | 'playful') => {
@@ -322,7 +329,58 @@ const createWindow = () => {
             /^(key|click|wav|fps|burst):(.+)$/.exec(reply) ?? [];
           // "wakewav:<file>": the wake detector hears it; after the word fires
           // the rest goes to hands-free talk (as the window routes the mic).
+          // "followwav:<file>": wait for the conversation to reopen the mic
+          // after Echo's reply, then say the clip (and the silence after it).
+          // "hush:<s>": say nothing for s seconds (the conversation should end).
+          if (
+            (reply.startsWith('followwav:') || reply.startsWith('hush:')) &&
+            talk
+          ) {
+            scriptedAudio = true;
+            const t0 = Date.now();
+            for (let t = 0; t < 600 && talk.state().phase !== 'listening'; t++)
+              await wait(100);
+            console.log(
+              `[convo] mic reopened after ${Date.now() - t0} ms (${talk.state().phase})`,
+            );
+            const hush = new Uint8Array(640);
+            if (reply.startsWith('hush:')) {
+              const until = Date.now() + Number(reply.slice(5)) * 1000;
+              while (Date.now() < until) {
+                talk.audio(hush);
+                await wait(20);
+              }
+            } else {
+              const buf = await readFile(reply.slice('followwav:'.length));
+              const at = buf.indexOf('data');
+              const pcm = buf.subarray(
+                at + 8,
+                at + 8 + buf.readUInt32LE(at + 4),
+              );
+              for (let i = 0; i < pcm.length; i += 640) {
+                talk.audio(new Uint8Array(pcm.subarray(i, i + 640)));
+                await wait(20);
+              }
+              for (
+                let t = 0;
+                t < 250 && talk.state().phase === 'listening';
+                t++
+              ) {
+                talk.audio(hush);
+                await wait(20);
+              }
+            }
+            for (let t = 0; t < 100 && talk.state().phase !== 'idle'; t++)
+              await wait(100);
+            await wait(600);
+            await capture(`${tag}a`);
+            await untilWaiting();
+            await wait(1200);
+            await capture(`${tag}b`);
+            continue;
+          }
           if (reply.startsWith('wakewav:') && talk && wake) {
+            scriptedAudio = true;
             const file = reply.slice('wakewav:'.length);
             const buf = await readFile(file);
             const at = buf.indexOf('data');
@@ -364,6 +422,7 @@ const createWindow = () => {
             continue;
           }
           if (kind === 'wav' && talk) {
+            scriptedAudio = true;
             const buf = await readFile(arg);
             const at = buf.indexOf('data');
             if (buf.readUInt32LE(24) !== TALK_RATE || at < 0)
@@ -683,14 +742,35 @@ const connectOrchestrator = async () => {
   });
   ipcMain.handle(IPC.hotkeyTrouble, () => ({ ...hotkeyTrouble }));
 
+  // Open mic after the wake word (Nick, 2026-10-21): once Echo has finished
+  // answering (text done, audio played), listen for the next turn hands-free.
+  const convo = createConversation({
+    quiet: () => !turn && !speech?.busy() && talk?.state().phase === 'idle',
+    listen: () => {
+      talk?.start({ auto: true, silenceMs: FOLLOW_UP_SILENCE_MS });
+      win?.webContents.send(IPC.talkAuto, { followUp: true });
+    },
+    enabled: () => orchestrator.snapshot().settings.conversation,
+    onChange: (on) => win?.webContents.send(IPC.conversation, on),
+    log: (line) => console.log(line),
+  });
+
   // Push-to-talk (Phase 1 Task 2): speech-to-text runs here, not in the UI.
   talk = createTalk({
     apiKey: process.env.DEEPGRAM_API_KEY,
-    onState: (s) => win?.webContents.send(IPC.talkState, s),
+    onState: (s) => {
+      if (s.error) convo.end('error');
+      win?.webContents.send(IPC.talkState, s);
+    },
     onFinal: (text, releasedAt) => {
+      // "That's all" / "never mind" closes the conversation; Echo isn't asked.
+      if (convo.active() && isGoodbye(text)) return convo.end('goodbye');
       const transcriptMs = Date.now() - releasedAt;
       voiceTurn = { releasedAt, transcriptMs, route: reply(text, true) };
+      convo.sent();
     },
+    // A follow-up turn heard nothing: back to waiting for the wake word.
+    onEmpty: () => convo.end('silence'),
     log: (line) => console.log(line),
   });
   // Talking over the companion stops it (barge-in).
@@ -699,7 +779,17 @@ const connectOrchestrator = async () => {
     talk?.start();
   });
   ipcMain.handle(IPC.talkStop, () => talk?.stop());
-  ipcMain.handle(IPC.talkCancel, () => talk?.cancel());
+  ipcMain.handle(IPC.talkHandsFree, () => {
+    if (talk?.state().phase !== 'idle') return;
+    speech?.stopAll();
+    talk?.start({ auto: true });
+    convo.begin();
+    win?.webContents.send(IPC.talkAuto, { followUp: false });
+  });
+  ipcMain.handle(IPC.talkCancel, () => {
+    convo.end('cancel'); // Esc ends the conversation too
+    talk?.cancel();
+  });
   // Wake word (Phase 1 Task 6): local detection; on a hit, talk hands-free.
   const w = createWakeListener({
     dir: path.join(app.getAppPath(), 'wake'),
@@ -708,7 +798,8 @@ const connectOrchestrator = async () => {
       if (talk?.state().phase !== 'idle') return;
       speech?.stopAll();
       talk?.start({ auto: true });
-      win?.webContents.send(IPC.talkAuto);
+      convo.begin();
+      win?.webContents.send(IPC.talkAuto, { followUp: false });
     },
     log: (line) => console.log(line),
   });
@@ -719,12 +810,14 @@ const connectOrchestrator = async () => {
   };
   syncWake(orchestrator.snapshot().settings.wakeWord);
   orchestrator.onChange((s) => {
+    if (!s.settings.conversation) convo.end('off');
     const on = s.settings.wakeWord;
     if (on !== (w.status().state === 'ready' || w.status().state === 'loading'))
       syncWake(on);
   });
   ipcMain.handle(IPC.wakeStatus, () => w.status());
   ipcMain.on(IPC.wakeAudio, (_e, frame: unknown) => {
+    if (scriptedAudio) return;
     if (frame instanceof Uint8Array && frame.byteLength <= 16_000)
       w.feed(frame);
     else if (frame instanceof ArrayBuffer && frame.byteLength <= 16_000)
@@ -732,6 +825,7 @@ const connectOrchestrator = async () => {
   });
 
   ipcMain.on(IPC.talkAudio, (_e, frame: unknown) => {
+    if (scriptedAudio) return;
     // 20 ms of 16 kHz 16-bit mono = 640 bytes; anything far bigger is not ours.
     if (frame instanceof Uint8Array && frame.byteLength <= 16_000)
       talk?.audio(frame);

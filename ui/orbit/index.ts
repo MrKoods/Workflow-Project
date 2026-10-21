@@ -108,7 +108,8 @@ export function mountOrbit(
     text: 'Talk',
     attrs: {
       type: 'button',
-      title: 'Hold Right Ctrl to talk, or tap Ctrl+Alt+V from any app',
+      title:
+        'Click to talk hands-free (it sends when you pause and keeps listening after each reply). Hold Right Ctrl for one manual turn. Ctrl+Alt+V from any app.',
       'aria-keyshortcuts': 'Control+Alt+V',
     },
     on: { click: () => hooks.talk?.toggle() },
@@ -524,7 +525,15 @@ export function mountOrbit(
     renderChips(v);
     const on = talking();
     sayForm.classList.toggle('listening', on);
-    micBtn.textContent = on ? 'Stop' : 'Talk';
+    // Talk -> (listening) Send now -> (Echo answering) End -> Talk.
+    const convo = !!hooks.talk?.conversation;
+    micBtn.textContent = on
+      ? convo
+        ? 'Send now'
+        : 'Stop'
+      : convo
+        ? 'End'
+        : 'Talk';
     micBtn.setAttribute('aria-pressed', String(on));
 
     // Top row.
