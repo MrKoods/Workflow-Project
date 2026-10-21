@@ -12,6 +12,8 @@ export type QuestStatus = (typeof QUEST_STATUSES)[number];
 export const VOICES = ['auto', 'steady', 'playful'] as const;
 /** Screen layouts (SKINS.md): Tech HUD with the hologram head, or Orbit with Bloom. */
 export const LAYOUTS = ['hud', 'orbit'] as const;
+/** Hologram face (Tech HUD): auto = the skin's own material, or force circuit / pixel. */
+export const HOLO_FACES = ['auto', 'circuit', 'pixel'] as const;
 /** The voice actually in use at a moment. */
 export type VoiceNow = 'steady' | 'playful';
 
@@ -21,6 +23,8 @@ export interface Settings {
   palette: string;
   /** Screen layout: 'hud' (Tech HUD + hologram head, default) or 'orbit' (Orbit + Bloom). */
   layout: (typeof LAYOUTS)[number];
+  /** Hologram face: 'auto' (the skin's holo.mat), or force 'circuit' / 'pixel'. */
+  holoFace: (typeof HOLO_FACES)[number];
   voice: (typeof VOICES)[number];
   calm: boolean;
   /** The companion speaks out loud (Phase 1). Off = captions only. */

@@ -18,7 +18,13 @@ import type {
 } from '../orchestrator/types';
 import { hotkey } from './keys';
 import { h } from './panels/dom';
-import { PALETTES, currentPalette, usePalette, type Palette } from './palette';
+import {
+  PALETTES,
+  currentPalette,
+  faceOf,
+  usePalette,
+  type Palette,
+} from './palette';
 import { VOICE_OPTIONS } from './voice/voices';
 
 type Tab = 'look' | 'voice' | 'keys';
@@ -28,6 +34,9 @@ const FEEL: Record<string, string> = {
   ice: 'Hologram · white-hot pulses',
   synapse: 'Hologram · cyan to magenta',
   solar: 'Hologram · gold to coral',
+  glacier: 'Pixel · fine, ice to violet',
+  arcade: 'Pixel · chunky 8-bit, pink to cyan',
+  phosphor: 'Pixel · green CRT dots',
   aqua: 'Cool, crisp',
   ember: 'Warm fire',
   nebula: 'Cosmic violet',
@@ -123,9 +132,61 @@ export function createSettingsPanel(api: CockpitApi) {
     }),
   );
   const layoutText = h('p', { class: 'cd-note' });
+  const faceBtns = (
+    [
+      ['auto', 'Auto'],
+      ['circuit', 'Circuit'],
+      ['pixel', 'Pixel'],
+    ] as const
+  ).map(([v, label]) =>
+    h('button', {
+      class: 'cd-seg-btn',
+      text: label,
+      attrs: { type: 'button', 'aria-pressed': 'false', 'data-v': v },
+      on: { click: () => void save({ holoFace: v }) },
+    }),
+  );
+  const faceText = h('p', { class: 'cd-note' });
+  const faceRow = h('div', { class: 'cd-row cd-row-col' }, [
+    h('b', { class: 'cd-sub', text: 'Hologram face' }),
+    h(
+      'div',
+      {
+        class: 'cd-seg',
+        attrs: { role: 'group', 'aria-label': 'Hologram face' },
+      },
+      faceBtns,
+    ),
+    faceText,
+  ]);
+  // Skins grouped by the face they carry (holo.mat; none = Classic), so a new
+  // palette file lands in the right group with no code change.
+  const GROUPS = [
+    ['circuit', 'Circuit skins'],
+    ['pixel', 'Pixel skins'],
+    ['classic', 'Classic'],
+  ] as const;
+  const skinGroups = GROUPS.map(([g, title]) => {
+    const cards = skins.filter(
+      (c) => faceOf(PALETTES.find((p) => p.id === c.dataset.id)!) === g,
+    );
+    return cards.length
+      ? [
+          h('h4', { class: 'cd-group', text: title }),
+          h('div', { class: 'cd-skins' }, cards),
+        ]
+      : [];
+  }).flat();
   async function chooseSkin(id: string) {
     usePalette(id); // instant; the save follows
-    await save({ palette: id });
+    // A circuit or pixel skin always shows its own face: clear a forced face
+    // that points the other way.
+    const g = faceOf(PALETTES.find((p) => p.id === id)!);
+    const face = settings?.holoFace ?? 'auto';
+    const patch: Partial<Settings> = { palette: id };
+    if (g !== 'classic' && face !== 'auto' && face !== g)
+      patch.holoFace = 'auto';
+    await save(patch);
   }
   const calm = toggle(
     'Calm mode',
@@ -153,13 +214,14 @@ export function createSettingsPanel(api: CockpitApi) {
         ),
         layoutText,
       ]),
+      faceRow,
       h('header', { class: 'cd-pane-head' }, [
         h('h3', { text: 'Color skin' }),
         h('p', {
-          text: 'Each skin recolors everything at once, in either interface. Ice, Synapse and Solar also set the hologram’s eyes.',
+          text: 'Each skin recolors everything at once, in either interface. Circuit and Pixel skins also set the hologram’s face and eyes.',
         }),
       ]),
-      h('div', { class: 'cd-skins' }, skins),
+      ...skinGroups,
       calm.el,
     ],
   );
@@ -667,6 +729,15 @@ export function createSettingsPanel(api: CockpitApi) {
       s.layout === 'hud'
         ? 'Hologram head in the middle; the work slides into the center module.'
         : 'Bloom in the middle; the current step pops out of the orbit.';
+    faceRow.hidden = s.layout !== 'hud';
+    faceBtns.forEach((b) =>
+      b.setAttribute('aria-pressed', String(b.dataset.v === s.holoFace)),
+    );
+    faceText.textContent = {
+      auto: 'Each skin brings its own face: circuit particles or pixels.',
+      circuit: 'Always circuit particles and traces, whatever the skin.',
+      pixel: 'Always pixels; skins without a pixel face get fine 8-bit pixels.',
+    }[s.holoFace];
     calm.set(s.calm);
     speak.set(s.speech);
     if (document.activeElement !== nameInput) nameInput.value = s.companionName;

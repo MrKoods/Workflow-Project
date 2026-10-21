@@ -497,6 +497,7 @@ test('settings default to ice/hud/auto, persist, and ignore invalid fields', asy
   assert.deepEqual(orch.snapshot().settings, {
     palette: 'ice',
     layout: 'hud',
+    holoFace: 'auto',
     voice: 'auto',
     calm: false,
     speech: true,
@@ -521,6 +522,9 @@ test('settings default to ice/hud/auto, persist, and ignore invalid fields', asy
   await orch.setSettings({ layout: 'orbit' });
   await orch.setSettings({ layout: 'sideways' });
   assert.equal(orch.snapshot().settings.layout, 'orbit');
+  await orch.setSettings({ holoFace: 'pixel' });
+  await orch.setSettings({ holoFace: 'voxel' });
+  assert.equal(orch.snapshot().settings.holoFace, 'pixel');
   await orch.setSettings({ palette: '../../evil' });
   assert.equal(orch.snapshot().settings.palette, 'ember');
   assert.equal(orch.snapshot().settings.voice, 'auto');
@@ -530,6 +534,7 @@ test('settings default to ice/hud/auto, persist, and ignore invalid fields', asy
   assert.equal(orch.snapshot().settings.palette, 'ember');
   assert.equal(orch.snapshot().settings.voice, 'steady');
   assert.equal(orch.snapshot().settings.layout, 'orbit');
+  assert.equal(orch.snapshot().settings.holoFace, 'pixel');
   // A file from before Auto existed (no version) moves to auto once, and a
   // file from before the Tech HUD (version < 3) moves to hud + ice once.
   await writeFile(

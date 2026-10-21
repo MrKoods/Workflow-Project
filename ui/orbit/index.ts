@@ -497,12 +497,11 @@ export function mountOrbit(
     if (hud) {
       modState.textContent = STATE_LABEL[companion];
       const total = v?.planets.length ?? 0;
-      const stepNo = Math.min(total, (v?.stepIndex ?? 0) + 1);
-      modStep.textContent = total
-        ? `Step ${Math.max(1, stepNo)} / ${total}`
-        : '';
+      // The step in view: a peeked step, else the first unfinished one.
+      const at = v ? (v.peek ?? Math.min(v.doneSteps, total - 1)) : 0;
+      modStep.textContent = total ? `Step ${at + 1} / ${total}` : '';
       modDone.textContent = total ? `${v?.doneSteps ?? 0} / ${total}` : '';
-      const cur = v?.planets[v.peek ?? Math.min(v.doneSteps, total - 1)];
+      const cur = v?.planets[at];
       viewTask.textContent = `Focus · ${cur?.label ?? 'task'}`;
       const logKey = JSON.stringify(v?.log ?? []);
       if (logx.dataset.key !== logKey) {

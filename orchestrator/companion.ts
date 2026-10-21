@@ -57,7 +57,7 @@ Creating quests (Quest Forge): when Nick wants a new quest (he may start with "n
 - create_folder: create a folder inside his Documents folder, for example for a new quest's bundle.
 
 Operating Cockpit:
-- change_settings: color skin, layout (Tech HUD or Orbit), voice style (auto/steady/playful), speaking on/off, volume, your name, wake word on/off, calm mode, the Playful and Steady voices, hotkeys. The live state lists the current values.
+- change_settings: color skin, layout (Tech HUD or Orbit), hologram face (auto/circuit/pixel), voice style (auto/steady/playful), speaking on/off, volume, your name, wake word on/off, calm mode, the Playful and Steady voices, hotkeys. The live state lists the current values.
 - set_steps: tick or untick steps (by number, or all) of the quest on screen or another quest. Unticking a finished quest opens it again.
 - go_back_to_step: go back to step N and redo from there (unticks N and the steps after it).
 - view_step: look at another step's cards without changing progress (or back to the current one).
@@ -205,13 +205,19 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
       skin: {
         type: 'string',
         description:
-          'Color skin id: aqua, ember, nebula, aurora, frost, crimson, eclipse, ice, synapse, solar.',
+          'Color skin id. Circuit hologram skins: ice, synapse, solar. Pixel hologram skins: glacier, arcade, phosphor. Classic: aqua, ember, nebula, aurora, frost, crimson, eclipse.',
       },
       layout: {
         type: 'string',
         enum: ['hud', 'orbit'],
         description:
           'Screen layout: hud = Tech HUD with the hologram head, orbit = steps orbit the Bloom companion.',
+      },
+      face: {
+        type: 'string',
+        enum: ['auto', 'circuit', 'pixel'],
+        description:
+          "Hologram face in the Tech HUD: auto = the skin's own face, circuit = always circuit particles, pixel = always pixels.",
       },
       voice_style: { type: 'string', enum: ['auto', 'steady', 'playful'] },
       speech: {
@@ -385,7 +391,7 @@ export function describeState(
   const lines = [`Live state, ${time}.`];
   if (s)
     lines.push(
-      `Settings: skin ${s.palette}, layout ${s.layout}, voice style ${s.voice}, speaking ${s.speech ? `on (${Math.round(s.volume * 100)}%)` : 'off'}, playful voice ${s.voicePlayful.replace(/^aura-2-|-en$/g, '')}, steady voice ${s.voiceSteady.replace(/^aura-2-|-en$/g, '')}, wake word ${s.wakeWord ? 'on' : 'off'}, calm ${s.calm ? 'on' : 'off'}${Object.keys(s.hotkeys ?? {}).length ? `, custom keys ${JSON.stringify(s.hotkeys)}` : ''}.`,
+      `Settings: skin ${s.palette}, layout ${s.layout}, hologram face ${s.holoFace}, voice style ${s.voice}, speaking ${s.speech ? `on (${Math.round(s.volume * 100)}%)` : 'off'}, playful voice ${s.voicePlayful.replace(/^aura-2-|-en$/g, '')}, steady voice ${s.voiceSteady.replace(/^aura-2-|-en$/g, '')}, wake word ${s.wakeWord ? 'on' : 'off'}, calm ${s.calm ? 'on' : 'off'}${Object.keys(s.hotkeys ?? {}).length ? `, custom keys ${JSON.stringify(s.hotkeys)}` : ''}.`,
     );
   if (name)
     lines.push(

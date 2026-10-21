@@ -318,7 +318,8 @@ const createWindow = () => {
           const tag = String(++n).padStart(2, '0');
           // "key:ArrowLeft" presses a key, "click:<selector>" clicks, instead of typing;
           // "wav:<file>" speaks a 16 kHz mono WAV through push-to-talk (real STT).
-          const [, kind, arg] = /^(key|click|wav):(.+)$/.exec(reply) ?? [];
+          const [, kind, arg] =
+            /^(key|click|wav|fps|burst):(.+)$/.exec(reply) ?? [];
           // "wakewav:<file>": the wake detector hears it; after the word fires
           // the rest goes to hands-free talk (as the window routes the mic).
           if (reply.startsWith('wakewav:') && talk && wake) {
@@ -359,6 +360,27 @@ const createWindow = () => {
             await untilWaiting();
             await wait(1200);
             await capture(`${tag}b`);
+            continue;
+          }
+          // "fps:<seconds>" logs the window's frame rate and the head's draw time.
+          if (kind === 'fps') {
+            const r = await js(`new Promise((done) => {
+              let n = 0; const t0 = performance.now(), ms = [];
+              const tick = () => { n++; const c = document.querySelector('canvas')?.dataset.frameMs; if (c) ms.push(+c);
+                if (performance.now() - t0 < ${Number(arg) * 1000}) requestAnimationFrame(tick);
+                else done(JSON.stringify({ fps: +(n / ((performance.now() - t0) / 1000)).toFixed(1), drawMs: ms.length ? +(ms.reduce((a, b) => a + b) / ms.length).toFixed(2) : null, drawMsMax: ms.length ? Math.max(...ms) : null, skin: document.documentElement.style.getPropertyValue('--acc') }));
+              };
+              requestAnimationFrame(tick);
+            })`);
+            console.log(`[fps] ${r}`);
+            continue;
+          }
+          // "burst:<n>" captures n frames 100 ms apart (<shot>-NN-kk.png).
+          if (kind === 'burst') {
+            for (let k = 0; k < Number(arg); k++) {
+              await capture(`${tag}-${String(k).padStart(2, '0')}`);
+              await wait(100);
+            }
             continue;
           }
           if (kind) {

@@ -1,0 +1,27 @@
+{
+  "id": "glacier",
+  "name": "Glacier",
+  "ground": {
+    "center": "#0A1220",
+    "mid": "#03040B",
+    "edge": "#000000"
+  },
+  "accent": "#9FE8FF",
+  "reply": "#E6FFFF",
+  "third": "#C79BFF",
+  "card": "4,6,14",
+  "text": "#E6F6FF",
+  "muted": "#7C8AA6",
+  "onAccent": "#030A12",
+  "companion": {
+    "core": "#9FE8FF",
+    "filamentsA": "#8C6BFF",
+    "filamentsB": "#E6FFFF"
+  },
+  "holo": {
+    "mat": "pixel8",
+    "px": 3,
+    "tint": "#8C6BFF",
+    "eye": "pixel"
+  }
+}

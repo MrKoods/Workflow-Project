@@ -1,0 +1,27 @@
+{
+  "id": "arcade",
+  "name": "Arcade",
+  "ground": {
+    "center": "#1A0618",
+    "mid": "#07020A",
+    "edge": "#000000"
+  },
+  "accent": "#FF4FB8",
+  "reply": "#FFD27A",
+  "third": "#FFE066",
+  "card": "10,3,10",
+  "text": "#FCEAF6",
+  "muted": "#A07C96",
+  "onAccent": "#14020E",
+  "companion": {
+    "core": "#FF4FB8",
+    "filamentsA": "#3FE0FF",
+    "filamentsB": "#FFD27A"
+  },
+  "holo": {
+    "mat": "pixel8",
+    "px": 4,
+    "tint": "#3FE0FF",
+    "eye": "scan"
+  }
+}

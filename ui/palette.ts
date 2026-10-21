@@ -13,9 +13,50 @@ export interface Palette {
   muted: string;
   onAccent: string;
   companion: { core: string; filamentsA: string; filamentsB: string };
-  /** Hologram head (Tech HUD): the second particle/pulse color and the eye style.
-   *  Optional: palettes without it use `reply` as the tint and the iris eyes. */
-  holo?: { tint: string; eye: 'iris' | 'spark' | 'ring' | 'glow' };
+  /** Hologram head (Tech HUD): surface material, cell size, second color, eye style.
+   *  Optional: palettes without it are Classic (circuit, `reply` as tint, iris eyes). */
+  holo?: {
+    mat?: HoloMat;
+    px?: number;
+    tint: string;
+    eye: HoloEyeStyle;
+  };
+}
+
+export type HoloMat = 'circuit' | 'pixel' | 'pixel8';
+export type HoloEyeStyle =
+  | 'iris'
+  | 'spark'
+  | 'ring'
+  | 'glow'
+  | 'pixel'
+  | 'scan';
+/** The face family a palette belongs to (Settings → Look groups by it). */
+export const faceOf = (p: Palette): 'circuit' | 'pixel' | 'classic' =>
+  !p.holo
+    ? 'classic'
+    : (p.holo.mat ?? 'circuit') === 'circuit'
+      ? 'circuit'
+      : 'pixel';
+
+/** What the head draws for a palette + the Hologram face setting (SKINS.md). */
+export function holoLook(
+  p: Palette,
+  face: 'auto' | 'circuit' | 'pixel',
+): { mat: HoloMat; px: number; tint: string; eye: HoloEyeStyle } {
+  const own: HoloMat = p.holo?.mat ?? 'circuit';
+  const ownPx = p.holo?.px ?? 3;
+  const tint = p.holo?.tint ?? p.reply;
+  const eye: HoloEyeStyle = p.holo?.eye ?? 'iris';
+  if (face === 'circuit')
+    return own === 'circuit'
+      ? { mat: own, px: ownPx, tint, eye }
+      : { mat: 'circuit', px: 3, tint, eye: 'iris' };
+  if (face === 'pixel')
+    return own !== 'circuit'
+      ? { mat: own, px: ownPx, tint, eye }
+      : { mat: 'pixel8', px: 3, tint, eye: 'pixel' };
+  return { mat: own, px: ownPx, tint, eye };
 }
 
 // Ported from docs/reference/palette.ts unchanged.
@@ -52,6 +93,9 @@ const ORDER = [
   'ice',
   'synapse',
   'solar',
+  'glacier',
+  'arcade',
+  'phosphor',
   'aqua',
   'ember',
   'nebula',

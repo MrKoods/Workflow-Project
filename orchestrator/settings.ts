@@ -3,12 +3,13 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { cleanHotkeys } from './keymap.ts';
-import { LAYOUTS, VOICES, type Settings } from './types.ts';
+import { HOLO_FACES, LAYOUTS, VOICES, type Settings } from './types.ts';
 
 export const DEFAULT_SETTINGS: Settings = {
   // Nick, 2026-10-20: switch to the Tech HUD with the Circuit hologram head (Ice).
   palette: 'ice',
   layout: 'hud',
+  holoFace: 'auto',
   voice: 'auto',
   calm: false,
   speech: true,
@@ -36,6 +37,8 @@ export function cleanSettings(input: unknown): Partial<Settings> {
     out.palette = v.palette;
   if (LAYOUTS.includes(v.layout as Settings['layout']))
     out.layout = v.layout as Settings['layout'];
+  if (HOLO_FACES.includes(v.holoFace as Settings['holoFace']))
+    out.holoFace = v.holoFace as Settings['holoFace'];
   if (VOICES.includes(v.voice as Settings['voice']))
     out.voice = v.voice as Settings['voice'];
   if (typeof v.calm === 'boolean') out.calm = v.calm;

@@ -1,0 +1,27 @@
+{
+  "id": "phosphor",
+  "name": "Phosphor",
+  "ground": {
+    "center": "#06140A",
+    "mid": "#020703",
+    "edge": "#000000"
+  },
+  "accent": "#5CFF8A",
+  "reply": "#C8FF6B",
+  "third": "#4FD8FF",
+  "card": "2,8,4",
+  "text": "#E6FFEC",
+  "muted": "#74967E",
+  "onAccent": "#021006",
+  "companion": {
+    "core": "#5CFF8A",
+    "filamentsA": "#E8FF6B",
+    "filamentsB": "#C8FF6B"
+  },
+  "holo": {
+    "mat": "pixel",
+    "px": 3,
+    "tint": "#E8FF6B",
+    "eye": "pixel"
+  }
+}

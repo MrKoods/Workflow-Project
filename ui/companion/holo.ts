@@ -7,8 +7,15 @@ import type { CompanionState } from './bloom';
 
 type RGB = [number, number, number];
 type P3 = [number, number, number]; // screen x, screen y, depth z
-export type HoloEye = 'iris' | 'spark' | 'ring' | 'glow';
-export const HOLO_EYES: HoloEye[] = ['iris', 'spark', 'ring', 'glow'];
+export type HoloEye = 'iris' | 'spark' | 'ring' | 'glow' | 'pixel' | 'scan';
+export const HOLO_EYES: HoloEye[] = [
+  'iris',
+  'spark',
+  'ring',
+  'glow',
+  'pixel',
+  'scan',
+];
 
 const hex = (h: string): RGB => {
   h = h.replace('#', '');
@@ -50,17 +57,31 @@ const visOf = (ch: string) => {
 const CHARS_PER_SEC = 15; // rough speaking rate for lining the mouth up with the words
 
 // Face geometry (param space: y up, v = angle around the head, 0 = front).
-const GR = 70; // rows
-const GV = 120; // columns
+const GR = 70; // rows (circuit; the traces live on this grid)
+const GV = 120; // columns (circuit)
 const EW = 0.18, // eye half-width
   EHU = 0.066, // eye upper half-height
   EHL = 0.048, // eye lower half-height
   MW = 0.29; // mouth half-width
-const yOf = (r: number) => 1.1 - (r / GR) * 2.46;
-const vOf = (c: number) => {
-  const s = (c / GV) * 2 - 1;
+const yAt = (r: number, rows: number) => 1.1 - (r / rows) * 2.46;
+const vAt = (c: number, cols: number) => {
+  const s = (c / cols) * 2 - 1;
   return (s < 0 ? -1 : 1) * Math.PI * Math.pow(Math.abs(s), 1.4); // denser at the front
 };
+const yOf = (r: number) => yAt(r, GR);
+const vOf = (c: number) => vAt(c, GV);
+
+/** Surface material: circuit particles, dotted CRT pixels, or solid 8-bit pixels. */
+export type HoloMat = 'circuit' | 'pixel' | 'pixel8';
+/** Grid density per material (rows x columns), same y/v mapping for all. */
+const gridOf = (mat: HoloMat, px: number): [number, number] =>
+  mat === 'circuit'
+    ? [GR, GV]
+    : mat === 'pixel'
+      ? [58, 100]
+      : [Math.round((124 * 3) / px), Math.round((170 * 3) / px)];
+const GLITCH_EVERY = 2600, // ms between glitch bands
+  GLITCH_FOR = 160; // ms a band lasts
 const depthA = (z: number) => Math.max(0, Math.min(1, 0.06 + 0.6 * (z + 0.25)));
 
 export class HoloRenderer {
@@ -78,6 +99,10 @@ export class HoloRenderer {
   private lineAt = 0;
   private mouth = { o: 0.04, w: 1, r: 0, tg: VIS.R, last: 0 };
   private traces: [number, number][][] = [];
+  private mat: HoloMat = 'circuit';
+  private px = 3;
+  /** Pixel faces: a sideways-shifted, tint-colored band every few seconds. */
+  private glitch = { until: 0, next: 0, y: 0, h: 0, shift: 0 };
 
   constructor(
     private cv: HTMLCanvasElement,
@@ -118,6 +143,11 @@ export class HoloRenderer {
       ? (holo!.eye as HoloEye)
       : 'iris';
   }
+  /** The face's surface: 'circuit' (default) or pixels with cell size px (CSS px). */
+  setMaterial(mat: HoloMat, px = 3) {
+    this.mat = mat;
+    this.px = Math.max(2, Math.min(8, Math.round(px)));
+  }
   setState(s: CompanionState) {
     this.state = s;
   }
@@ -134,9 +164,19 @@ export class HoloRenderer {
     this.lineAt = performance.now();
   }
   start() {
+    let n = 0,
+      cost = 0;
     const loop = (now: number) => {
       this.raf = requestAnimationFrame(loop);
+      const t0 = performance.now();
       this.frame(now);
+      cost += performance.now() - t0;
+      // Draw time per frame, every 30 frames (read by the dev fps probe).
+      if (++n === 30) {
+        this.cv.dataset.frameMs = (cost / 30).toFixed(2);
+        n = 0;
+        cost = 0;
+      }
     };
     this.raf = requestAnimationFrame(loop);
   }
@@ -373,11 +413,13 @@ export class HoloRenderer {
       return false;
     };
 
-    // ---- the surface: circuit particles (5 brightness x 4 color buckets)
+    // ---- the surface grid (density depends on the material)
+    const pixelFace = this.mat !== 'circuit';
+    const [R, V] = gridOf(this.mat, this.px);
     const grid: P3[][] = [];
-    for (let r = 0; r <= GR; r++) {
+    for (let r = 0; r <= R; r++) {
       const row: P3[] = [];
-      for (let c = 0; c <= GV; c++) row.push(xf(shape(yOf(r), vOf(c))));
+      for (let c = 0; c <= V; c++) row.push(xf(shape(yAt(r, R), vAt(c, V))));
       grid.push(row);
     }
     const scanY = 1.1 - ((t * 0.38) % 1) * 2.46;
@@ -396,116 +438,261 @@ export class HoloRenderer {
         ci2 = Math.max(0, Math.min(3, Math.round(m * 3)));
       buckets[ci2 * 5 + ai2].push({ p, big });
     };
-    for (let r = 0; r <= GR; r++) {
-      const y = yOf(r),
-        sb = scanB(y);
-      for (let c = 0; c <= GV; c++) {
-        const v = vOf(c);
-        if (inHole(y, v)) continue;
-        const p = grid[r][c],
-          z = p[2];
-        if (z < -0.3) continue;
-        const h0 = hsh(r, c);
-        const al =
-          (depthA(z) + 0.5 * Math.exp(-Math.pow(z / 0.09, 2))) * // bright silhouette
-          (0.45 + 0.55 * Math.sin(t * (1.6 + h0 * 2.4) + h0 * 40)) * // twinkle
-          sb;
-        put(
-          p,
-          al,
-          0.5 + 0.5 * Math.sin(y * 2.3 - t * 0.8 + v * 1.1),
-          h0 > 0.93,
-        );
-      }
-    }
-    // neck
-    for (let ni = 0; ni <= 7; ni++) {
-      const ny = -1.0 - ni * 0.12;
-      for (let nj = 0; nj <= GV; nj += 2) {
-        const nv = -Math.PI + (nj / GV) * Math.PI * 2;
-        const p = xf([Math.sin(nv) * 0.34, ny, Math.cos(nv) * 0.38 - 0.1]);
-        put(p, depthA(p[2]) * 0.45 * (1 - ni / 8), 0.7);
-      }
-    }
-    buckets.forEach((bk, bi) => {
-      if (!bk.length) return;
-      const a1 = ((bi % 5) + 0.5) / 5,
-        cc = mixc(Math.floor(bi / 5) / 3),
-        rr = (0.7 + (bi % 5) * 0.32 + sa * 0.4) * dpr;
-      ctx.fillStyle = rgba(cc, a1 * 0.16);
-      for (const { p, big } of bk) {
-        const k = big ? 2.2 : 1;
-        ctx.fillRect(
-          p[0] - rr * 1.6 * k,
-          p[1] - rr * 1.6 * k,
-          rr * 3.2 * k,
-          rr * 3.2 * k,
-        );
-      }
-      ctx.fillStyle = rgba(cc, Math.min(1, a1 * 1.1));
-      for (const { p, big } of bk) {
-        const k = big ? 1.8 : 1;
-        ctx.fillRect(p[0] - (rr / 2) * k, p[1] - (rr / 2) * k, rr * k, rr * k);
-      }
-    });
-
-    // ---- circuit traces with data pulses (faster while speaking / thinking)
-    this.traces.forEach((tr, ti) => {
-      const path: (P3 | null)[] = [];
-      for (let k = 1; k < tr.length; k++) {
-        const [r4, c4] = tr[k - 1],
-          [r5, c5] = tr[k],
-          n = Math.max(Math.abs(r5 - r4), Math.abs(c5 - c4));
-        for (let m = k === 1 ? 0 : 1; m <= n; m++) {
-          const rr = r4 + Math.sign(r5 - r4) * m,
-            cc = c4 + Math.sign(c5 - c4) * m;
-          path.push(inHole(yOf(rr), vOf(cc)) ? null : grid[rr][cc]);
+    const q = this.px * dpr; // pixel faces: one cell = one pixel
+    if (pixelFace) {
+      // ---- pixel surface: snap every point to the cell grid (first point wins)
+      const solid = this.mat === 'pixel8';
+      const cells = new Map<number, [number, number]>(); // key -> [a, m]
+      const key = (kx: number, ky: number) => (ky + 4096) * 8192 + (kx + 4096);
+      const snap = (p: P3, a: number, m: number) => {
+        if (a < 0.045) return;
+        const k = key(Math.round(p[0] / q), Math.round(p[1] / q));
+        if (!cells.has(k)) cells.set(k, [a, m]);
+      };
+      for (let r = 0; r <= R; r++) {
+        const y = yAt(r, R),
+          sb = scanB(y);
+        for (let c = 0; c <= V; c++) {
+          if (inHole(y, vAt(c, V))) continue;
+          const p = grid[r][c],
+            z = p[2];
+          if (!solid) {
+            if (z < -0.3) continue;
+            const d = depthA(z);
+            snap(p, d * sb, 1 - d);
+            continue;
+          }
+          // 8-bit shading: a normal from the neighbours in view space
+          if (c === V || r === R) continue;
+          const p1 = grid[r][c + 1],
+            p2 = grid[r + 1][c];
+          const ax = (p1[0] - p[0]) / S,
+            ay = -(p1[1] - p[1]) / S,
+            az = p1[2] - z;
+          const bx = (p2[0] - p[0]) / S,
+            by2 = -(p2[1] - p[1]) / S,
+            bz = p2[2] - z;
+          let nx = by2 * az - bz * ay,
+            ny = bz * ax - bx * az,
+            nz = bx * ay - by2 * ax;
+          const nl = Math.hypot(nx, ny, nz) || 1;
+          nx /= nl;
+          ny /= nl;
+          nz /= nl;
+          if (nz <= 0.03) continue;
+          const lam = Math.max(0, -0.35 * nx + 0.45 * ny + 0.82 * nz),
+            fres = Math.pow(1 - nz, 2.2);
+          snap(
+            p,
+            (0.06 + 0.85 * Math.pow(lam, 1.8) + 0.55 * fres) *
+              (0.85 + 0.15 * sb),
+            1 - Math.min(1, lam * 1.15),
+          );
         }
       }
-      const live = path.filter((p): p is P3 => !!p);
-      if (live.length < 2) return;
-      const al = depthA(live[0][2]) * flick;
-      if (al < 0.2) return;
-      ctx.beginPath();
-      let on = false;
-      for (const p of path) {
-        if (!p) {
-          on = false;
-          continue;
+      // neck, snapped and deduped the same way
+      for (let ni = 0; ni <= 7; ni++) {
+        const ny = -1.0 - ni * 0.12;
+        for (let nj = 0; nj <= V; nj += 2) {
+          const nv = -Math.PI + (nj / V) * Math.PI * 2;
+          const p = xf([Math.sin(nv) * 0.34, ny, Math.cos(nv) * 0.38 - 0.1]);
+          snap(p, depthA(p[2]) * 0.45 * (1 - ni / 8), 0.7);
         }
-        if (on) ctx.lineTo(p[0], p[1]);
-        else ctx.moveTo(p[0], p[1]);
-        on = true;
       }
-      ctx.strokeStyle = rgba(HC, al * 0.18);
-      ctx.lineWidth = 3 * dpr;
-      ctx.stroke();
-      ctx.strokeStyle = rgba(HC, al * 0.6);
-      ctx.lineWidth = 0.9 * dpr;
-      ctx.stroke();
-      [path[0], path[path.length - 1]].forEach((p, end) => {
-        if (!p) return;
-        ctx.beginPath();
-        ctx.arc(p[0], p[1], (end ? 2.6 : 1.8) * dpr, 0, Math.PI * 2);
-        if (end) {
-          ctx.strokeStyle = rgba(HC, al * 0.95);
-          ctx.lineWidth = dpr;
-          ctx.stroke();
-        } else {
-          ctx.fillStyle = rgba(HC, al);
-          ctx.fill();
+      // gap fill (8-bit): a filled cell 2-4 away with empties between -> fill
+      // them. Across, then down, then across again, each from a fresh copy: the
+      // surface points can land on every other row and column, so cells
+      // diagonal to every point only fill once their row has been filled.
+      if (solid)
+        for (const [dx, dy] of [
+          [1, 0],
+          [0, 1],
+          [1, 0],
+        ])
+          for (const [k, am] of Array.from(cells)) {
+            const kx = (k % 8192) - 4096,
+              ky = Math.floor(k / 8192) - 4096;
+            if (cells.has(key(kx + dx, ky + dy))) continue;
+            for (let d = 2; d <= 4; d++) {
+              if (!cells.has(key(kx + dx * d, ky + dy * d))) continue;
+              for (let e = 1; e < d; e++)
+                cells.set(key(kx + dx * e, ky + dy * e), am);
+              break;
+            }
+          }
+      // glitch band: every few seconds (and on loud syllables), never in calm mode
+      const G = this.glitch;
+      if (!calm) {
+        const loud = ai === 'speaking' && sa > 0.55 && Math.random() < 0.035;
+        if (now >= G.next || (loud && now > G.until + 400)) {
+          G.until = now + GLITCH_FOR;
+          if (now >= G.next) G.next = now + GLITCH_EVERY;
+          G.y = oy + (Math.random() - 0.5) * W * 0.4;
+          G.h = W * (0.02 + Math.random() * 0.05);
+          G.shift =
+            (1 + Math.floor(Math.random() * 3)) *
+            (Math.random() < 0.5 ? -1 : 1);
+        }
+      } else G.until = 0;
+      const glitching = now < G.until;
+      // draw: 4 colour steps x 5 brightness buckets, halo then pixel
+      const pbk: number[][] = Array.from({ length: 20 }, () => []);
+      for (const [k, [a0, m0]] of cells) {
+        let kx = (k % 8192) - 4096;
+        const ky = Math.floor(k / 8192) - 4096;
+        let a = a0 * (((ky % 3) + 3) % 3 === 0 ? (solid ? 0.8 : 0.62) : 1),
+          m = m0;
+        if (glitching && Math.abs(ky * q - G.y) < G.h / 2) {
+          kx += G.shift;
+          m = 1;
+          a = Math.max(a, 0.6);
+        }
+        const ai2 = Math.min(4, Math.floor(Math.min(1, a) * 5)),
+          ci2 = Math.max(0, Math.min(3, Math.round(m * 3)));
+        pbk[ci2 * 5 + ai2].push(kx, ky);
+      }
+      const size = q - (solid ? 0.6 : 1) * dpr,
+        halo = q * 1.8,
+        lift = 0.85 + 0.15 * Math.min(1, this.sa);
+      pbk.forEach((bk, bi) => {
+        if (!bk.length) return;
+        const a1 = ((bi % 5) + 0.5) / 5,
+          cc = mixc(Math.floor(bi / 5) / 3);
+        ctx.fillStyle = rgba(cc, a1 * 0.25);
+        for (let i = 0; i < bk.length; i += 2)
+          ctx.fillRect(
+            bk[i] * q - halo / 2,
+            bk[i + 1] * q - halo / 2,
+            halo,
+            halo,
+          );
+        ctx.fillStyle = rgba(cc, Math.min(1, a1 * lift));
+        for (let i = 0; i < bk.length; i += 2)
+          ctx.fillRect(
+            bk[i] * q - size / 2,
+            bk[i + 1] * q - size / 2,
+            size,
+            size,
+          );
+      });
+    } else {
+      for (let r = 0; r <= R; r++) {
+        const y = yAt(r, R),
+          sb = scanB(y);
+        for (let c = 0; c <= V; c++) {
+          const v = vAt(c, V);
+          if (inHole(y, v)) continue;
+          const p = grid[r][c],
+            z = p[2];
+          if (z < -0.3) continue;
+          const h0 = hsh(r, c);
+          const al =
+            (depthA(z) + 0.5 * Math.exp(-Math.pow(z / 0.09, 2))) * // bright silhouette
+            (0.45 + 0.55 * Math.sin(t * (1.6 + h0 * 2.4) + h0 * 40)) * // twinkle
+            sb;
+          put(
+            p,
+            al,
+            0.5 + 0.5 * Math.sin(y * 2.3 - t * 0.8 + v * 1.1),
+            h0 > 0.93,
+          );
+        }
+      }
+      // neck
+      for (let ni = 0; ni <= 7; ni++) {
+        const ny = -1.0 - ni * 0.12;
+        for (let nj = 0; nj <= GV; nj += 2) {
+          const nv = -Math.PI + (nj / GV) * Math.PI * 2;
+          const p = xf([Math.sin(nv) * 0.34, ny, Math.cos(nv) * 0.38 - 0.1]);
+          put(p, depthA(p[2]) * 0.45 * (1 - ni / 8), 0.7);
+        }
+      }
+      buckets.forEach((bk, bi) => {
+        if (!bk.length) return;
+        const a1 = ((bi % 5) + 0.5) / 5,
+          cc = mixc(Math.floor(bi / 5) / 3),
+          rr = (0.7 + (bi % 5) * 0.32 + sa * 0.4) * dpr;
+        ctx.fillStyle = rgba(cc, a1 * 0.16);
+        for (const { p, big } of bk) {
+          const k = big ? 2.2 : 1;
+          ctx.fillRect(
+            p[0] - rr * 1.6 * k,
+            p[1] - rr * 1.6 * k,
+            rr * 3.2 * k,
+            rr * 3.2 * k,
+          );
+        }
+        ctx.fillStyle = rgba(cc, Math.min(1, a1 * 1.1));
+        for (const { p, big } of bk) {
+          const k = big ? 1.8 : 1;
+          ctx.fillRect(
+            p[0] - (rr / 2) * k,
+            p[1] - (rr / 2) * k,
+            rr * k,
+            rr * k,
+          );
         }
       });
-      if (calm) return;
-      const speed = 0.3 + sa * 0.9 + (ai === 'thinking' ? 0.6 : 0),
-        fr = (t * speed + ti * 0.37) % 1;
-      for (let tl = 0; tl < 4; tl++) {
-        const p =
-          path[Math.floor(Math.max(0, fr - tl * 0.035) * (path.length - 1))];
-        if (p)
-          dot(p[0], p[1], (tl ? 3 : 5.5) * dpr, TN, al * (tl ? 0.5 / tl : 1));
-      }
-    });
+    }
+
+    // ---- circuit traces with data pulses (faster while speaking / thinking; circuit only)
+    if (!pixelFace)
+      this.traces.forEach((tr, ti) => {
+        const path: (P3 | null)[] = [];
+        for (let k = 1; k < tr.length; k++) {
+          const [r4, c4] = tr[k - 1],
+            [r5, c5] = tr[k],
+            n = Math.max(Math.abs(r5 - r4), Math.abs(c5 - c4));
+          for (let m = k === 1 ? 0 : 1; m <= n; m++) {
+            const rr = r4 + Math.sign(r5 - r4) * m,
+              cc = c4 + Math.sign(c5 - c4) * m;
+            path.push(inHole(yOf(rr), vOf(cc)) ? null : grid[rr][cc]);
+          }
+        }
+        const live = path.filter((p): p is P3 => !!p);
+        if (live.length < 2) return;
+        const al = depthA(live[0][2]) * flick;
+        if (al < 0.2) return;
+        ctx.beginPath();
+        let on = false;
+        for (const p of path) {
+          if (!p) {
+            on = false;
+            continue;
+          }
+          if (on) ctx.lineTo(p[0], p[1]);
+          else ctx.moveTo(p[0], p[1]);
+          on = true;
+        }
+        ctx.strokeStyle = rgba(HC, al * 0.18);
+        ctx.lineWidth = 3 * dpr;
+        ctx.stroke();
+        ctx.strokeStyle = rgba(HC, al * 0.6);
+        ctx.lineWidth = 0.9 * dpr;
+        ctx.stroke();
+        [path[0], path[path.length - 1]].forEach((p, end) => {
+          if (!p) return;
+          ctx.beginPath();
+          ctx.arc(p[0], p[1], (end ? 2.6 : 1.8) * dpr, 0, Math.PI * 2);
+          if (end) {
+            ctx.strokeStyle = rgba(HC, al * 0.95);
+            ctx.lineWidth = dpr;
+            ctx.stroke();
+          } else {
+            ctx.fillStyle = rgba(HC, al);
+            ctx.fill();
+          }
+        });
+        if (calm) return;
+        const speed = 0.3 + sa * 0.9 + (ai === 'thinking' ? 0.6 : 0),
+          fr = (t * speed + ti * 0.37) % 1;
+        for (let tl = 0; tl < 4; tl++) {
+          const p =
+            path[Math.floor(Math.max(0, fr - tl * 0.035) * (path.length - 1))];
+          if (p)
+            dot(p[0], p[1], (tl ? 3 : 5.5) * dpr, TN, al * (tl ? 0.5 / tl : 1));
+        }
+      });
 
     // ---- mouth opening (no lips: the dark gap and its edge)
     const poly = (arr: P3[]) => {
@@ -632,7 +819,58 @@ export class HoloRenderer {
       ctx.fillStyle = 'rgba(0,10,18,.9)';
       ctx.fill();
       ctx.globalCompositeOperation = 'lighter';
-      if (this.eye === 'iris') {
+      if (this.eye === 'pixel') {
+        // pixel eye: cells of size q, brightness steps out from the gaze centre
+        let x0 = Infinity,
+          x1 = -Infinity,
+          y0 = Infinity,
+          y1 = -Infinity;
+        for (const p of pts) {
+          x0 = Math.min(x0, p[0]);
+          x1 = Math.max(x1, p[0]);
+          y0 = Math.min(y0, p[1]);
+          y1 = Math.max(y1, p[1]);
+        }
+        const cs = q - 0.6 * dpr,
+          rx = half * 1.25 * pul,
+          ry = half * pul;
+        for (let gy = Math.floor(y0 / q); gy <= Math.ceil(y1 / q); gy++)
+          for (let gx = Math.floor(x0 / q); gx <= Math.ceil(x1 / q); gx++) {
+            const x = gx * q,
+              y = gy * q;
+            const d = Math.hypot((x - ic[0]) / rx, (y - ic[1]) / ry),
+              lv = Math.ceil(Math.max(0, 1 - 0.5 * d) * 5) / 5;
+            ctx.fillStyle =
+              lv > 0.85
+                ? rgba(WHITE, 0.97)
+                : lv > 0.65
+                  ? rgba(HC, 0.95)
+                  : lv > 0.45
+                    ? rgba(HC, 0.6)
+                    : lv > 0.25
+                      ? rgba(mixc(0.7), 0.4)
+                      : rgba(TN, 0.18);
+            ctx.fillRect(x - cs / 2, y - cs / 2, cs, cs);
+          }
+      } else if (this.eye === 'scan') {
+        // scan eye: faint fill, then a light bar sweeping side to side
+        const g = ctx.createRadialGradient(ic[0], ic[1], 0, ic[0], ic[1], ew);
+        g.addColorStop(0, rgba(HC, 0.18));
+        g.addColorStop(1, rgba(HC, 0.03));
+        ctx.fillStyle = g;
+        ctx.fill();
+        const speed = ai === 'thinking' ? 5 : ai === 'speaking' ? 3.4 : 1.5,
+          bh = 2.4 * half,
+          bw = Math.max(1, 1.6 * dpr);
+        for (let k = 18; k >= 0; k--) {
+          const x = ic[0] + Math.sin(t * speed - k * 0.045) * ew * 0.72;
+          ctx.fillStyle = rgba(mixc(k / 18), 0.42 * Math.pow(1 - k / 19, 1.5));
+          ctx.fillRect(x - bw, ic[1] - bh / 2, bw * 2, bh);
+        }
+        const xc = ic[0] + Math.sin(t * speed) * ew * 0.72;
+        ctx.fillStyle = rgba(WHITE, 0.95);
+        ctx.fillRect(xc - bw / 2, ic[1] - bh / 2, bw, bh);
+      } else if (this.eye === 'iris') {
         dot(ic[0], ic[1], half * 1.5, HC, 0.55);
         const irr = half * 0.86;
         ctx.beginPath();
@@ -705,8 +943,9 @@ export class HoloRenderer {
       ctx.restore();
       poly(pts);
       ctx.closePath();
-      ctx.strokeStyle = rgba(HC, 0.9);
-      ctx.lineWidth = 1.5 * dpr;
+      const pixelEye = this.eye === 'pixel';
+      ctx.strokeStyle = rgba(HC, pixelEye ? 0.35 : 0.9);
+      ctx.lineWidth = (pixelEye ? 1 : 1.5) * dpr;
       ctx.stroke();
     }
 

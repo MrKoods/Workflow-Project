@@ -8,7 +8,13 @@ import './hud/hud.css';
 import { BloomRenderer, type CompanionState } from './companion/bloom';
 import { HoloRenderer } from './companion/holo';
 import { mountOrbit } from './orbit';
-import { currentPalette, onPalette, usePalette, type Palette } from './palette';
+import {
+  currentPalette,
+  holoLook,
+  onPalette,
+  usePalette,
+  type Palette,
+} from './palette';
 import { setHotkeys } from './keys';
 import { createSettingsPanel } from './settings';
 import { createSpeechPlayer } from './voice/player';
@@ -90,10 +96,15 @@ Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
     // One companion at a time on the same canvas; swapped when the layout changes.
     let calm = snapshot.settings.calm;
     const applyCalm = () => bloom?.setCalm(calm || reducedMotion.matches);
-    const paint = (p: Palette) =>
-      bloom instanceof HoloRenderer
-        ? bloom.setPalette(p.accent, p.reply, p.third, p.holo)
-        : bloom?.setPalette(p.accent, p.reply, p.third);
+    // The head's face: the skin's own material, or the forced one (Settings → Look).
+    let face = snapshot.settings.holoFace;
+    const paint = (p: Palette) => {
+      if (bloom instanceof HoloRenderer) {
+        const look = holoLook(p, face);
+        bloom.setMaterial(look.mat, look.px);
+        bloom.setPalette(p.accent, p.reply, p.third, look);
+      } else bloom?.setPalette(p.accent, p.reply, p.third);
+    };
     const mountCompanion = () => {
       bloom?.stop();
       bloom =
@@ -117,6 +128,11 @@ Promise.all([window.cockpit.getSnapshot(), window.cockpit.getFocus()]).then(
       wakeWanted = s.settings.wakeWord;
       syncWake();
       setHotkeys(s.settings.hotkeys);
+      if (s.settings.holoFace !== face) {
+        face = s.settings.holoFace;
+        const p = currentPalette();
+        if (p) paint(p);
+      }
       if (s.settings.layout !== layout) {
         layout = s.settings.layout;
         mountCompanion();

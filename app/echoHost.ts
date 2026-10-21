@@ -66,6 +66,10 @@ export function createEchoHost(opts: {
       }
       if (input.layout !== undefined)
         patch.layout = String(input.layout).toLowerCase() as Settings['layout'];
+      if (input.face !== undefined)
+        patch.holoFace = String(
+          input.face,
+        ).toLowerCase() as Settings['holoFace'];
       if (input.voice_style !== undefined)
         patch.voice = input.voice_style as Settings['voice'];
       if (input.speech !== undefined) patch.speech = input.speech as boolean;

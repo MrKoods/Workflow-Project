@@ -685,3 +685,19 @@
 .cd-name:focus {
   border-color: var(--acc);
 }
+
+/* Look: Hologram face row + skin groups (Circuit / Pixel / Classic) */
+.cd-row[hidden] {
+  display: none;
+}
+.cd-sub {
+  flex-basis: 100%;
+  font: 700 14px var(--bf);
+}
+.cd-group {
+  margin: 4px 0 -4px;
+  font: 700 10px var(--lf);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+}

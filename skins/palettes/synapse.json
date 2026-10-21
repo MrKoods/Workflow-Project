@@ -19,6 +19,7 @@
     "filamentsB": "#9FFFE0"
   },
   "holo": {
+    "mat": "circuit",
     "tint": "#FF4FD8",
     "eye": "spark"
   }
