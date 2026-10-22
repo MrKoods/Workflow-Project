@@ -10,6 +10,18 @@ Facts checked 2026-10-18 (official docs): the Claude API takes text, images and 
 - ElevenLabs: STT `wss://api.elevenlabs.io/v1/speech-to-text/realtime` (`scribe_v2_realtime`, ~150 ms, JSON chunks `input_audio_chunk` with base64 PCM, `commit_strategy` manual/vad/turn_prediction); TTS `POST /v1/text-to-speech/{voice_id}/stream` (`eleven_flash_v2_5`, ~75 ms model time, `output_format=pcm_16000`), header `xi-api-key`.
 - Deepgram: STT `wss://api.deepgram.com/v1/listen` (`nova-3`, binary linear16 frames, `Finalize` / `CloseStream` messages, `is_final` / `speech_final`); TTS `POST /v1/speak?model=aura-2-…`, header `Authorization: Token <key>`, audio streams back as it's generated.
 
+> ## ⚠ Status (2026-10-21): built, NOT yet tested by Nick — test before the next stage
+> Pushed so the work is saved. Everything below was checked by Claude with the dev harness (recorded speech, scripted clicks, screenshots, 89 passing tests), but **Nick has not tested it hands-on yet**. Don't start the next stage (Task 7 / Phase 2) until he has, and fix what he finds first.
+>
+> Not yet tested by hand:
+> - **Echo operates the app** (2026-10-19): settings, steps, panels, other apps' windows by voice/text; "close <app>" must ask first.
+> - **Tech HUD + hologram head** (2026-10-20): layout at Nick's real screen size and Windows scaling, smoothness next to a browser/game, the mouth with sound on.
+> - **Circuit / Pixel faces + Glacier / Arcade / Phosphor skins** (2026-10-20): look, no dark specks, glitch bands, Hologram face setting.
+> - **Fixes from testing** (2026-10-21): "go back to step 2" goes to Echo (not the "Let's go" chip), captions don't run together, the head pauses while Cockpit is hidden.
+> - **Open-mic conversation** (2026-10-21): after "Hey Jarvis" or one click on Talk, talk without Send; the mic reopens after each reply; ends on ~8 s of silence, "that's all", Esc or End. Needs Nick's own voice and mic (the wake word was only tested with synthesized voices).
+>
+> Known open items: speech-to-text can mishear short app words ("calm" → "comm"; a keyword list for Deepgram would help); an API error (e.g. out of credits) shows as raw JSON in Echo's caption. The Anthropic API account ran out of credits on 2026-10-21 — top up at console.anthropic.com → Billing before testing Echo.
+
 Rules from CLAUDE.md still apply. Keys live in `.env` (main process only). Audio leaves the PC **only while the talk key is active** (or, later, after the wake word fires).
 
 ---

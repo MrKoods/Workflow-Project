@@ -34,6 +34,7 @@ Full specs live in `docs/`:
 8. **XP counts completed objectives only.**
 
 ## How to work in this repo
+- **First read the ⚠ Status note at the top of `docs/PHASE-1.md`:** recent work is built but not yet tested by Nick; get it tested and fixed before starting anything new.
 - Work from `docs/PHASE-1.md` top to bottom (PHASE-0.md and ORBIT-UPGRADE.md are complete, kept for history). Finish and check off one task before starting the next.
 - Keep changes small and runnable. After each task, the app must still start.
 - When a decision isn't covered by the docs, ask Nick instead of guessing; record the answer in `docs/FEATURES.md` §0 Decisions log.

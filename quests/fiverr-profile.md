@@ -67,7 +67,7 @@ steps:
 ---
 - [x] Create your seller account
 - [x] Customize your profile
-- [ ] Add skills + languages
+- [x] Add skills + languages
 - [ ] Verify + secure
 
 Notes for this quest go here (free text, shown in the journal).
